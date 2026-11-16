@@ -44,7 +44,7 @@ _SOURCES: dict[str, Callable[..., Any]] = {}
 def source[F: Callable[..., Any]](*keys: str) -> Callable[[F], F]:
     """Register `f` as the one derivation of each key, called as `f(s, name)`.
 
-    A key with the placeholders of a trait, as `Unit_active`, stands for that
+    A key with the placeholders of a trait, as `COMPONENT_active`, stands for that
     source of every component with a formulation; `f` takes the component as
     `c` then.
 
@@ -406,7 +406,7 @@ def _carriers(s: NetworkSources, name: str) -> pd.Index:
     return pd.Index(labels.unique(), dtype=object)
 
 
-@source("UNIT")
+@source("DIM")
 def _units(s: NetworkSources, name: str, c: Components) -> pd.Index:
     """Return a component's active assets, as PyPSA builds them.
 
@@ -420,7 +420,7 @@ def _units(s: NetworkSources, name: str, c: Components) -> pd.Index:
     return names[bus.isin(s.n.c.buses.names).to_numpy()]
 
 
-@source("UNIT_output")
+@source("DIM_output")
 def _output_ports(s: NetworkSources, name: str, c: Components) -> pd.Index:
     return pd.Index(s.ports(c)["port"], dtype=object)
 
@@ -477,7 +477,7 @@ def _cvar(s: NetworkSources, name: str) -> float | xr.DataArray:
 # -- relations ------------------------------------------------------------
 
 
-@source("Unit_bus", "Unit_bus0", "Unit_bus1", "Unit_carrier")
+@source("COMPONENT_bus", "COMPONENT_bus0", "COMPONENT_bus1", "COMPONENT_carrier")
 def _relation(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     """Map each unit to the label of its column: a bus, or a carrier."""
     column = name.removeprefix(f"{c.name}_")
@@ -490,7 +490,7 @@ def _relation(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     )
 
 
-@source("Unit_output_bus", "Unit_output_UNIT")
+@source("COMPONENT_output_bus", "COMPONENT_output_DIM")
 def _output(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     ports = s.ports(c)
     column = name.removeprefix(f"{c.name}_output_")
@@ -501,19 +501,19 @@ def _output(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
 # -- activity -------------------------------------------------------------
 
 
-@source("Unit_active")
+@source("COMPONENT_active")
 def _active(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     if "snapshot" in s.declared(name):
         return s.active(c)
     return s.column(c, "active", bool)
 
 
-@source("Unit_active_asset")
+@source("COMPONENT_active_asset")
 def _active_asset(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return s.column(c, "active", bool)
 
 
-@source("Unit_capital_weight")
+@source("COMPONENT_capital_weight")
 def _capital_weight(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     by_period = s.active_by_period(c)
     if not s.multi_invest:
@@ -521,25 +521,25 @@ def _capital_weight(s: NetworkSources, name: str, c: Components) -> xr.DataArray
     return (by_period * s["period_weight_objective"]).sum("period")
 
 
-@source("Unit_first_active")
+@source("COMPONENT_first_active")
 def _first_active(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     by_period = s.active_by_period(c).astype(int)
     first = (by_period == 1) & (by_period.cumsum("period") == 1)
     return first.astype(float)
 
 
-@source("Unit_capital_cost")
+@source("COMPONENT_capital_cost")
 def _capital_cost(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return s.unit_array(c, c.periodized_cost)
 
 
-@source("Unit_NOM_mod")
+@source("COMPONENT_BASE_nom_mod")
 def _nom_mod(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     da = s.attribute(c, name)
     return da.where(da > 0)
 
 
-@source("Unit_NOM_set", "Unit_s_set")
+@source("COMPONENT_BASE_nom_set", "COMPONENT_s_set")
 def _optional(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the attribute, NaN where the component has none."""
     attr = name.removeprefix(f"{c.name}_")
@@ -548,13 +548,13 @@ def _optional(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return s.filled(name, np.nan)
 
 
-@source("Unit_p_min_pu_nonneg")
+@source("COMPONENT_p_min_pu_nonneg")
 def _p_min_pu_nonneg(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     pu = s.da(c, "p_min_pu")
     return (pu >= 0).all([d for d in pu.dims if d != c._unit_dim])
 
 
-@source("Unit_modules_installed")
+@source("COMPONENT_modules_installed")
 def _modules_installed(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     nom = c._operational_attrs["nom"]
     mod = s.da(c, f"{nom}_mod")
@@ -562,13 +562,13 @@ def _modules_installed(s: NetworkSources, name: str, c: Components) -> xr.DataAr
     return xr.where(modular, s.da(c, nom) / mod.where(mod > 0, 1), 1.0)
 
 
-@source("Unit_min_up_time", "Unit_min_down_time")
+@source("COMPONENT_min_up_time", "COMPONENT_min_down_time")
 def _min_time(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the minimum time, at most the horizon: a longer window reads nothing more."""
     return s.attribute(c, name).clip(max=len(s.snapshots))
 
 
-@source("Unit_v_ang_max", "Unit_cycles_max")
+@source("COMPONENT_v_ang_max", "COMPONENT_cycles_max")
 def _finite(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the attribute, absent where infinite, so a unit without a limit has no row."""
     limit = s.attribute(c, name)
@@ -606,7 +606,7 @@ def _coefficient(s: NetworkSources, name: str) -> xr.DataArray:
     return _port_attribute(s, c, name, c._coefficient_attr).astype(float)
 
 
-@source("Unit_output_delay")
+@source("COMPONENT_output_delay")
 def _output_delay(s: NetworkSources, name: str, c: _Multiport) -> xr.DataArray:
     try:
         delay = _port_attribute(s, c, name, "delay")
@@ -615,7 +615,7 @@ def _output_delay(s: NetworkSources, name: str, c: _Multiport) -> xr.DataArray:
     return delay.astype(float).fillna(0).astype(int)
 
 
-@source("Unit_output_delay_source")
+@source("COMPONENT_output_delay_source")
 def _output_delay_source(s: NetworkSources, name: str, c: _Multiport) -> pd.DataFrame:
     """Each delayed port's source snapshot, as PyPSA's own indexer picks it."""
     owner = c._unit_dim
@@ -695,7 +695,7 @@ def _history(s: NetworkSources, c: Components) -> xr.DataArray:
     return history.where(s.da(c, "committable").astype(bool), 1.0)
 
 
-@source("Unit_up_time_brought_in", "Unit_down_time_brought_in")
+@source("COMPONENT_up_time_brought_in", "COMPONENT_down_time_brought_in")
 def _brought_in(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """How much of the start-ups (`up`) or shut-downs (`down`) before the build still bind.
 
@@ -712,7 +712,7 @@ def _brought_in(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return (past * (past.lag + position < minimum)).sum("lag")
 
 
-@source("Unit_p_init")
+@source("COMPONENT_p_init")
 def _p_init(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the output carried into the build.
 
@@ -727,12 +727,12 @@ def _p_init(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return last.reindex({c._unit_dim: s.names(c).to_numpy()})
 
 
-@source("Unit_status_initial")
+@source("COMPONENT_status_initial")
 def _status_initial(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return _history(s, c).sel(lag=1, drop=True)
 
 
-@source("Unit_big_m")
+@source("COMPONENT_big_m")
 def _big_m(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     names = c.committables.intersection(c.extendables)
     if names.empty:
@@ -746,19 +746,19 @@ def _big_m(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
 # -- storage --------------------------------------------------------------
 
 
-@source("Unit_inactive_snapshots")
+@source("COMPONENT_inactive_snapshots")
 def _inactive_snapshots(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return (~s.active(c)).sum("snapshot").astype(int)
 
 
-@source("Unit_opens_late")
+@source("COMPONENT_opens_late")
 def _opens_late(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     active = s.active(c)
     first = (active.cumsum("snapshot") == 1) & active
     return first & (s.over_snapshots(np.arange(len(s.snapshots))) > 0)
 
 
-@source("Unit_retention")
+@source("COMPONENT_retention")
 def _retention(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return (1 - s.da(c, "standing_loss")) ** s["snapshot_weightings_stores"]
 

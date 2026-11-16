@@ -7,12 +7,14 @@
 A file under `traits/` states a formulation once for every component that
 declares the trait in `_formulation`. It is a spec of its own, which reads
 under `given:` what another file declares, written over placeholder names.
-`mathspec.rename` gives it the names of each component. A word of a name,
-between `_` or `-`, is a placeholder if it is one of these:
+`mathspec.rename` gives it the names of each component, and its
+descriptions too. A word of a name or description, between `_` or `-`,
+is a placeholder if it is one of these:
 
-- `Unit`: the component's name, as `StorageUnit`.
-- `UNIT`: its unit dimension, as `storage_unit`.
-- `NOM`: its nominal attribute, as `p_nom`.
+- `COMPONENT`: the component's name, as `StorageUnit`.
+- `DIM`: its unit dimension, as `storage_unit`.
+- `BASE`: the base of its operational attributes, `p`, `s` or `e`, as
+  in `BASE_nom` for `p_nom`.
 - `P`: its power variable, `p` or `p_dispatch`, where it has one.
 - `LEVEL`: its storage level variable, `e` or `state_of_charge`, and
   `CYCLIC` its cyclic flag, where it stores energy.
@@ -20,7 +22,8 @@ between `_` or `-`, is a placeholder if it is one of these:
   `rate`, where it has ports.
 
 A component lacks a placeholder it has no value for, so a trait that uses
-one fails to render for it. A file under `components/` holds, under the
+one fails to render for it. Placeholders are upper case, so no PyPSA
+attribute holds one. A file under `components/` holds, under the
 component's own names, what it shares with no other.
 """
 
@@ -42,7 +45,7 @@ Scalings = dict[str, str]
 #: A word of a name, between `_` or `-`.
 WORD = re.compile(r"[^\W_]+")
 #: The words that stand for a value of the component.
-PLACEHOLDERS = frozenset({"Unit", "UNIT", "NOM", "P", "LEVEL", "CYCLIC", "COEF"})
+PLACEHOLDERS = frozenset({"COMPONENT", "DIM", "BASE", "P", "LEVEL", "CYCLIC", "COEF"})
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -62,7 +65,11 @@ def formulated(n: Network, trait: str = "") -> list[Components]:
 
 def symbols(c: Components) -> dict[str, str]:
     """Return what the placeholders of a trait stand for in component *c*."""
-    found = {"Unit": c.name, "UNIT": c._unit_dim, "NOM": c._operational_attrs["nom"]}
+    found = {
+        "COMPONENT": c.name,
+        "DIM": c._unit_dim,
+        "BASE": c._operational_attrs["base"],
+    }
     power = [v for v in c._operational_variables if v.startswith("p")]
     if power:
         found["P"] = power[0]
@@ -161,15 +168,24 @@ def _merge(spec: dict[str, Any], fragment: dict[str, Any], origin: str) -> None:
 
 
 def _renamed(patch: Any, rename: Callable[[str], str]) -> Any:
-    """Return *patch* with *rename* applied to each key and text but descriptions, as `mathspec.rename` takes no patch."""
+    """Return *patch* with *rename* applied to each key and text, as `mathspec.rename` takes no patch."""
     if isinstance(patch, dict):
-        return {
-            rename(k): v if k == "description" else _renamed(v, rename)
-            for k, v in patch.items()
-        }
+        return {rename(k): _renamed(v, rename) for k, v in patch.items()}
     if isinstance(patch, list):
         return [_renamed(v, rename) for v in patch]
     return rename(patch) if isinstance(patch, str) else patch
+
+
+def _described(spec: Any, rename: Callable[[str], str]) -> Any:
+    """Return *spec* with *rename* applied to each description, which `mathspec.rename` keeps as written."""
+    if isinstance(spec, dict):
+        return {
+            k: rename(v) if k == "description" else _described(v, rename)
+            for k, v in spec.items()
+        }
+    if isinstance(spec, list):
+        return [_described(v, rename) for v in spec]
+    return spec
 
 
 def render(
@@ -212,7 +228,8 @@ def render(
         if (root / path).is_file():
             fragment, found, scaled = _load(root / path, rename)
             if path.startswith("traits/"):
-                fragment = mathspec.rename(fragment, rename).to_dict()
+                renamed = mathspec.rename(fragment, rename).to_dict()
+                fragment = _described(renamed, rename)
             _merge(spec, fragment, str(root / path))
             names = {s: names[s] | found[s] for s in NAMED}
             scalings |= scaled

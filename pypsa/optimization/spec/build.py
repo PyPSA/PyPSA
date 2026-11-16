@@ -717,13 +717,13 @@ def _carrier_factors(
     for c in formulated(n, "carrier_expansion"):
         name = renamer(c)
         built = (
-            sources[name("Unit_NOM_extendable")]
-            & sources[name("Unit_active_asset")]
-            & (sources[name("Unit_first_active")] != 0).any("period")
+            sources[name("COMPONENT_BASE_nom_extendable")]
+            & sources[name("COMPONENT_active_asset")]
+            & (sources[name("COMPONENT_first_active")] != 0).any("period")
         )
         others = [d for d in built.dims if d != c._unit_dim]
         assets = built.indexes[c._unit_dim][built.any(others).values]
-        carrier = sources[name("Unit_carrier")].set_index(c._unit_dim)["carrier"]
+        carrier = sources[name("COMPONENT_carrier")].set_index(c._unit_dim)["carrier"]
         factors = np.broadcast_to(np.asarray(c._scaling(assets)), len(assets))
         at = carriers.get_indexer(carrier.reindex(assets).to_numpy())
         found = at != -1

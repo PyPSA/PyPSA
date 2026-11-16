@@ -6,7 +6,14 @@ import mathspec
 import pytest
 
 import pypsa
-from pypsa.optimization.spec._render import _load, _merge, formulated, renamer
+from pypsa.optimization.spec._render import (
+    PLACEHOLDERS,
+    _load,
+    _merge,
+    formulated,
+    renamer,
+    render,
+)
 from pypsa.optimization.spec.build import SPEC
 from pypsa.optimization.spec.sources import _SOURCES, _providers, source
 
@@ -20,11 +27,11 @@ def test_every_declared_trait_has_one_file():
 @pytest.mark.parametrize(
     ("component", "name", "renamed"),
     [
-        ("StorageUnit", "Unit_NOM_ext", "StorageUnit_p_nom_ext"),
-        ("Store", "Unit_LEVEL_initial", "Store_e_initial"),
-        ("Link", "Unit_output_UNIT", "Link_output_link"),
-        ("Line", "Unit-ext-NOM-lower", "Line-ext-s_nom-lower"),
-        ("Store", "Unit_has_unit_years", "Store_has_unit_years"),
+        ("StorageUnit", "COMPONENT_BASE_nom_ext", "StorageUnit_p_nom_ext"),
+        ("Store", "COMPONENT_LEVEL_initial", "Store_e_initial"),
+        ("Link", "COMPONENT_output_DIM", "Link_output_link"),
+        ("Line", "COMPONENT-ext-BASE_nom-lower", "Line-ext-s_nom-lower"),
+        ("Store", "COMPONENT_has_unit_years", "Store_has_unit_years"),
         ("Generator", "snapshot_period", "snapshot_period"),
     ],
 )
@@ -34,7 +41,26 @@ def test_a_placeholder_takes_the_value_of_the_component(component, name, renamed
 
 def test_a_placeholder_without_value_fails():
     with pytest.raises(KeyError, match="P"):
-        renamer(pypsa.Network().components["Line"])("Unit_P")
+        renamer(pypsa.Network().components["Line"])("COMPONENT_P")
+
+
+def test_no_placeholder_is_a_mathspec_keyword():
+    assert PLACEHOLDERS.isdisjoint({"AND", "OR", "NOT"})
+
+
+def test_a_trait_description_takes_the_names_of_the_component(tmp_path):
+    (tmp_path / "traits").mkdir()
+    (tmp_path / "traits" / "multiport.yaml").write_text(
+        "dimensions:\n  DIM_output: {}\nparameters:\n  COMPONENT_COEF_x:\n"
+        "    dims: [DIM_output]\n    description: the `COEF` of a `DIM` port\n"
+    )
+    spec = render(tmp_path)[0]
+    assert spec.parameters["Link_efficiency_x"].description == (
+        "the `efficiency` of a `link` port"
+    )
+    assert spec.parameters["Process_rate_x"].description == (
+        "the `rate` of a `process` port"
+    )
 
 
 @pytest.mark.parametrize(
@@ -55,7 +81,9 @@ def test_a_constraint_states_its_scaling_rule_apart_from_the_spec(
     tmp_path, rule, error
 ):
     path = tmp_path / "fragment.yaml"
-    path.write_text(f"constraints:\n  Unit_x:\n    scaling: {rule}\n    dims: []\n")
+    path.write_text(
+        f"constraints:\n  COMPONENT_x:\n    scaling: {rule}\n    dims: []\n"
+    )
     rename = renamer(pypsa.Network().components["Generator"])
     if error:
         with pytest.raises(ValueError, match=error):
@@ -63,7 +91,7 @@ def test_a_constraint_states_its_scaling_rule_apart_from_the_spec(
         return
     data, _, scalings = _load(path, rename)
     assert scalings == {"Generator_x": rule}
-    assert data["constraints"]["Unit_x"] == {"dims": []}
+    assert data["constraints"]["COMPONENT_x"] == {"dims": []}
 
 
 SHARED = {"dimensions": {"bus": {"description": "nodes"}}, "parameters": {"p": {}}}
@@ -87,7 +115,7 @@ def test_a_merge_refuses_an_entry_stated_twice(fragment, section):
         _merge({k: dict(v) for k, v in SHARED.items()}, fragment, "f")
 
 
-@pytest.mark.parametrize("key", ["snapshot_period", "Unit_active"])
+@pytest.mark.parametrize("key", ["snapshot_period", "COMPONENT_active"])
 def test_a_source_key_takes_one_derivation(key):
     with pytest.raises(ValueError, match="already"):
         source(key)(lambda s, name: None)

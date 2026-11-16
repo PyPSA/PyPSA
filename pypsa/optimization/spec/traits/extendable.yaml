@@ -9,181 +9,181 @@ given:
 dimensions:
   scenario: {}
   snapshot: {dtype: str, ordered: true}
-  UNIT: {}
+  DIM: {}
   breakpoint: {dtype: int, ordered: true}
 
 parameters:
-  Unit_active:
+  COMPONENT_active:
     description: whether the asset is active in the snapshot's period, by build year and lifetime
-    dims: [snapshot, UNIT]
+    dims: [snapshot, DIM]
     dtype: bool
-  Unit_active_asset:
+  COMPONENT_active_asset:
     description: >-
       whether the asset is active by its `active` flag alone, whatever its build
       year and lifetime
-    dims: [UNIT]
+    dims: [DIM]
     dtype: bool
-  Unit_NOM:
+  COMPONENT_BASE_nom:
     description: nominal capacity
-    dims: [scenario, UNIT]
-  Unit_NOM_extendable:
+    dims: [scenario, DIM]
+  COMPONENT_BASE_nom_extendable:
     description: whether the nominal capacity is a decision
-    dims: [UNIT]
+    dims: [DIM]
     dtype: bool
-  Unit_NOM_min:
+  COMPONENT_BASE_nom_min:
     description: least nominal capacity of an extendable asset
-    dims: [scenario, UNIT]
-  Unit_NOM_max:
+    dims: [scenario, DIM]
+  COMPONENT_BASE_nom_max:
     description: most nominal capacity of an extendable asset
-    dims: [scenario, UNIT]
-  Unit_NOM_set:
+    dims: [scenario, DIM]
+  COMPONENT_BASE_nom_set:
     description: a given nominal capacity of an extendable asset. No value means no row
-    dims: [scenario, UNIT]
+    dims: [scenario, DIM]
     missing: absent
-  Unit_NOM_mod:
+  COMPONENT_BASE_nom_mod:
     description: the module size the build comes in whole numbers of. No value means a continuous build
-    dims: [UNIT]
+    dims: [DIM]
     missing: absent
-  Unit_capital_cost:
+  COMPONENT_capital_cost:
     description: >-
       cost of one unit of nominal capacity over the modelled horizon: the
       annuity of `overnight_cost`, or `capital_cost`, plus `fom_cost`
-    dims: [scenario, UNIT]
-  Unit_overnight_cost:
+    dims: [scenario, DIM]
+  COMPONENT_overnight_cost:
     description: the overnight cost of one unit of nominal capacity. No value means no row
-    dims: [UNIT]
+    dims: [DIM]
     missing: absent
-  Unit_capital_weight:
+  COMPONENT_capital_weight:
     description: the summed weights of the periods the asset is active in
-    dims: [UNIT]
-  Unit_capital_cost_curve_nom:
+    dims: [DIM]
+  COMPONENT_capital_cost_curve_nom:
     description: the nominal capacity at each breakpoint of the piecewise `capital_cost` curve. No curve means no rows
-    dims: [UNIT, breakpoint]
+    dims: [DIM, breakpoint]
     missing: absent
-  Unit_capital_cost_curve_cost:
+  COMPONENT_capital_cost_curve_cost:
     description: >-
       the build cost at each breakpoint: zero at the first, then summed over
       the segments, each its width times the `capital_cost` at its upper end
-    dims: [UNIT, breakpoint]
+    dims: [DIM, breakpoint]
     missing: absent
 
 variables:
-  Unit_NOM_ext:
-    name: Unit-NOM
+  COMPONENT_BASE_nom_ext:
+    name: COMPONENT-BASE_nom
     description: the nominal capacity of an extendable asset
-    dims: [UNIT]
-    where: Unit_NOM_extendable AND Unit_active_asset
-  Unit_n_mod:
-    name: Unit-n_mod
+    dims: [DIM]
+    where: COMPONENT_BASE_nom_extendable AND COMPONENT_active_asset
+  COMPONENT_n_mod:
+    name: COMPONENT-n_mod
     description: the number of modules of an extendable modular asset
-    dims: [UNIT]
-    where: Unit_NOM_extendable AND Unit_NOM_mod > 0 AND Unit_active_asset
+    dims: [DIM]
+    where: COMPONENT_BASE_nom_extendable AND COMPONENT_BASE_nom_mod > 0 AND COMPONENT_active_asset
     domain: integer
     bounds:
       lower: 0
-  Unit_capital_cost_piecewise:
-    name: Unit-capital_cost_piecewise
+  COMPONENT_capital_cost_piecewise:
+    name: COMPONENT-capital_cost_piecewise
     description: the build cost of an asset with a `capital_cost` curve
-    dims: [UNIT]
-    where: Unit_capital_cost_curve
+    dims: [DIM]
+    where: COMPONENT_capital_cost_curve
 
 expressions:
-  Unit_NOM_rated:
+  COMPONENT_BASE_nom_rated:
     description: >-
       the given nominal capacity, and zero where it is infinite. Then a limit is
       a row only where the per-unit value is zero
-    dims: [scenario, UNIT]
+    dims: [scenario, DIM]
     cases:
       unrated:
-        when: Unit_NOM == inf
+        when: COMPONENT_BASE_nom == inf
         expression: 0
-    otherwise: Unit_NOM
-  Unit_build_cost:
+    otherwise: COMPONENT_BASE_nom
+  COMPONENT_build_cost:
     description: the cost read off the `capital_cost` curve where there is one, build times `capital_cost` otherwise
-    dims: [scenario, UNIT]
+    dims: [scenario, DIM]
     cases:
       curve:
-        when: Unit_capital_cost_curve
-        expression: Unit_capital_cost_piecewise
-    otherwise: Unit_NOM_ext * Unit_capital_cost
-  Unit_capex:
-    expression: sum(scenario_weight * Unit_build_cost * Unit_capital_weight)
+        when: COMPONENT_capital_cost_curve
+        expression: COMPONENT_capital_cost_piecewise
+    otherwise: COMPONENT_BASE_nom_ext * COMPONENT_capital_cost
+  COMPONENT_capex:
+    expression: sum(scenario_weight * COMPONENT_build_cost * COMPONENT_capital_weight)
 
 conditions:
-  Unit_capital_cost_curve:
+  COMPONENT_capital_cost_curve:
     description: an extendable active asset with a piecewise `capital_cost` curve
     condition: >-
-      count(Unit_capital_cost_curve_nom, over=breakpoint) > 0 AND
-      Unit_NOM_extendable AND Unit_active_asset
-  Unit_capital_cost_curve_bends_down:
+      count(COMPONENT_capital_cost_curve_nom, over=breakpoint) > 0 AND
+      COMPONENT_BASE_nom_extendable AND COMPONENT_active_asset
+  COMPONENT_capital_cost_curve_bends_down:
     description: a breakpoint where the `capital_cost` curve gets less steep
     condition: >-
-      Unit_capital_cost_curve_nom
-      AND shift(Unit_capital_cost_curve_nom, along=breakpoint, offset=1)
-      AND shift(Unit_capital_cost_curve_nom, along=breakpoint, offset=-1)
-      AND (Unit_capital_cost_curve_cost - shift(Unit_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
-      * (shift(Unit_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - Unit_capital_cost_curve_nom)
-      > (shift(Unit_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Unit_capital_cost_curve_cost)
-      * (Unit_capital_cost_curve_nom - shift(Unit_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
-  Unit_capital_cost_as_lp:
+      COMPONENT_capital_cost_curve_nom
+      AND shift(COMPONENT_capital_cost_curve_nom, along=breakpoint, offset=1)
+      AND shift(COMPONENT_capital_cost_curve_nom, along=breakpoint, offset=-1)
+      AND (COMPONENT_capital_cost_curve_cost - shift(COMPONENT_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(COMPONENT_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - COMPONENT_capital_cost_curve_nom)
+      > (shift(COMPONENT_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - COMPONENT_capital_cost_curve_cost)
+      * (COMPONENT_capital_cost_curve_nom - shift(COMPONENT_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
+  COMPONENT_capital_cost_as_lp:
     description: >-
       true where every `capital_cost` curve of the component is convex: then
       the curves are stated as segment lines, else by incremental segments
     condition: >-
-      count(Unit_capital_cost_curve AND
-      count(Unit_capital_cost_curve_bends_down, over=breakpoint) > 0, over=UNIT)
+      count(COMPONENT_capital_cost_curve AND
+      count(COMPONENT_capital_cost_curve_bends_down, over=breakpoint) > 0, over=DIM)
       == 0
 
 piecewise:
-  Unit_capital_cost_lp:
-    name: Unit-capital_cost_piecewise
+  COMPONENT_capital_cost_lp:
+    name: COMPONENT-capital_cost_piecewise
     description: the build cost is at least the `capital_cost` curve at the build, by segment lines
     along: breakpoint
-    dims: [UNIT]
-    where: Unit_capital_cost_as_lp AND Unit_capital_cost_curve AND Unit_capital_cost_curve_nom
+    dims: [DIM]
+    where: COMPONENT_capital_cost_as_lp AND COMPONENT_capital_cost_curve AND COMPONENT_capital_cost_curve_nom
     method: lp
     links:
-      NOM: ["Unit_NOM_ext", "Unit_capital_cost_curve_nom"]
-      cost: ["Unit_capital_cost_piecewise", "Unit_capital_cost_curve_cost", ">="]
-  Unit_capital_cost_incremental:
-    name: Unit-capital_cost_piecewise
+      BASE_nom: ["COMPONENT_BASE_nom_ext", "COMPONENT_capital_cost_curve_nom"]
+      cost: ["COMPONENT_capital_cost_piecewise", "COMPONENT_capital_cost_curve_cost", ">="]
+  COMPONENT_capital_cost_incremental:
+    name: COMPONENT-capital_cost_piecewise
     description: the build cost is at least the `capital_cost` curve at the build, by segments filled in order
     along: breakpoint
-    dims: [UNIT]
-    where: NOT Unit_capital_cost_as_lp AND Unit_capital_cost_curve AND Unit_capital_cost_curve_nom
+    dims: [DIM]
+    where: NOT COMPONENT_capital_cost_as_lp AND COMPONENT_capital_cost_curve AND COMPONENT_capital_cost_curve_nom
     method: incremental
     links:
-      NOM: ["Unit_NOM_ext", "Unit_capital_cost_curve_nom"]
-      cost: ["Unit_capital_cost_piecewise", "Unit_capital_cost_curve_cost", ">="]
+      BASE_nom: ["COMPONENT_BASE_nom_ext", "COMPONENT_capital_cost_curve_nom"]
+      cost: ["COMPONENT_capital_cost_piecewise", "COMPONENT_capital_cost_curve_cost", ">="]
 
 constraints:
-  Unit_ext_NOM_lower:
-    name: Unit-ext-NOM-lower
+  COMPONENT_ext_BASE_nom_lower:
+    name: COMPONENT-ext-BASE_nom-lower
     description: the chosen build is at least the floor
-    dims: [scenario, UNIT]
-    where: Unit_NOM_extendable AND Unit_active_asset
-    expression: Unit_NOM_ext >= Unit_NOM_min
-  Unit_ext_NOM_upper:
-    name: Unit-ext-NOM-upper
+    dims: [scenario, DIM]
+    where: COMPONENT_BASE_nom_extendable AND COMPONENT_active_asset
+    expression: COMPONENT_BASE_nom_ext >= COMPONENT_BASE_nom_min
+  COMPONENT_ext_BASE_nom_upper:
+    name: COMPONENT-ext-BASE_nom-upper
     description: the chosen build is at most the cap; an infinite cap means no row
-    dims: [scenario, UNIT]
-    where: Unit_NOM_extendable AND Unit_active_asset AND Unit_NOM_max
-    expression: Unit_NOM_ext <= Unit_NOM_max
-  Unit_NOM_set:
-    name: Unit-NOM_set
+    dims: [scenario, DIM]
+    where: COMPONENT_BASE_nom_extendable AND COMPONENT_active_asset AND COMPONENT_BASE_nom_max
+    expression: COMPONENT_BASE_nom_ext <= COMPONENT_BASE_nom_max
+  COMPONENT_BASE_nom_set:
+    name: COMPONENT-BASE_nom_set
     description: the chosen build equals the given one
-    dims: [scenario, UNIT]
-    where: Unit_NOM_extendable AND Unit_active_asset AND Unit_NOM_set
-    expression: Unit_NOM_ext == Unit_NOM_set
-  Unit_NOM_modularity:
-    name: Unit-NOM_modularity
+    dims: [scenario, DIM]
+    where: COMPONENT_BASE_nom_extendable AND COMPONENT_active_asset AND COMPONENT_BASE_nom_set
+    expression: COMPONENT_BASE_nom_ext == COMPONENT_BASE_nom_set
+  COMPONENT_BASE_nom_modularity:
+    name: COMPONENT-BASE_nom_modularity
     description: the chosen build is a whole number of modules
-    dims: [UNIT]
-    where: Unit_NOM_extendable AND Unit_NOM_mod > 0 AND Unit_active_asset
-    expression: Unit_NOM_ext == Unit_NOM_mod * Unit_n_mod
+    dims: [DIM]
+    where: COMPONENT_BASE_nom_extendable AND COMPONENT_BASE_nom_mod > 0 AND COMPONENT_active_asset
+    expression: COMPONENT_BASE_nom_ext == COMPONENT_BASE_nom_mod * COMPONENT_n_mod
 
 assumptions:
-  Unit_capital_cost_curve_without_overnight_cost:
-    holds: NOT Unit_overnight_cost
-    where: Unit_capital_cost_curve
+  COMPONENT_capital_cost_curve_without_overnight_cost:
+    holds: NOT COMPONENT_overnight_cost
+    where: COMPONENT_capital_cost_curve
     description: an asset with a `capital_cost` curve has no `overnight_cost`, as the curve is already periodized

@@ -70,10 +70,10 @@ def _breakpoint(s: NetworkSources, name: str) -> pd.Index:
 
 
 @source(
-    "Unit_marginal_cost_curve_p",
-    "Unit_marginal_cost_curve_cost",
-    "Unit_capital_cost_curve_nom",
-    "Unit_capital_cost_curve_cost",
+    "COMPONENT_marginal_cost_curve_p",
+    "COMPONENT_marginal_cost_curve_cost",
+    "COMPONENT_capital_cost_curve_nom",
+    "COMPONENT_capital_cost_curve_cost",
 )
 def _cost_curve(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Read a `marginal_cost` or `capital_cost` curve: its x axis, or its cost summed over segments."""

@@ -5,21 +5,21 @@
 given:
   parameters:
     CVaR_omega: {dims: []}
-    Unit_NOM: {dims: [scenario, UNIT]}
-    Unit_NOM_extendable: {dims: [UNIT], dtype: bool}
-    Unit_active: {dims: [snapshot, UNIT], dtype: bool}
-    Unit_active_asset: {dims: [UNIT], dtype: bool}
-    Unit_marginal_cost_curve_cost: {dims: [UNIT, breakpoint]}
-    Unit_marginal_cost_curve_p: {dims: [UNIT, breakpoint]}
+    COMPONENT_BASE_nom: {dims: [scenario, DIM]}
+    COMPONENT_BASE_nom_extendable: {dims: [DIM], dtype: bool}
+    COMPONENT_active: {dims: [snapshot, DIM], dtype: bool}
+    COMPONENT_active_asset: {dims: [DIM], dtype: bool}
+    COMPONENT_marginal_cost_curve_cost: {dims: [DIM, breakpoint]}
+    COMPONENT_marginal_cost_curve_p: {dims: [DIM, breakpoint]}
     period_weight_objective: {dims: [period]}
     snapshot_weightings_objective: {dims: [snapshot]}
   variables:
-    Unit_P: {dims: [scenario, snapshot, UNIT]}
+    COMPONENT_P: {dims: [scenario, snapshot, DIM]}
 
 dimensions:
   scenario: {}
   snapshot: {dtype: str, ordered: true}
-  UNIT: {}
+  DIM: {}
   period: {dtype: int, ordered: true}
   breakpoint: {dtype: int, ordered: true}
 
@@ -27,73 +27,73 @@ relations:
   snapshot_period: {key: snapshot, values: period}
 
 macros:
-  Unit_operating_cost:
+  COMPONENT_operating_cost:
     description: a cost per snapshot, weighted by the snapshot's hours and its period, summed
     args: [cost]
     template: >-
       sum(sum((cost * snapshot_weightings_objective) * at(period_weight_objective,
-      by=snapshot_period[period]), over=UNIT), over=snapshot)
+      by=snapshot_period[period]), over=DIM), over=snapshot)
 
 parameters:
-  Unit_p_min_pu:
+  COMPONENT_p_min_pu:
     description: least power, per unit of nominal power
-    dims: [scenario, snapshot, UNIT]
-  Unit_p_max_pu:
+    dims: [scenario, snapshot, DIM]
+  COMPONENT_p_max_pu:
     description: most power, per unit of nominal power
-    dims: [scenario, snapshot, UNIT]
-  Unit_p_set:
+    dims: [scenario, snapshot, DIM]
+  COMPONENT_p_set:
     description: a given power schedule. No value means no row
-    dims: [scenario, snapshot, UNIT]
+    dims: [scenario, snapshot, DIM]
     missing: absent
-  Unit_marginal_cost:
+  COMPONENT_marginal_cost:
     description: cost of one unit of energy dispatched
-    dims: [scenario, snapshot, UNIT]
-  Unit_marginal_cost_quadratic:
+    dims: [scenario, snapshot, DIM]
+  COMPONENT_marginal_cost_quadratic:
     description: cost of the square of one unit of energy dispatched
-    dims: [scenario, snapshot, UNIT]
+    dims: [scenario, snapshot, DIM]
 
 variables:
-  Unit_marginal_cost_piecewise:
-    name: Unit-marginal_cost_piecewise
+  COMPONENT_marginal_cost_piecewise:
+    name: COMPONENT-marginal_cost_piecewise
     description: the running cost of a unit with a `marginal_cost` curve
-    dims: [scenario, snapshot, UNIT]
-    where: Unit_marginal_cost_curve AND Unit_active
+    dims: [scenario, snapshot, DIM]
+    where: COMPONENT_marginal_cost_curve AND COMPONENT_active
 
 expressions:
-  Unit_running_cost:
+  COMPONENT_running_cost:
     description: the cost read off the `marginal_cost` curve where there is one, power times `marginal_cost` otherwise
-    dims: [scenario, snapshot, UNIT]
+    dims: [scenario, snapshot, DIM]
     cases:
       curve:
-        when: Unit_marginal_cost_curve
-        expression: Unit_marginal_cost_piecewise
-    otherwise: Unit_P * Unit_marginal_cost
-  Unit_opex:
+        when: COMPONENT_marginal_cost_curve
+        expression: COMPONENT_marginal_cost_piecewise
+    otherwise: COMPONENT_P * COMPONENT_marginal_cost
+  COMPONENT_opex:
     expression: >-
-      Unit_operating_cost(Unit_running_cost)
-      + Unit_operating_cost((Unit_P * Unit_P) * Unit_marginal_cost_quadratic)
+      COMPONENT_operating_cost(COMPONENT_running_cost)
+      + COMPONENT_operating_cost((COMPONENT_P * COMPONENT_P) * COMPONENT_marginal_cost_quadratic)
 
 conditions:
-  Unit_marginal_cost_curve:
+  COMPONENT_marginal_cost_curve:
     description: an active asset with a piecewise `marginal_cost` curve
-    condition: count(Unit_marginal_cost_curve_p, over=breakpoint) > 0 AND Unit_active_asset
-  Unit_marginal_cost_curve_bends_down:
+    condition: count(COMPONENT_marginal_cost_curve_p, over=breakpoint) > 0 AND COMPONENT_active_asset
+  COMPONENT_marginal_cost_curve_bends_down:
     description: a breakpoint where the `marginal_cost` curve gets less steep
     condition: >-
-      Unit_marginal_cost_curve_p
-      AND shift(Unit_marginal_cost_curve_p, along=breakpoint, offset=1)
-      AND shift(Unit_marginal_cost_curve_p, along=breakpoint, offset=-1)
-      AND (Unit_marginal_cost_curve_cost - shift(Unit_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
-      * (shift(Unit_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - Unit_marginal_cost_curve_p)
-      > (shift(Unit_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - Unit_marginal_cost_curve_cost)
-      * (Unit_marginal_cost_curve_p - shift(Unit_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+      COMPONENT_marginal_cost_curve_p
+      AND shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=1)
+      AND shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=-1)
+      AND (COMPONENT_marginal_cost_curve_cost - shift(COMPONENT_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - COMPONENT_marginal_cost_curve_p)
+      > (shift(COMPONENT_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - COMPONENT_marginal_cost_curve_cost)
+      * (COMPONENT_marginal_cost_curve_p - shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
 
 assumptions:
-  Unit_marginal_cost_curve_on_a_fixed_build:
-    holds: "NOT Unit_NOM_extendable AND Unit_NOM > 0 AND Unit_NOM < inf"
-    where: "Unit_marginal_cost_curve"
+  COMPONENT_marginal_cost_curve_on_a_fixed_build:
+    holds: "NOT COMPONENT_BASE_nom_extendable AND COMPONENT_BASE_nom > 0 AND COMPONENT_BASE_nom < inf"
+    where: "COMPONENT_marginal_cost_curve"
     description: a `marginal_cost` curve needs a fixed, positive, finite nominal capacity
-  Unit_marginal_cost_quadratic_without_risk_preference:
-    holds: Unit_marginal_cost_quadratic == 0
+  COMPONENT_marginal_cost_quadratic_without_risk_preference:
+    holds: COMPONENT_marginal_cost_quadratic == 0
     where: CVaR_omega
     description: "`marginal_cost_quadratic` is zero where a risk preference is set"
