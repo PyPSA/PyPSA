@@ -126,9 +126,7 @@ parameters:
     dims: [scenario, global_constraint]
     dtype: str
   GlobalConstraint_constant:
-    description: >-
-      the constant the total is held against, including what no variable
-      represents: initial storage levels and fixed builds
+    description: the constant the total is held against
     dims: [scenario, global_constraint]
   GlobalConstraint_counts_snapshot:
     description: whether the row counts the snapshot; all do unless the row names an `investment_period`
@@ -214,11 +212,11 @@ expressions:
         expression: snapshot_weightings_generators * at(period_weight_years, by=snapshot_period[period])
     otherwise: 0
   primary_energy:
-    description: the primary energy of generation, less the energy left in storage at the end
+    description: the primary energy of generation, plus that of the energy taken out of storage
     dims: [scenario, global_constraint]
     expression: Generator_primary_energy + StorageUnit_primary_energy + Store_primary_energy
   operational_limit:
-    description: the energy generated, plus what storage draws down
+    description: the energy generated, plus the energy taken out of storage
     dims: [scenario, global_constraint]
     expression: >-
       Generator_operational_limit

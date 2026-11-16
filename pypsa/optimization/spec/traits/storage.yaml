@@ -11,6 +11,7 @@ given:
     period_weight_objective: {dims: [period]}
     period_weight_years: {dims: [period]}
     snapshot_weightings_objective: {dims: [snapshot]}
+    snapshot_weightings_stores: {dims: [snapshot]}
   variables:
     Unit_LEVEL: {dims: [scenario, snapshot, UNIT]}
     Unit_P: {dims: [scenario, snapshot, UNIT]}
@@ -108,11 +109,11 @@ variables:
       upper: Unit_inflow
 
 expressions:
-  Unit_level_carried_in:
+  Unit_level_before:
     description: >-
-      the energy stored at the start of a snapshot: the previous level less the
-      standing loss, the last level where the horizon or period is cyclic, the
-      initial level where it opens
+      the energy stored before a snapshot, ahead of its standing loss: the
+      previous level, the last level where the horizon or period is cyclic,
+      the initial level where it opens
     dims: [scenario, snapshot, UNIT]
     cases:
       cyclic:
@@ -121,55 +122,68 @@ expressions:
           AND NOT Unit_LEVEL_initial_per_period
           AND (position(snapshot) == 0 OR Unit_opens_late)
         expression: >-
-          Unit_retention
-          * shift(shift(Unit_LEVEL, along=snapshot, offset=1, edge='wrap'), along=snapshot, offset=Unit_inactive_snapshots, edge='wrap')
+          shift(shift(Unit_LEVEL, along=snapshot, offset=1, edge='wrap'), along=snapshot, offset=Unit_inactive_snapshots, edge='wrap')
       opening:
-        when: >-
-          NOT Unit_CYCLIC AND NOT Unit_CYCLIC_per_period
-          AND NOT Unit_LEVEL_initial_per_period
-          AND (position(snapshot) == 0 OR Unit_opens_late)
+        when: Unit_level_opens
         expression: Unit_LEVEL_initial
       period_cyclic:
         when: Unit_CYCLIC_per_period
-        expression: >-
-          Unit_retention
-          * shift(Unit_LEVEL, along=snapshot, offset=1, edge='wrap', within=snapshot_period[period])
-      period_opening:
-        when: >-
-          Unit_LEVEL_initial_per_period AND NOT Unit_CYCLIC_per_period
-          AND position(snapshot, within=snapshot_period[period]) == 0
+        expression: shift(Unit_LEVEL, along=snapshot, offset=1, edge='wrap', within=snapshot_period[period])
+    otherwise: shift(Unit_LEVEL, along=snapshot, offset=1)
+  Unit_level_carried_in:
+    description: >-
+      the energy stored at the start of a snapshot: the level before it less
+      the standing loss, the initial level where it opens
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      opening:
+        when: Unit_level_opens
         expression: Unit_LEVEL_initial
-    otherwise: Unit_retention * shift(Unit_LEVEL, along=snapshot, offset=1)
-  Unit_last_counted_active:
-    description: one at the last snapshot a global constraint counts while the asset is active
+    otherwise: Unit_retention * Unit_level_before
+  Unit_counted_years:
+    description: >-
+      the years a global constraint weighs a snapshot with while the asset is
+      active; zero where it does not count the snapshot
     dims: [scenario, global_constraint, snapshot, UNIT]
     cases:
-      last:
-        when: >-
-          GlobalConstraint_counts_snapshot AND Unit_active
-          AND NOT shift(GlobalConstraint_counts_snapshot AND Unit_active, along=snapshot, offset=-1)
-        expression: 1
+      counted:
+        when: GlobalConstraint_counts_snapshot AND Unit_active
+        expression: at(period_weight_years, by=snapshot_period[period])
+    otherwise: 0
+  Unit_opening_weight:
+    description: >-
+      what the level before a period counts for in a global constraint: the
+      period's years at its first snapshot, nothing where each period is cyclic
+    dims: [scenario, global_constraint, snapshot, UNIT]
+    cases:
+      first:
+        when: NOT Unit_CYCLIC_per_period AND position(snapshot, within=snapshot_period[period]) == 0
+        expression: Unit_counted_years
     otherwise: 0
   Unit_closing_weight:
     description: >-
-      what the closing level counts for in a global constraint: the period's
-      years at each period's end where the level restarts per period, one at
-      the last counted snapshot otherwise
+      what the level at the end of a period counts for in a global constraint:
+      the period's years at its last snapshot, nothing where each period is cyclic
     dims: [scenario, global_constraint, snapshot, UNIT]
     cases:
-      per_period:
-        when: Unit_LEVEL_initial_per_period AND GlobalConstraint_counts_snapshot AND position(snapshot, within=snapshot_period[period]) == -1
-        expression: at(period_weight_years, by=snapshot_period[period])
-      carried_over:
-        when: NOT Unit_LEVEL_initial_per_period
-        expression: Unit_last_counted_active
+      last:
+        when: NOT Unit_CYCLIC_per_period AND position(snapshot, within=snapshot_period[period]) == -1
+        expression: Unit_counted_years
     otherwise: 0
+  Unit_withdrawal:
+    description: >-
+      the energy a global constraint counts as taken out of storage, standing
+      losses included: per counted period the level before it less the level
+      at its end, plus inflow less spill, each weighed by the period's years
+    dims: [scenario, global_constraint, UNIT]
+    expression: >-
+      sum(Unit_level_before * Unit_opening_weight, over=snapshot)
+      - sum(Unit_LEVEL * Unit_closing_weight, over=snapshot)
+      + sum((Unit_inflow - Unit_spill) * snapshot_weightings_stores * Unit_counted_years, over=snapshot)
   Unit_primary_energy:
-    expression: >-
-      -sum(sum((Unit_LEVEL * Unit_closing_weight) * Unit_primary_energy_weight, over=snapshot), over=UNIT)
+    expression: sum(Unit_withdrawal * Unit_primary_energy_weight, over=UNIT)
   Unit_operational_limit:
-    expression: >-
-      -sum(sum((Unit_LEVEL * Unit_closing_weight) * Unit_operational_limit_weight, over=snapshot), over=UNIT)
+    expression: sum(Unit_withdrawal * Unit_operational_limit_weight, over=UNIT)
   Unit_storage_opex:
     expression: >-
       sum(sum((Unit_LEVEL * Unit_marginal_cost_storage * snapshot_weightings_objective)
@@ -178,6 +192,15 @@ expressions:
       * at(period_weight_objective, by=snapshot_period[period]), over=UNIT), over=snapshot)
 
 conditions:
+  Unit_level_opens:
+    description: >-
+      true where the level starts from the initial one: at the first snapshot
+      of a horizon that is not cyclic, of an asset that becomes active later,
+      and of each period where the level restarts per period
+    condition: >-
+      NOT Unit_CYCLIC_per_period AND (
+      (Unit_LEVEL_initial_per_period AND position(snapshot, within=snapshot_period[period]) == 0)
+      OR (NOT Unit_LEVEL_initial_per_period AND NOT Unit_CYCLIC AND (position(snapshot) == 0 OR Unit_opens_late)))
   Unit_marginal_cost_as_lp:
     description: >-
       true where every `marginal_cost` curve of the component is convex: then
@@ -242,18 +265,16 @@ assumptions:
       position(snapshot) > 0
     description: "`opens_late` marks every first active snapshot after the first of the horizon"
   Unit_primary_energy_carried_over_has_unit_years:
-    holds: "period_weight_years == 1"
-    where: "Unit_primary_energy_weight AND NOT Unit_LEVEL_initial_per_period"
-    description: a `primary_energy` row counts a non-cyclic level carried over between periods only where every period weighs one year
+    holds: "at(period_weight_years == 1, by=snapshot_period[period])"
+    where: >-
+      Unit_primary_energy_weight AND GlobalConstraint_counts_snapshot
+      AND NOT Unit_LEVEL_initial_per_period AND NOT Unit_CYCLIC AND NOT Unit_CYCLIC_per_period
+      AND count(GlobalConstraint_counts_snapshot AND Unit_active, over=snapshot) > 0
+    description: a `primary_energy` row counts a level carried over between periods only in periods that weigh one year
   Unit_operational_limit_carried_over_has_unit_years:
     holds: "at(period_weight_years == 1, by=snapshot_period[period])"
-    where: "Unit_operational_limit_weight AND NOT Unit_LEVEL_initial_per_period AND GlobalConstraint_counts_snapshot"
-    description: an `operational_limit` row counts a non-cyclic level carried over between periods only in periods that weigh one year
-  Unit_operational_limit_carried_over_counts_from_the_opening:
-    holds: >-
-      position(snapshot) == 0 OR Unit_opens_late
-      OR shift(GlobalConstraint_counts_snapshot AND Unit_active, along=snapshot, offset=1)
     where: >-
-      Unit_operational_limit_weight AND NOT Unit_LEVEL_initial_per_period
-      AND GlobalConstraint_counts_snapshot AND Unit_active
-    description: an `operational_limit` row counts a non-cyclic level carried over between periods only from the snapshot the level opens at
+      Unit_operational_limit_weight AND GlobalConstraint_counts_snapshot
+      AND NOT Unit_LEVEL_initial_per_period AND NOT Unit_CYCLIC AND NOT Unit_CYCLIC_per_period
+      AND count(GlobalConstraint_counts_snapshot AND Unit_active, over=snapshot) > 0
+    description: an `operational_limit` row counts a level carried over between periods only in periods that weigh one year

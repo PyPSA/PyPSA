@@ -119,11 +119,6 @@ def _ones(static: pd.DataFrame, mask: pd.Series) -> pd.Series:
     return pd.Series(1.0, index=static.index[mask.to_numpy(dtype=bool)])
 
 
-def _non_cyclic(c: Components, static: pd.DataFrame) -> pd.Series | bool:
-    """Whether each unit stores no cyclic level, true for a component that stores none."""
-    return ~static[c._level_attrs[1]].astype(bool) if c._level_attrs else True
-
-
 def _operational(
     s: NetworkSources,
     c: Components,
@@ -131,11 +126,11 @@ def _operational(
     glc: pd.Series,
     static: pd.DataFrame,
 ) -> pd.Series:
-    """One for each active unit of the row's carrier; storage only where non-cyclic."""
+    """One for each active unit of the row's carrier."""
     if _counted_periods(s, glc).empty:
         return pd.Series(dtype=float)
     mask = (static["carrier"] == glc["carrier_attribute"]) & static["active"]
-    return _ones(static, mask & _non_cyclic(c, static))
+    return _ones(static, mask)
 
 
 def _emissions(s: NetworkSources, scenario: Any, glc: pd.Series) -> pd.Series:
@@ -151,13 +146,12 @@ def _primary(
     glc: pd.Series,
     static: pd.DataFrame,
 ) -> pd.Series:
-    """Return the carrier's attribute for each unit active in the row's period; storage only where non-cyclic."""
+    """Return the carrier's attribute for each unit active in the row's period."""
     if _counted_periods(s, glc).empty:
         return pd.Series(dtype=float)
     emissions = _emissions(s, scenario, glc)
     active = c._active_names(_stated(glc))
     mask = static["carrier"].isin(emissions.index) & static.index.isin(active)
-    mask &= _non_cyclic(c, static)
     return static["carrier"][mask].map(emissions).astype(float)
 
 
@@ -273,38 +267,9 @@ def _counts_snapshot(s: NetworkSources, name: str) -> xr.DataArray:
     return stated.isnull() | (s.over_snapshots(s.period_of) == stated)
 
 
-def _storage_fold(
-    s: NetworkSources, cell: Cell, scenario: Any, glc: pd.Series
-) -> float:
-    """Return the initial charge a row's storage draws from, weighted as the row counts it."""
-    periods = _counted_periods(s, glc)
-    if periods.empty:
-        return 0.0
-    years = float(s["period_weight_years"].sel(period=list(periods)).sum())
-    fold = 0.0
-    for c in s.units.values():
-        if not c._level_attrs:
-            continue
-        static = of_scenario(c.static, s.n, scenario)
-        weight = cell(s, c, scenario, glc, static)
-        initial = c._level_attrs[0]
-        level = static[initial].loc[weight.index].astype(float)
-        per_period = static[f"{initial}_per_period"].loc[weight.index].astype(bool)
-        times = np.where(per_period & s.multi_invest, years, 1.0)
-        fold += float((weight * level * times).sum())
-    return fold
-
-
 @source("GlobalConstraint_constant")
 def _constant(s: NetworkSources, name: str) -> xr.DataArray:
-    constant = _rows(s, "constant").astype(float)
-    for kind, cell in (
-        ("operational_limit", _operational),
-        ("primary_energy", _primary),
-    ):
-        for i, j, scenario, glc in _cells(s, kind):
-            constant.iat[i, j] -= _storage_fold(s, cell, scenario, glc)
-    return _grid(s, constant)
+    return _grid(s, _rows(s, "constant").astype(float))
 
 
 def _carrier_limit(s: NetworkSources, attr: str) -> xr.DataArray:
