@@ -263,14 +263,14 @@ class Lines(Components):
                 haversine_pts(
                     a=np.array(
                         [
-                            self.static.bus0.map(self.n.buses.x),
-                            self.static.bus0.map(self.n.buses.y),
+                            self.static.bus0.map(self.n.c.buses.static.x),
+                            self.static.bus0.map(self.n.c.buses.static.y),
                         ]
                     ).T,
                     b=np.array(
                         [
-                            self.static.bus1.map(self.n.buses.x),
-                            self.static.bus1.map(self.n.buses.y),
+                            self.static.bus1.map(self.n.c.buses.static.x),
+                            self.static.bus1.map(self.n.c.buses.static.y),
                         ]
                     ).T,
                 )

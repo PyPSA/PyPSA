@@ -818,10 +818,10 @@ def test_nomansland_bus(caplog):
 
 
 @pytest.mark.skipif(os.name == "nt", reason="dtype confusing on Windows")
-@pytest.mark.parametrize("legacy_string_dtype", [True, False])
-def test_dtypes_of_valid_network_pass(legacy_string_dtype):
+@pytest.mark.parametrize("string_dtype", [True, False])
+def test_dtypes_of_valid_network_pass(string_dtype):
     """String attributes pass in both object and pandas `str` dtype."""
-    with pypsa.option_context("api.legacy_string_dtype", legacy_string_dtype):
+    with pypsa.option_context("future.string_dtype", string_dtype):
         n = pypsa.examples.ac_dc_meshed()
         n.consistency_check(check_dtypes=True, strict=["dtypes"])
 

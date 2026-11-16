@@ -379,7 +379,7 @@ class TestCollectionComponents:
     """Test the components property of NetworkCollection."""
 
     def test_static_data(self, component_name):
-        new_api = pypsa.options.api.new_components_api
+        new_api = pypsa.options.future.components_api
 
         # Give networks unique names
         network1 = pypsa.examples.ac_dc_meshed()

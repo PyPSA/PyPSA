@@ -133,8 +133,8 @@ class NetworkDescriptorsMixin(_NetworkABC):
             Restrict to these component names rather than all components. For
             stochastic networks, the names are selected in all scenarios. The
             columns follow component order, duplicates are collapsed and unknown
-            names dropped. In PyPSA 2.0, columns follow `inds` order, duplicates
-            are kept and unknown names raise a `KeyError`.
+            names dropped. With `options.future.inds_order`, columns follow `inds`
+            order, duplicates are kept and unknown names raise a `KeyError`.
 
         Returns
         -------

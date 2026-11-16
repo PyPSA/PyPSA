@@ -7,6 +7,7 @@ import warnings
 import pandas as pd
 import pytest
 
+import pypsa
 from pypsa import Components, Network
 from pypsa.components.legacy import Component
 from pypsa.components.types import get as get_component_type
@@ -234,12 +235,15 @@ def test_modulars_different_components():
         ("StorageUnit", {"bus": "a"}),
     ],
 )
+@pytest.mark.filterwarnings("ignore::pypsa.PyPSA2Warning")
 def test_add_fills_omitted_static_attributes_with_defaults(component, kwargs):
-    n = Network()
-    n.add("Bus", ["a", "b"])
-    n.add(component, "x", **kwargs)
+    with pypsa.option_context("future.string_dtype", None):
+        n = Network()
+        n.add("Bus", ["a", "b"])
+        n.add(component, "x", **kwargs)
+        empty = Network().c[component].static
     static = n.c[component].static.drop(columns=list(kwargs))
     defaults = n.components[component]["defaults"].default[static.columns]
-    empty = Network().c[component].static[static.columns]
+    empty = empty[static.columns]
     assert static.dtypes.equals(empty.dtypes)
     assert static.loc["x"].astype(object).equals(defaults.astype(object))

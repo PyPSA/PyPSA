@@ -805,7 +805,7 @@ def test_1319():
     n.model.solver_model = None
     n_copy = n.copy()  # Should not raise an error
     assert n_copy is not n
-    assert len(n_copy.buses) == len(n.c.buses.static)
+    assert len(n_copy.c.buses.static) == len(n.c.buses.static)
 
 
 def test_1420(tmp_path):
@@ -913,7 +913,7 @@ def test_shape_reprojection(ac_dc_shapes):
 
 
 def test_components_referencing(ac_dc_network):
-    with pypsa.option_context("api.new_components_api", False):
+    with pypsa.option_context("future.components_api", False):
         ac_dc_network = pypsa.examples.ac_dc_meshed()
         assert id(ac_dc_network.buses) == id(ac_dc_network.components.buses.static)
         assert id(ac_dc_network.c.buses.dynamic) == id(
@@ -1013,7 +1013,7 @@ def test_api_components_legacy(new_components_api):
     """
     Test the API of the components module.
     """
-    with pypsa.option_context("api.new_components_api", new_components_api):
+    with pypsa.option_context("future.components_api", new_components_api):
         n = pypsa.examples.ac_dc_meshed()
 
         if not new_components_api:
@@ -1051,7 +1051,7 @@ def test_api_new_components_api(component_name, new_components_api):
         message=".*is deprecated as of 1.0 and will be .*",
         category=DeprecationWarning,
     )
-    with pypsa.option_context("api.new_components_api", new_components_api):
+    with pypsa.option_context("future.components_api", new_components_api):
         n = pypsa.examples.ac_dc_meshed()
         if not new_components_api:
             with pytest.warns(
@@ -1163,3 +1163,33 @@ def test_sanitize_no_changes_needed():
     n2.sanitize()
     assert ("s1", "missing_bus") in n2.c.buses.static.index
     assert ("s1", "missing_carrier") in n2.c.carriers.static.index
+
+
+@pytest.mark.parametrize("value", [True, False])
+@pytest.mark.parametrize("key", ["future.components_api", "api.new_components_api"])
+def test_components_api_flag_and_old_key(key, value):
+    """The old key and the new flag give the same accessor types."""
+    n = pypsa.examples.ac_dc_meshed()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        with pypsa.option_context(key, value):
+            assert pypsa.options.future.components_api is value
+            assert pypsa.options.api.new_components_api is value
+            expected = type(n.c.buses) if value else pd.DataFrame
+            assert isinstance(n.buses, expected)
+
+
+@pytest.mark.parametrize("flag", [None, False])
+def test_components_api_legacy_accessors_warn_only_unset(flag):
+    """Legacy getters and setters warn once, from the user's line, only if unset."""
+    n = pypsa.examples.ac_dc_meshed()
+    with (
+        pypsa.option_context("future.components_api", flag),
+        warnings.catch_warnings(record=True) as rec,
+    ):
+        warnings.simplefilter("always")
+        n.buses = n.c.buses.static
+        assert isinstance(n.lines, pd.DataFrame)
+    hits = [w for w in rec if issubclass(w.category, pypsa.PyPSA2Warning)]
+    assert len(hits) == (flag is None)
+    assert all(w.filename == __file__ for w in hits)
