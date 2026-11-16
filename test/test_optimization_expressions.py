@@ -73,7 +73,7 @@ def test_expression_capacity_all_filtered(
         aggregate_across_components=aggregate_across_components,
     )
     assert isinstance(expr, LinearExpression)
-    assert expr.size == 0
+    assert expr.is_constant
 
 
 @pytest.mark.parametrize(
@@ -345,8 +345,8 @@ def test_concrete_at_port(prepared_network):
 
 
 class TestExpressionsWithPiecewise:
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def piecewise_network_built(piecewise_network):
         piecewise_network.optimize.create_model(include_objective_constant=False)
         return piecewise_network

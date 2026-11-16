@@ -69,6 +69,19 @@ def test_nans_in_capacity_limits(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("strict", [[], ["nans_for_component_default_attrs"]])
+def test_no_nan_warning_for_links_without_additional_ports(
+    consistent_n, caplog, strict
+):
+    """Links without a second output must not trigger the NaN warning for `efficiency2`."""
+    consistent_n.add("Link", "single", bus0="one", bus1="two", efficiency=0.4)
+    consistent_n.add(
+        "Link", "multi", bus0="one", bus1="two", bus2="one", efficiency2=0.3
+    )
+    consistent_n.consistency_check(strict=strict)
+    assert not any("Encountered nan" in record.message for record in caplog.records)
+
+
 @pytest.mark.parametrize("strict", [[], ["phase_shift_bounds"]])
 def test_phase_shift_unbounded(consistent_n, caplog, strict):
     # phase_shift_min < phase_shift_max makes the shift a variable; a non-finite
@@ -217,6 +230,28 @@ def test_committable_down_with_p_init(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize("committable", [True, False])
+def test_committable_unsupported(consistent_n, component, committable):
+    n = consistent_n
+    n.set_snapshots(range(3))
+    n.add("Load", "load_one", bus="one", p_set=5)
+    gen_attrs = ["p_nom", "marginal_cost", "committable"]
+    n.c.generators.static.loc["gen_one", gen_attrs] = (10, 1, True)
+    n.add(component, "storage_one", bus="one", p_nom=1, e_nom=1, max_hours=1)
+    c = n.components[component]
+    c.static["committable"] = committable
+
+    assert c.committables.empty
+    assert list(n.c.generators.committables) == ["gen_one"]
+    if committable:
+        match = f"Unit commitment is not supported for {component}"
+        with pytest.raises(pypsa.consistency.ConsistencyError, match=match):
+            n.optimize()
+    else:
+        assert n.optimize() == ("ok", "optimal")
+
+
 def test_unknown_check():
     n = pypsa.Network()
     with pytest.raises(ValueError):
@@ -240,6 +275,31 @@ def test_scenario_invariant_attributes(consistent_n, caplog, strict):
     # This check always raises an error
     with pytest.raises(pypsa.consistency.ConsistencyError):
         consistent_n.consistency_check(strict=strict)
+
+
+@pytest.mark.parametrize(
+    ("component", "name", "attr", "value", "match"),
+    [
+        ("Line", "line_one", "x", 10.0, "x_pu_eff"),
+        ("Line", "line_one", "r", 10.0, "r_pu_eff"),
+        ("Transformer", "trafo", "s_nom", 50.0, "_pu_eff"),
+        ("Transformer", "trafo", "tap_ratio", 1.1, "_pu_eff"),
+        ("Bus", "one", "v_nom", 110.0, "v_nom"),
+    ],
+)
+def test_scenario_invariant_impedances(
+    consistent_n, component, name, attr, value, match
+):
+    consistent_n.add("Bus", "three")
+    consistent_n.add(
+        "Transformer", "trafo", bus0="two", bus1="three", x=0.1, r=0.01, s_nom=100
+    )
+    consistent_n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    consistent_n.consistency_check()
+
+    consistent_n.c[component].static.loc[("s2", name), attr] = value
+    with pytest.raises(pypsa.consistency.ConsistencyError, match=match):
+        consistent_n.consistency_check()
 
 
 def test_scenario_invariant_attributes_comprehensive():
@@ -755,3 +815,47 @@ def test_nomansland_bus(caplog):
     )
 
     n.optimize()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="dtype confusing on Windows")
+@pytest.mark.parametrize("legacy_string_dtype", [True, False])
+def test_dtypes_of_valid_network_pass(legacy_string_dtype):
+    """String attributes pass in both object and pandas `str` dtype."""
+    with pypsa.option_context("api.legacy_string_dtype", legacy_string_dtype):
+        n = pypsa.examples.ac_dc_meshed()
+        n.consistency_check(check_dtypes=True, strict=["dtypes"])
+
+
+@pytest.mark.skipif(os.name == "nt", reason="dtype confusing on Windows")
+@pytest.mark.parametrize("varying", [False, True])
+def test_dtypes_of_numbers_stored_as_objects(ac_dc_network, varying):
+    """Numbers stored as objects, e.g. parsed from text, are flagged."""
+    n = ac_dc_network
+    if varying:
+        attr = "marginal_cost"
+        n.c.generators.dynamic[attr] = pd.DataFrame(
+            {"Manchester Gas": 30.0}, index=n.snapshots, dtype=object
+        )
+    else:
+        attr = "p_nom"
+        n.c.generators.static[attr] = n.c.generators.static[attr].astype(object)
+
+    with pytest.raises(pypsa.consistency.ConsistencyError, match=attr):
+        n.consistency_check(check_dtypes=True, strict=["dtypes"])
+
+
+@pytest.mark.parametrize("attr", ["p_max_pu", "p_min_pu"])
+@pytest.mark.parametrize(("value", "message"), [(np.nan, "NaN"), (np.inf, "infinite")])
+def test_invalid_time_series_power_limits(attr, value, message):
+    """NaN and infinite per-unit limits are reported with the affected snapshot."""
+    n = pypsa.Network()
+    n.set_snapshots(["t0", "t1", "t2"])
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_min_pu=0.0, p_max_pu=1.0)
+    n.c.generators.dynamic[attr] = pd.DataFrame(
+        {"gen": [0.5, value, 0.5]}, index=n.snapshots
+    )
+
+    match = rf"{attr} of element gen of generators has {message}(.|\n)*t1"
+    with pytest.raises(pypsa.consistency.ConsistencyError, match=match):
+        n.consistency_check(strict=["time_series_power_attrs"])

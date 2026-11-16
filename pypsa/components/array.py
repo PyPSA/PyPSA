@@ -63,7 +63,7 @@ def _from_xarray(da: xr.DataArray, c: Components) -> pd.DataFrame | pd.Series:
     """
     # Restore the snapshot MultiIndex from a flat build's tuple labels once
     # here, rather than at every caller.
-    window = c.n_save._snapshot_window
+    window = c.n._snapshot_window
     if window is not None:
         da = window.recompose(da)
 
@@ -286,7 +286,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         [2 rows x 6 columns]
 
         """
-        sns = as_index(self.n_save, snapshots, "snapshots")
+        sns = as_index(self.n, snapshots, "snapshots")
         index = self.static.index
 
         static = self.static.get(attr, pd.Series([], index=index[:0]))
@@ -399,7 +399,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         if options.debug.runtime_verification:
             _assert_xarray_integrity(self, res)
 
-        window = self.n_save._snapshot_window
+        window = self.n._snapshot_window
         if window is not None:
             res = window.flatten(res)
 

@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: MIT
 
 
+from numpy.testing import assert_allclose
+
+
 def test_optimize_with_power_flow(scipy_network):
     n = scipy_network
 
@@ -10,3 +13,17 @@ def test_optimize_with_power_flow(scipy_network):
 
     assert res["status"] == "ok"
     assert res["converged"].all().all()
+
+
+def test_fix_optimal_dispatch_reproduces_flows(ac_dc_network):
+    """A linear power flow on the fixed optimal dispatch reproduces the optimal flows."""
+    n = ac_dc_network
+    n.optimize()
+    lines = n.c.lines.dynamic.p0.copy()
+    links = n.c.links.dynamic.p0.copy()
+
+    n.optimize.fix_optimal_dispatch()
+    n.lpf()
+
+    assert_allclose(n.c.lines.dynamic.p0, lines, atol=1e-6)
+    assert_allclose(n.c.links.dynamic.p0, links, atol=1e-6)

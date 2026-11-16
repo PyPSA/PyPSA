@@ -214,6 +214,12 @@ class SnapshotWindow:
         merged = merge([self.drop_aux(e) for e in exprs], dim="snapshot", join="outer")
         return self._attach_aux(merged)
 
+    def concat(self, arrays: list[xr.DataArray], fill_value: float) -> xr.DataArray:
+        """Outer-concatenate arrays on `snapshot`, preserving the flat aux coords."""
+        dropped = [self.drop_aux(a) for a in arrays]
+        merged = xr.concat(dropped, dim="snapshot", join="outer", fill_value=fill_value)
+        return self._attach_aux(merged)
+
     def _attach_aux(self, obj: Any) -> Any:
         """Re-derive the aux coords of a flat `snapshot` dim from its tuple labels.
 

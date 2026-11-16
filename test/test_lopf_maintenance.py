@@ -377,6 +377,71 @@ def test_process_maintenance(basic_network):
             assert p[t] < 1e-5
 
 
+@pytest.mark.parametrize(
+    ("component", "p_attr"), [("Generator", "p"), ("Link", "p0"), ("Process", "p")]
+)
+def test_fixed_modular_committable_maintenance(component, p_attr):
+    """Fixed modular committable units take their modules out in maintenance.
+
+    The number of modules was taken from ``p_nom_max``, which is infinite for a
+    unit that is not extendable, so the solver refused the model (#2094).
+    """
+    modules = 100 / 25
+    for extendable in [False, True]:
+        n = pypsa.Network()
+        n.set_snapshots(range(6))
+        n.add("Bus", ["bus", "bus1"])
+        n.add("Generator", "supply", bus="bus", p_nom=200)
+        buses = (
+            {"bus": "bus1"}
+            if component == "Generator"
+            else {"bus0": "bus", "bus1": "bus1"}
+        )
+        n.add(
+            component,
+            "unit",
+            **buses,
+            p_nom=100,
+            p_nom_mod=25,
+            p_nom_extendable=extendable,
+            p_nom_min=100 if extendable else 0,
+            p_nom_max=100 if extendable else np.inf,
+            committable=True,
+            marginal_cost=1,
+            maintainable=True,
+            maintenance_duration=2,
+            maintenance_pu=1.0,
+        )
+        n.add("Generator", "backup", bus="bus1", p_nom=200, marginal_cost=100)
+        n.add("Load", "load", bus="bus1", p_set=80)
+
+        status = n.optimize()
+        assert status == ("ok", "optimal")
+
+        le_maint = n.model.constraints[f"{component}-maint-modstatus-le-maint"]
+        lb = n.model.constraints[f"{component}-maint-modstatus-lb"]
+        bound = (
+            "modules bound is p_nom_max/p_nom_mod if extendable, else p_nom/p_nom_mod"
+        )
+        np.testing.assert_array_equal(
+            np.unique(le_maint.coeffs), [-modules, 1], err_msg=bound
+        )
+        np.testing.assert_array_equal(
+            np.unique(lb.coeffs), [-modules, -1, 1], err_msg=bound
+        )
+        np.testing.assert_array_equal(lb.rhs, -modules, err_msg=bound)
+
+        c = n.c[component]
+        in_maint = c.dynamic.maintenance["unit"].values > 0.5
+        p = c.dynamic[p_attr]["unit"].values
+        assert in_maint.sum() == 2
+        np.testing.assert_allclose(p[in_maint], 0, atol=1e-5)
+        np.testing.assert_allclose(p[~in_maint], 80, atol=1e-5)
+        assert n.objective == pytest.approx(2 * 80 * 100 + 4 * 80 * 1), (
+            "backup serves 80 at 100 in 2 maintenance snapshots, the unit at 1 in 4"
+        )
+
+
 def test_multiple_generators_no_simultaneous_overlap(basic_network):
     n = basic_network
     for i in range(2):

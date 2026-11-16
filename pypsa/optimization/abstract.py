@@ -169,7 +169,9 @@ def _add_security_constraints(
         bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
         added_flow = flow_outage * bodf
 
-        for bound, kind in product(("lower", "upper"), ("fix", "ext")):
+        for (bound, sign), kind in product(
+            (("lower", ">="), ("upper", "<=")), ("fix", "ext")
+        ):
             constraint = c_affected + "-" + kind + "-s-" + bound
             if constraint not in m.constraints:
                 continue
@@ -183,6 +185,7 @@ def _add_security_constraints(
                 {c_affected: "name"}
             )
             lhs = con.lhs.sel(con_selection) + added_flow_aligned
+            active = con.labels.sel(con_selection) != -1
 
             name = (
                 constraint
@@ -191,9 +194,11 @@ def _add_security_constraints(
             )
             m.add_constraints(
                 lhs,
-                con.sign.sel(con_selection),
-                con.rhs.sel(con_selection),
+                sign,
+                con.rhs.sel(con_selection).where(active, 0),
                 name=name,
+                mask=active,
+                scaling=con.scaling.sel(con_selection),
             )
 
 
@@ -562,6 +567,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         branch_outages: Sequence | pd.Index | pd.MultiIndex | None = None,
         multi_investment_periods: bool = False,
         model_kwargs: dict | None = None,
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Compute Security-Constrained Linear Optimal Power Flow (SCLOPF).
@@ -590,6 +596,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver, see
+            `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -622,6 +631,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 snapshots,
                 multi_investment_periods=multi_investment_periods,
                 model_kwargs=model_kwargs,
+                objective_scaling=objective_scaling,
                 **kwargs,
             )
 
@@ -639,6 +649,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         m = n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
+            objective_scaling=objective_scaling,
             **model_kwargs,
         )
 

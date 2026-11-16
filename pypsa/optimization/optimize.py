@@ -60,6 +60,12 @@ from pypsa.optimization.constraints import (
     define_voltage_angle_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
+from pypsa.optimization.flow_based import (
+    NET_POSITION,
+    define_flow_based_constraints,
+    define_flow_based_variables,
+    flow_based_net_position,
+)
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
@@ -274,7 +280,10 @@ def define_objective(
             has_const = constant != 0
         if has_const:
             object_const = m.add_variables(
-                constant, constant, name="objective_constant"
+                constant,
+                constant,
+                name="objective_constant",
+                scaling=m.objective.scaling,
             )
             capex_terms.append(-1 * object_const)
     else:
@@ -318,6 +327,7 @@ def define_objective(
                     sign=">=",
                     cumulative_attr=True,
                     extra_options=extra_options,
+                    scaling=m.objective.scaling,
                     status=status,
                 )
                 if pw_cost_var is not None:
@@ -409,6 +419,7 @@ def define_objective(
                 sign=">=",
                 cumulative_attr=True,
                 extra_options=extra_options,
+                scaling=m.objective.scaling,
             )
             if piecewise_var is not None:
                 pw_names = piecewise_var.indexes["name"]
@@ -511,7 +522,9 @@ def define_objective(
 
         for s in n.scenarios:
             lhs = a.sel(scenario=s, drop=True) - scen_opex_exprs[s] + theta
-            m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
+            m.add_constraints(
+                lhs, ">=", 0, name=f"CVaR-excess-{s}", scaling=m.objective.scaling
+            )
 
         inv_tail = 1.0 / (1.0 - alpha)
         weighted_a = None
@@ -521,7 +534,13 @@ def define_objective(
         if weighted_a is None:  # mypy type guard
             msg = "No scenarios found in scenario_weightings"
             raise UnexpectedError(msg)
-        m.add_constraints(theta + inv_tail * weighted_a, "<=", cvar, name="CVaR-def")
+        m.add_constraints(
+            theta + inv_tail * weighted_a,
+            "<=",
+            cvar,
+            name="CVaR-def",
+            scaling=m.objective.scaling,
+        )
 
         # Final objective: CAPEX + (1-omega) * E[OPEX] + omega * CVaR
         obj_expr = expected_capex + (1 - omega) * expected_opex + omega * cvar
@@ -529,8 +548,7 @@ def define_objective(
         # Deterministic or no risk: CAPEX + OPEX
         obj_expr = expected_capex + expected_opex
 
-    # Set objective
-    m.objective = obj_expr
+    m.add_objective(obj_expr, overwrite=True, scaling=m.objective.scaling)
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
@@ -575,6 +593,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
+        objective_scaling: float = 1.0,
         consistency_check: bool = True,
         **kwargs: Any,
     ) -> tuple[str, str]:
@@ -652,6 +671,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
             default ``"bfs-refined"`` yields sparser constraints.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver. The
+            objective value and duals are reported in original units. Column
+            and row factors are set via `Bus.scaling` and
+            `GlobalConstraint.scaling`.
         consistency_check : bool, default True
             Whether to run the consistency check before building the model.
         **kwargs:
@@ -700,6 +724,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             meshed_thresholds=meshed_thresholds,
             piecewise_options=piecewise_options,
             cycle_basis_method=cycle_basis_method,
+            objective_scaling=objective_scaling,
             **model_kwargs,
         )
         if extra_functionality:
@@ -739,6 +764,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -788,8 +814,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
             default ``"bfs-refined"`` yields sparser constraints.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver. The
+            objective value and duals are reported in original units. Column
+            and row factors are set via `Bus.scaling` and
+            `GlobalConstraint.scaling`.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
+            They extend and override `options.params.optimize.model_kwargs`.
 
         Returns
         -------
@@ -828,11 +860,16 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if meshed_thresholds is None:
                 meshed_thresholds = [meshed_threshold]
 
-        kwargs.setdefault("force_dim_names", True)
+        kwargs = {
+            "force_dim_names": True,
+            **options.params.optimize.model_kwargs,
+            **kwargs,
+        }
         window = SnapshotWindow.build(n, sns, options.optimization.model_snapshot_index)
         n._optimize_window = window
         sns = window.model_index
         n._model = Model(**kwargs)
+        n.model.objective.scaling = objective_scaling
 
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
@@ -857,6 +894,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         for c in ("StorageUnit", "Store"):
             define_spillage_variables(n, sns, c)
         define_phase_shift_variables(n, sns)
+        flow_based_domain = define_flow_based_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -967,6 +1005,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
+        define_flow_based_constraints(n, flow_based_domain)
 
         define_objective(n, sns, include_objective_constant, piecewise_opts)
 
@@ -982,6 +1021,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Solve an already created model and assign its solution to the network.
+
+        Scaling factors are fixed when the model is created, see the
+        `objective_scaling` argument of `create_model`.
 
         Parameters
         ----------
@@ -1072,6 +1114,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
             # Skip auxiliary CVaR variables
             if name.startswith("CVaR"):
+                continue
+            # The flow-based net position is written in `post_processing`
+            if name == NET_POSITION:
                 continue
             if any(
                 i in variable.dims
@@ -1225,11 +1270,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 unassigned_constraints.append(constraint_name)
                 continue
 
-            # Add placeholder for custom constraints, marked as GlobalConstraint
+            # Add placeholder for custom constraints, marked as GlobalConstraint.
+            # Constraints with a `name` dim are already per row, e.g. `ram`.
             # TODO This should go to an actual custom constraint
             if (
                 c.name == "GlobalConstraint"
                 and suffix not in c.static.index
+                and "name" not in constraint.dims
                 and assign_all_duals
             ):
                 if c.has_scenarios:
@@ -1365,6 +1412,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             .T.reindex(columns=n.c.buses.static.index, fill_value=0.0)
         )
 
+        if (net_position := flow_based_net_position(n)) is not None:
+            _set_dynamic_data(n, "Bus", "net_position", net_position)
+
         if not n.has_scenarios:
 
             def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
@@ -1390,14 +1440,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             # i.e. one has to iterate over the periods in order to get the correct angles.
 
             # Determine_network_topology is not necessarily called (only if KVL was assigned)
-            if n.c.sub_networks.static.empty:
+            has_passive_branches = any(
+                not n.c[c].static.empty for c in n.passive_branch_components
+            )
+            if n.c.sub_networks.static.empty and has_passive_branches:
                 n.determine_network_topology()
 
             # Calculate voltage angles (only needed for power flow)
-            if "obj" in n.c.sub_networks.static:
-                n.c.buses.dynamic.v_ang = pd.concat(
-                    [v_ang_for_(sub) for sub in n.c.sub_networks.static.obj], axis=1
-                ).reindex(columns=n.c.buses.static.index, fill_value=0.0)
+            v_ang = pd.DataFrame(
+                0.0, index=n.c.buses.dynamic.p.index, columns=n.c.buses.static.index
+            )
+            for sub in n.c.sub_networks.static.get("obj", []):
+                angles = v_ang_for_(sub)
+                v_ang[angles.columns] = angles
+            n.c.buses.dynamic.v_ang = v_ang
 
     def fix_optimal_capacities(self) -> None:
         """Fix capacities of extendable assets to optimized capacities.

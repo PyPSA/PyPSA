@@ -589,7 +589,7 @@ def test_global_constraint_bus_tech_limit(n):
 
 
 def test_nominal_constraint_bus_carrier_expansion_limit(n):
-    n.c.buses.static.at["1", "nom_max_gencarrier"] = 100
+    n.c.buses.static.loc["1", "nom_max_gencarrier"] = 100
     with pytest.warns(
         # DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
         DeprecationWarning,
@@ -600,7 +600,7 @@ def test_nominal_constraint_bus_carrier_expansion_limit(n):
     assert round(n.c.generators.static.p_nom_opt[gen1s], 0).sum() == 100
     n.c.buses.static = n.c.buses.static.drop(columns=["nom_max_gencarrier"])
 
-    n.c.buses.static.at["1", "nom_max_gencarrier_2020"] = 100
+    n.c.buses.static.loc["1", "nom_max_gencarrier_2020"] = 100
     with pytest.warns(
         # DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
         DeprecationWarning,
@@ -611,7 +611,7 @@ def test_nominal_constraint_bus_carrier_expansion_limit(n):
     n.c.buses.static = n.c.buses.static.drop(columns=["nom_max_gencarrier_2020"])
 
     # make the constraint non-binding and check that the shadow price is zero
-    n.c.buses.static.at["1", "nom_min_gencarrier_2020"] = 100
+    n.c.buses.static.loc["1", "nom_min_gencarrier_2020"] = 100
     with pytest.warns(
         # DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
         DeprecationWarning,
@@ -1391,3 +1391,243 @@ def test_extra_functionality_receives_the_build_snapshots(n, representation):
         n.optimize.create_model(snapshots=n.snapshots[:12], **kwargs)
         n.optimize.solve_model(extra_functionality=lambda _, sns: seen.append(sns))
     pd.testing.assert_index_equal(seen[0], n.model.parameters.snapshots.to_index())
+
+
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize(
+    ("period", "level"),
+    [(2030, 9.5), (2040, 9)],
+)
+def test_primary_energy_investment_period_storage_initial_per_period(
+    component, period, level
+):
+    """
+    A primary energy limit on one period counts only that period's storage change.
+
+    See https://github.com/PyPSA/PyPSA/issues/2093.
+    """
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [0, 1]])
+    n.investment_periods = [2030, 2040]
+    n.investment_period_weightings["years"] = [10, 5]
+
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add("Generator", "gen", bus="bus", p_nom=2, marginal_cost=10)
+    if component == "StorageUnit":
+        n.add(
+            "StorageUnit",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            p_nom=10,
+            max_hours=1,
+            state_of_charge_initial=10,
+            state_of_charge_initial_per_period=True,
+        )
+    else:
+        n.add(
+            "Store",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            e_nom=10,
+            e_initial=10,
+            e_initial_per_period=True,
+        )
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=1,
+        investment_period=period,
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+    levels = n.c[component].dynamic[
+        "state_of_charge" if component == "StorageUnit" else "e"
+    ]["storage"]
+    final = levels.groupby(level=0).last()
+    expected = pd.Series({2030: 8.0, 2040: 8.0})
+    expected[period] = level
+    equal(final.to_numpy(), expected.to_numpy())
+
+
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize(
+    ("kind", "attribute", "factor"),
+    [("primary_energy", "co2_emissions", 0.2), ("operational_limit", "gas", 1)],
+)
+def test_storage_limit_initial_per_period_stochastic(
+    component, kind, attribute, factor
+):
+    """
+    Each scenario's limit counts that scenario's per-period storage change.
+
+    See https://github.com/PyPSA/PyPSA/issues/2113.
+    """
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [0, 1]])
+    n.investment_periods = [2030, 2040]
+
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add("Generator", "gen", bus="bus", p_nom=2, marginal_cost=10)
+    if component == "StorageUnit":
+        n.add(
+            "StorageUnit",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            p_nom=10,
+            max_hours=1,
+            state_of_charge_initial=10,
+            state_of_charge_initial_per_period=True,
+        )
+    else:
+        n.add(
+            "Store",
+            "storage",
+            bus="bus",
+            carrier="gas",
+            e_nom=10,
+            e_initial=10,
+            e_initial_per_period=True,
+        )
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=kind,
+        carrier_attribute=attribute,
+        sense="<=",
+        constant=0,
+    )
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    drawdown = pd.Series({"low": 1.0, "high": 3.0})
+    n.c.global_constraints.static["constant"] = drawdown.mul(factor).reindex(
+        n.c.global_constraints.static.index, level=0
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+    levels = n.c[component].dynamic[
+        "state_of_charge" if component == "StorageUnit" else "e"
+    ]
+    result = (10 - levels.groupby(level=0).last()).sum().droplevel("name")
+    equal(result[drawdown.index].to_numpy(), drawdown.to_numpy())
+
+
+STORAGE_FLAGS = {
+    "StorageUnit": {
+        "initial": "state_of_charge_initial",
+        "cyclic": "cyclic_state_of_charge",
+        "cyclic_per_period": "cyclic_state_of_charge_per_period",
+        "initial_per_period": "state_of_charge_initial_per_period",
+    },
+    "Store": {
+        "initial": "e_initial",
+        "cyclic": "e_cyclic",
+        "cyclic_per_period": "e_cyclic_per_period",
+        "initial_per_period": "e_initial_per_period",
+    },
+}
+STORAGE_MODES = [
+    "carried",
+    "cyclic",
+    "cyclic_per_period",
+    "initial_per_period",
+    "cyclic+initial_per_period",
+]
+STORAGE_LIMIT_CASES = [
+    *[(mode, period, False) for mode in STORAGE_MODES for period in (None, 2030, 2040)],
+    ("built_later", None, False),
+    ("built_later", 2040, False),
+    ("retired", 2040, False),
+    ("carried", 2040, True),
+    ("cyclic", 2040, True),
+    ("cyclic_per_period", None, True),
+]
+
+
+@pytest.mark.parametrize("component", ["StorageUnit", "Store"])
+@pytest.mark.parametrize(
+    ("kind", "attribute", "factor"),
+    [("primary_energy", "co2_emissions", 0.2), ("operational_limit", "gas", 1)],
+)
+@pytest.mark.parametrize(("mode", "period", "stochastic"), STORAGE_LIMIT_CASES)
+def test_storage_limit_counts_withdrawal(
+    component, kind, attribute, factor, mode, period, stochastic
+):
+    """
+    A binding limit equals the energy withdrawn from storage in the counted periods.
+
+    The withdrawal is taken from the dispatch, so it also holds for storage with
+    inflow and for storage that carries its level into the counted period.
+    See https://github.com/PyPSA/PyPSA/issues/2000 and
+    https://github.com/PyPSA/PyPSA/issues/2131.
+    """
+    flags = STORAGE_FLAGS[component]
+    years = {"carried": 1, "built_later": 1, "retired": [1, 10]}.get(mode, [2, 3])
+    limit = 3
+
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [0, 1, 2]])
+    n.investment_periods = [2030, 2040]
+    n.investment_period_weightings["years"] = years
+    n.snapshot_weightings = n.snapshot_weightings.assign(stores=2, generators=3)
+
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=4)
+    n.add("Generator", "gen", bus="bus", p_nom=10, marginal_cost=100)
+    kwargs = {"e_nom": 100} if component == "Store" else {"p_nom": 100, "max_hours": 1}
+    kwargs[flags["initial"]] = 10
+    kwargs.update({flags[flag]: True for flag in mode.split("+") if flag in flags})
+    if mode == "built_later":
+        kwargs["build_year"] = 2040
+    if mode == "retired":
+        kwargs.update(build_year=2030, lifetime=10)
+    n.add(
+        component,
+        "storage",
+        bus="bus",
+        carrier="gas",
+        marginal_cost=1,
+        inflow=2,
+        efficiency_dispatch=0.5,
+        **kwargs,
+    )
+    n.add(
+        "GlobalConstraint",
+        "limit",
+        type=kind,
+        carrier_attribute=attribute,
+        sense="<=",
+        constant=limit * factor,
+        investment_period=period,
+    )
+    if stochastic:
+        n.set_scenarios({"low": 0.5, "high": 0.5})
+        n.c[component].static.loc[("low", "storage"), "inflow"] = 0
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+
+    dynamic = n.c[component].dynamic
+    withdrawal = dynamic.p_dispatch / 0.5 - dynamic.p_store
+    withdrawal = withdrawal.mul(n.snapshot_weightings.stores, axis=0)
+    withdrawal = withdrawal.mul(n.investment_period_weightings.years, axis=0, level=0)
+    if period is not None:
+        withdrawal = withdrawal.loc[[period]]
+    withdrawal = withdrawal.sum()
+    if stochastic:
+        assert (withdrawal["low"] <= limit + 1e-6).all()
+        withdrawal = withdrawal["high"]
+    almost_equal(withdrawal.to_numpy(), 0 if mode == "retired" else limit)
