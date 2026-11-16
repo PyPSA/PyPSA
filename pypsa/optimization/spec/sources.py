@@ -420,8 +420,8 @@ def _units(s: NetworkSources, name: str, c: Components) -> pd.Index:
     return names[bus.isin(s.n.c.buses.names).to_numpy()]
 
 
-@source("DIM_output")
-def _output_ports(s: NetworkSources, name: str, c: Components) -> pd.Index:
+@source("DIM_port")
+def _ports(s: NetworkSources, name: str, c: Components) -> pd.Index:
     return pd.Index(s.ports(c)["port"], dtype=object)
 
 
@@ -490,12 +490,12 @@ def _relation(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     )
 
 
-@source("COMPONENT_output_bus", "COMPONENT_output_DIM")
-def _output(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
+@source("COMPONENT_port_bus", "COMPONENT_port_DIM")
+def _port_field(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     ports = s.ports(c)
-    column = name.removeprefix(f"{c.name}_output_")
-    output = {f"{c._unit_dim}_output": ports["port"], column: ports[column]}
-    return pd.DataFrame(output).reset_index(drop=True)
+    column = name.removeprefix(f"{c.name}_port_")
+    field = {f"{c._unit_dim}_port": ports["port"], column: ports[column]}
+    return pd.DataFrame(field).reset_index(drop=True)
 
 
 # -- activity -------------------------------------------------------------
@@ -533,13 +533,13 @@ def _capital_cost(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return s.unit_array(c, c.periodized_cost)
 
 
-@source("COMPONENT_BASE_nom_mod")
+@source("COMPONENT_NOM_mod")
 def _nom_mod(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     da = s.attribute(c, name)
     return da.where(da > 0)
 
 
-@source("COMPONENT_BASE_nom_set", "COMPONENT_s_set")
+@source("COMPONENT_NOM_set", "COMPONENT_s_set")
 def _optional(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the attribute, NaN where the component has none."""
     attr = name.removeprefix(f"{c.name}_")
@@ -583,7 +583,7 @@ def _port_attribute(
 ) -> xr.DataArray:
     """Return the attribute `<prefix><port suffix>` of each port, over the component's port dimension."""
     owner = c._unit_dim
-    dim = f"{owner}_output"
+    dim = f"{owner}_port"
     parts = []
     for k, group in s.ports(c).groupby("k", sort=True):
         da = s.da(c, f"{prefix}{c._port_suffix(k)}").sel(
@@ -606,8 +606,8 @@ def _coefficient(s: NetworkSources, name: str) -> xr.DataArray:
     return _port_attribute(s, c, name, c._coefficient_attr).astype(float)
 
 
-@source("COMPONENT_output_delay")
-def _output_delay(s: NetworkSources, name: str, c: _Multiport) -> xr.DataArray:
+@source("COMPONENT_port_delay")
+def _port_delay(s: NetworkSources, name: str, c: _Multiport) -> xr.DataArray:
     try:
         delay = _port_attribute(s, c, name, "delay")
     except KeyError:
@@ -615,8 +615,8 @@ def _output_delay(s: NetworkSources, name: str, c: _Multiport) -> xr.DataArray:
     return delay.astype(float).fillna(0).astype(int)
 
 
-@source("COMPONENT_output_delay_source")
-def _output_delay_source(s: NetworkSources, name: str, c: _Multiport) -> pd.DataFrame:
+@source("COMPONENT_port_delay_source")
+def _port_delay_source(s: NetworkSources, name: str, c: _Multiport) -> pd.DataFrame:
     """Each delayed port's source snapshot, as PyPSA's own indexer picks it."""
     owner = c._unit_dim
     static = s.static(c)
@@ -626,10 +626,10 @@ def _output_delay_source(s: NetworkSources, name: str, c: _Multiport) -> pd.Data
         attr = f"cyclic_delay{c._port_suffix(k)}"
         if attr in static:
             cyclic[group.index] = static[attr].reindex(group[owner]).to_numpy()
-    delay = s[f"{c.name}_output_delay"].to_series().reindex(ports.index)
+    delay = s[f"{c.name}_port_delay"].to_series().reindex(ports.index)
     delayed = pd.DataFrame({"delay": delay, "cyclic": cyclic})[delay > 0]
     weightings = s.n.snapshot_weightings["generators"].iloc[s.positions].to_numpy()
-    frames = [pd.DataFrame(columns=[f"{owner}_output", "snapshot", "source"])]
+    frames = [pd.DataFrame(columns=[f"{owner}_port", "snapshot", "source"])]
     for (d, cyc), group in delayed.groupby(["delay", "cyclic"]):
         src, valid = c.get_delay_source_indexer(
             s.network_index, weightings, int(d), bool(cyc)
@@ -638,7 +638,7 @@ def _output_delay_source(s: NetworkSources, name: str, c: _Multiport) -> pd.Data
         frames.append(
             pd.DataFrame(
                 {
-                    f"{owner}_output": np.repeat(
+                    f"{owner}_port": np.repeat(
                         group.index.to_numpy(dtype=object), len(targets)
                     ),
                     "snapshot": np.tile(s.snapshots[targets], len(group)),

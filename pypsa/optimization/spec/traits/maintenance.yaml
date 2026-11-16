@@ -4,16 +4,16 @@
 
 given:
   parameters:
-    COMPONENT_BASE_nom_extendable: {dims: [DIM], dtype: bool}
-    COMPONENT_BASE_nom_max: {dims: [scenario, DIM]}
-    COMPONENT_BASE_nom_min: {dims: [scenario, DIM]}
-    COMPONENT_BASE_nom_mod: {dims: [DIM]}
+    COMPONENT_NOM_extendable: {dims: [DIM], dtype: bool}
+    COMPONENT_NOM_max: {dims: [scenario, DIM]}
+    COMPONENT_NOM_min: {dims: [scenario, DIM]}
+    COMPONENT_NOM_mod: {dims: [DIM]}
     COMPONENT_active: {dims: [snapshot, DIM], dtype: bool}
     COMPONENT_committable: {dims: [DIM], dtype: bool}
     COMPONENT_modules_installed: {dims: [scenario, DIM]}
     snapshot_weightings_generators: {dims: [snapshot]}
   variables:
-    COMPONENT_BASE_nom_ext: {dims: [DIM]}
+    COMPONENT_NOM_ext: {dims: [DIM]}
     COMPONENT_status: {dims: [scenario, snapshot, DIM]}
   conditions:
     COMPONENT_committed: {dims: [snapshot, DIM]}
@@ -89,8 +89,8 @@ variables:
     description: the status while in maintenance, zero otherwise
     dims: [scenario, snapshot, DIM]
     where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT (COMPONENT_BASE_nom_extendable AND
-      NOT (COMPONENT_BASE_nom_mod > 0))
+      COMPONENT_maintainable AND COMPONENT_committed AND NOT (COMPONENT_NOM_extendable AND
+      NOT (COMPONENT_NOM_mod > 0))
     missing: 0
     bounds:
       lower: 0
@@ -103,8 +103,8 @@ expressions:
     dims: [scenario, DIM]
     cases:
       extendable:
-        when: COMPONENT_BASE_nom_extendable
-        expression: COMPONENT_BASE_nom_max / COMPONENT_BASE_nom_mod
+        when: COMPONENT_NOM_extendable
+        expression: COMPONENT_NOM_max / COMPONENT_NOM_mod
     otherwise: COMPONENT_modules_installed
 
 conditions:
@@ -113,8 +113,8 @@ conditions:
       a maintainable extendable unit, active in the snapshot, that is not both
       committable and modular
     condition: >-
-      COMPONENT_maintainable AND COMPONENT_BASE_nom_extendable AND NOT (COMPONENT_committable AND
-      COMPONENT_BASE_nom_mod > 0) AND COMPONENT_active
+      COMPONENT_maintainable AND COMPONENT_NOM_extendable AND NOT (COMPONENT_committable AND
+      COMPONENT_NOM_mod > 0) AND COMPONENT_active
 
 constraints:
   COMPONENT_maint_event_count:
@@ -148,36 +148,36 @@ constraints:
     dims: [scenario, snapshot, DIM]
     where: COMPONENT_maint_ext
     expression: >-
-      COMPONENT_maintenance_capacity <= COMPONENT_BASE_nom_ext - COMPONENT_BASE_nom_min * (1 -
+      COMPONENT_maintenance_capacity <= COMPONENT_NOM_ext - COMPONENT_NOM_min * (1 -
       COMPONENT_maintenance)
   COMPONENT_maintcap_upper_nommax:
     name: COMPONENT-maintcap_upper_nommax
     description: out of maintenance, no build is taken off
     dims: [scenario, snapshot, DIM]
     where: COMPONENT_maint_ext
-    expression: COMPONENT_maintenance_capacity <= COMPONENT_BASE_nom_max * COMPONENT_maintenance
+    expression: COMPONENT_maintenance_capacity <= COMPONENT_NOM_max * COMPONENT_maintenance
   COMPONENT_maintcap_lower_nommax:
     name: COMPONENT-maintcap_lower_nommax
     description: in maintenance, the whole chosen build is taken off
     dims: [scenario, snapshot, DIM]
     where: COMPONENT_maint_ext
     expression: >-
-      COMPONENT_maintenance_capacity >= COMPONENT_BASE_nom_ext - COMPONENT_BASE_nom_max * (1 -
+      COMPONENT_maintenance_capacity >= COMPONENT_NOM_ext - COMPONENT_NOM_max * (1 -
       COMPONENT_maintenance)
   COMPONENT_maintcap_lower_nommin:
     name: COMPONENT-maintcap_lower_nommin
     description: in maintenance, at least the floor of the build is taken off
     dims: [scenario, snapshot, DIM]
-    where: COMPONENT_maint_ext AND COMPONENT_BASE_nom_min > 0
-    expression: COMPONENT_maintenance_capacity >= COMPONENT_BASE_nom_min * COMPONENT_maintenance
+    where: COMPONENT_maint_ext AND COMPONENT_NOM_min > 0
+    expression: COMPONENT_maintenance_capacity >= COMPONENT_NOM_min * COMPONENT_maintenance
   COMPONENT_maint_status_le_status:
     name: COMPONENT-maint-status-le-status
     scaling: none
     description: the status in maintenance is at most the status
     dims: [scenario, snapshot, DIM]
     where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_BASE_nom_extendable AND
-      NOT (COMPONENT_BASE_nom_mod > 0)
+      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND
+      NOT (COMPONENT_NOM_mod > 0)
     expression: COMPONENT_maintenance_status <= COMPONENT_status
   COMPONENT_maint_status_le_maint:
     name: COMPONENT-maint-status-le-maint
@@ -185,8 +185,8 @@ constraints:
     description: out of maintenance, the status in maintenance is zero
     dims: [scenario, snapshot, DIM]
     where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_BASE_nom_extendable AND
-      NOT (COMPONENT_BASE_nom_mod > 0)
+      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND
+      NOT (COMPONENT_NOM_mod > 0)
     expression: COMPONENT_maintenance_status <= COMPONENT_maintenance
   COMPONENT_maint_status_lb:
     name: COMPONENT-maint-status-lb
@@ -194,29 +194,29 @@ constraints:
     description: on and in maintenance, the status in maintenance is one
     dims: [scenario, snapshot, DIM]
     where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_BASE_nom_extendable AND
-      NOT (COMPONENT_BASE_nom_mod > 0)
+      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND
+      NOT (COMPONENT_NOM_mod > 0)
     expression: COMPONENT_maintenance_status >= COMPONENT_status + COMPONENT_maintenance - 1
   COMPONENT_maint_modstatus_le_status:
     name: COMPONENT-maint-modstatus-le-status
     scaling: none
     description: the modules on in maintenance are at most the modules on
     dims: [scenario, snapshot, DIM]
-    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_BASE_nom_mod > 0
+    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_NOM_mod > 0
     expression: COMPONENT_maintenance_status <= COMPONENT_status
   COMPONENT_maint_modstatus_le_maint:
     name: COMPONENT-maint-modstatus-le-maint
     scaling: none
     description: out of maintenance, no module is on in maintenance
     dims: [scenario, snapshot, DIM]
-    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_BASE_nom_mod > 0
+    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_NOM_mod > 0
     expression: COMPONENT_maintenance_status <= COMPONENT_maintenance_modules * COMPONENT_maintenance
   COMPONENT_maint_modstatus_lb:
     name: COMPONENT-maint-modstatus-lb
     scaling: none
     description: in maintenance, every module on is on in maintenance
     dims: [scenario, snapshot, DIM]
-    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_BASE_nom_mod > 0
+    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_NOM_mod > 0
     expression: >-
       COMPONENT_maintenance_status >= COMPONENT_status - COMPONENT_maintenance_modules * (1 -
       COMPONENT_maintenance)
@@ -241,6 +241,6 @@ assumptions:
     where: COMPONENT_maintainable
     description: all events together fit into the horizon
   COMPONENT_maintenance_build_cap_is_finite:
-    holds: COMPONENT_BASE_nom_max < inf
-    where: COMPONENT_maintainable AND COMPONENT_BASE_nom_extendable
+    holds: COMPONENT_NOM_max < inf
+    where: COMPONENT_maintainable AND COMPONENT_NOM_extendable
     description: a maintainable extendable unit has a finite largest nominal capacity

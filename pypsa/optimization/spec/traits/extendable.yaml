@@ -23,24 +23,24 @@ parameters:
       year and lifetime
     dims: [DIM]
     dtype: bool
-  COMPONENT_BASE_nom:
+  COMPONENT_NOM:
     description: nominal capacity
     dims: [scenario, DIM]
-  COMPONENT_BASE_nom_extendable:
+  COMPONENT_NOM_extendable:
     description: whether the nominal capacity is a decision
     dims: [DIM]
     dtype: bool
-  COMPONENT_BASE_nom_min:
+  COMPONENT_NOM_min:
     description: least nominal capacity of an extendable asset
     dims: [scenario, DIM]
-  COMPONENT_BASE_nom_max:
+  COMPONENT_NOM_max:
     description: most nominal capacity of an extendable asset
     dims: [scenario, DIM]
-  COMPONENT_BASE_nom_set:
+  COMPONENT_NOM_set:
     description: a given nominal capacity of an extendable asset. No value means no row
     dims: [scenario, DIM]
     missing: absent
-  COMPONENT_BASE_nom_mod:
+  COMPONENT_NOM_mod:
     description: the module size the build comes in whole numbers of. No value means a continuous build
     dims: [DIM]
     missing: absent
@@ -68,16 +68,16 @@ parameters:
     missing: absent
 
 variables:
-  COMPONENT_BASE_nom_ext:
-    name: COMPONENT-BASE_nom
+  COMPONENT_NOM_ext:
+    name: COMPONENT-NOM
     description: the nominal capacity of an extendable asset
     dims: [DIM]
-    where: COMPONENT_BASE_nom_extendable AND COMPONENT_active_asset
+    where: COMPONENT_NOM_extendable AND COMPONENT_active_asset
   COMPONENT_n_mod:
     name: COMPONENT-n_mod
     description: the number of modules of an extendable modular asset
     dims: [DIM]
-    where: COMPONENT_BASE_nom_extendable AND COMPONENT_BASE_nom_mod > 0 AND COMPONENT_active_asset
+    where: COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0 AND COMPONENT_active_asset
     domain: integer
     bounds:
       lower: 0
@@ -88,16 +88,16 @@ variables:
     where: COMPONENT_capital_cost_curve
 
 expressions:
-  COMPONENT_BASE_nom_rated:
+  COMPONENT_NOM_rated:
     description: >-
       the given nominal capacity, and zero where it is infinite. Then a limit is
       a row only where the per-unit value is zero
     dims: [scenario, DIM]
     cases:
       unrated:
-        when: COMPONENT_BASE_nom == inf
+        when: COMPONENT_NOM == inf
         expression: 0
-    otherwise: COMPONENT_BASE_nom
+    otherwise: COMPONENT_NOM
   COMPONENT_build_cost:
     description: the cost read off the `capital_cost` curve where there is one, build times `capital_cost` otherwise
     dims: [scenario, DIM]
@@ -105,7 +105,7 @@ expressions:
       curve:
         when: COMPONENT_capital_cost_curve
         expression: COMPONENT_capital_cost_piecewise
-    otherwise: COMPONENT_BASE_nom_ext * COMPONENT_capital_cost
+    otherwise: COMPONENT_NOM_ext * COMPONENT_capital_cost
   COMPONENT_capex:
     expression: sum(scenario_weight * COMPONENT_build_cost * COMPONENT_capital_weight)
 
@@ -114,7 +114,7 @@ conditions:
     description: an extendable active asset with a piecewise `capital_cost` curve
     condition: >-
       count(COMPONENT_capital_cost_curve_nom, over=breakpoint) > 0 AND
-      COMPONENT_BASE_nom_extendable AND COMPONENT_active_asset
+      COMPONENT_NOM_extendable AND COMPONENT_active_asset
   COMPONENT_capital_cost_curve_bends_down:
     description: a breakpoint where the `capital_cost` curve gets less steep
     condition: >-
@@ -143,7 +143,7 @@ piecewise:
     where: COMPONENT_capital_cost_as_lp AND COMPONENT_capital_cost_curve AND COMPONENT_capital_cost_curve_nom
     method: lp
     links:
-      BASE_nom: ["COMPONENT_BASE_nom_ext", "COMPONENT_capital_cost_curve_nom"]
+      NOM: ["COMPONENT_NOM_ext", "COMPONENT_capital_cost_curve_nom"]
       cost: ["COMPONENT_capital_cost_piecewise", "COMPONENT_capital_cost_curve_cost", ">="]
   COMPONENT_capital_cost_incremental:
     name: COMPONENT-capital_cost_piecewise
@@ -153,34 +153,34 @@ piecewise:
     where: NOT COMPONENT_capital_cost_as_lp AND COMPONENT_capital_cost_curve AND COMPONENT_capital_cost_curve_nom
     method: incremental
     links:
-      BASE_nom: ["COMPONENT_BASE_nom_ext", "COMPONENT_capital_cost_curve_nom"]
+      NOM: ["COMPONENT_NOM_ext", "COMPONENT_capital_cost_curve_nom"]
       cost: ["COMPONENT_capital_cost_piecewise", "COMPONENT_capital_cost_curve_cost", ">="]
 
 constraints:
-  COMPONENT_ext_BASE_nom_lower:
-    name: COMPONENT-ext-BASE_nom-lower
+  COMPONENT_ext_NOM_lower:
+    name: COMPONENT-ext-NOM-lower
     description: the chosen build is at least the floor
     dims: [scenario, DIM]
-    where: COMPONENT_BASE_nom_extendable AND COMPONENT_active_asset
-    expression: COMPONENT_BASE_nom_ext >= COMPONENT_BASE_nom_min
-  COMPONENT_ext_BASE_nom_upper:
-    name: COMPONENT-ext-BASE_nom-upper
+    where: COMPONENT_NOM_extendable AND COMPONENT_active_asset
+    expression: COMPONENT_NOM_ext >= COMPONENT_NOM_min
+  COMPONENT_ext_NOM_upper:
+    name: COMPONENT-ext-NOM-upper
     description: the chosen build is at most the cap; an infinite cap means no row
     dims: [scenario, DIM]
-    where: COMPONENT_BASE_nom_extendable AND COMPONENT_active_asset AND COMPONENT_BASE_nom_max
-    expression: COMPONENT_BASE_nom_ext <= COMPONENT_BASE_nom_max
-  COMPONENT_BASE_nom_set:
-    name: COMPONENT-BASE_nom_set
+    where: COMPONENT_NOM_extendable AND COMPONENT_active_asset AND COMPONENT_NOM_max
+    expression: COMPONENT_NOM_ext <= COMPONENT_NOM_max
+  COMPONENT_NOM_set:
+    name: COMPONENT-NOM_set
     description: the chosen build equals the given one
     dims: [scenario, DIM]
-    where: COMPONENT_BASE_nom_extendable AND COMPONENT_active_asset AND COMPONENT_BASE_nom_set
-    expression: COMPONENT_BASE_nom_ext == COMPONENT_BASE_nom_set
-  COMPONENT_BASE_nom_modularity:
-    name: COMPONENT-BASE_nom_modularity
+    where: COMPONENT_NOM_extendable AND COMPONENT_active_asset AND COMPONENT_NOM_set
+    expression: COMPONENT_NOM_ext == COMPONENT_NOM_set
+  COMPONENT_NOM_modularity:
+    name: COMPONENT-NOM_modularity
     description: the chosen build is a whole number of modules
     dims: [DIM]
-    where: COMPONENT_BASE_nom_extendable AND COMPONENT_BASE_nom_mod > 0 AND COMPONENT_active_asset
-    expression: COMPONENT_BASE_nom_ext == COMPONENT_BASE_nom_mod * COMPONENT_n_mod
+    where: COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0 AND COMPONENT_active_asset
+    expression: COMPONENT_NOM_ext == COMPONENT_NOM_mod * COMPONENT_n_mod
 
 assumptions:
   COMPONENT_capital_cost_curve_without_overnight_cost:

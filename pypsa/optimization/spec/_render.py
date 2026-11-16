@@ -13,9 +13,8 @@ is a placeholder if it is one of these:
 
 - `COMPONENT`: the component's name, as `StorageUnit`.
 - `DIM`: its unit dimension, as `storage_unit`.
-- `BASE`: the base of its operational attributes, `p`, `s` or `e`, as
-  in `BASE_nom` for `p_nom`.
-- `P`: its power variable, `p` or `p_dispatch`, where it has one.
+- `NOM`: its nominal capacity, `p_nom`, `s_nom` or `e_nom`.
+- `POWER`: its power variable, `p` or `p_dispatch`, where it has one.
 - `LEVEL`: its storage level variable, `e` or `state_of_charge`, and
   `CYCLIC` its cyclic flag, where it stores energy.
 - `COEF`: the attribute that scales `p` at each port, `efficiency` or
@@ -23,8 +22,11 @@ is a placeholder if it is one of these:
 
 A component lacks a placeholder it has no value for, so a trait that uses
 one fails to render for it. Placeholders are upper case, so no PyPSA
-attribute holds one. A file under `components/` holds, under the
-component's own names, what it shares with no other.
+attribute holds one. A trait writes `p` or `s` as is where only
+components with that base declare it, as `s_max_pu` in `passive_branch`:
+a placeholder there would hide which attributes the trait reads. A file
+under `components/` holds, under the component's own names, what it
+shares with no other.
 """
 
 from __future__ import annotations
@@ -45,7 +47,9 @@ Scalings = dict[str, str]
 #: A word of a name, between `_` or `-`.
 WORD = re.compile(r"[^\W_]+")
 #: The words that stand for a value of the component.
-PLACEHOLDERS = frozenset({"COMPONENT", "DIM", "BASE", "P", "LEVEL", "CYCLIC", "COEF"})
+PLACEHOLDERS = frozenset(
+    {"COMPONENT", "DIM", "NOM", "POWER", "LEVEL", "CYCLIC", "COEF"}
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -68,11 +72,10 @@ def symbols(c: Components) -> dict[str, str]:
     found = {
         "COMPONENT": c.name,
         "DIM": c._unit_dim,
-        "BASE": c._operational_attrs["base"],
+        "NOM": c._operational_attrs["nom"],
     }
-    power = [v for v in c._operational_variables if v.startswith("p")]
-    if power:
-        found["P"] = power[0]
+    if c._power_variable:
+        found["POWER"] = c._power_variable
     if c._level_attrs:
         initial, found["CYCLIC"] = c._level_attrs
         found["LEVEL"] = initial.removesuffix("_initial")

@@ -277,7 +277,7 @@ SPLITS = {"{s}": "scenario", "{k}": "segment"}
 #: The placeholder suffix of the security rows, which PyPSA names per component and sub-network.
 SECURITY = "-for-{c}-outage-in-sub-network-{n}"
 #: The port dims a `{port}` placeholder in a PyPSA name splits along, with the unit dim of each part.
-PORTS = {"link_output": "link", "process_output": "process"}
+PORTS = {"link_port": "link", "process_port": "process"}
 
 
 Part = tuple[LinearExpression, xr.Dataset]
@@ -717,7 +717,7 @@ def _carrier_factors(
     for c in formulated(n, "carrier_expansion"):
         name = renamer(c)
         built = (
-            sources[name("COMPONENT_BASE_nom_extendable")]
+            sources[name("COMPONENT_NOM_extendable")]
             & sources[name("COMPONENT_active_asset")]
             & (sources[name("COMPONENT_first_active")] != 0).any("period")
         )

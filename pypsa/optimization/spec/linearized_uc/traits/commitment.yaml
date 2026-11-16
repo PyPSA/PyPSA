@@ -25,7 +25,7 @@ conditions:
       an active committable unit with a fixed build whose start and stop cost
       the same in every snapshot and scenario
     condition: >-
-      COMPONENT_committable AND NOT COMPONENT_BASE_nom_extendable AND
+      COMPONENT_committable AND NOT COMPONENT_NOM_extendable AND
       count(count(COMPONENT_start_up_cost != COMPONENT_shut_down_cost, over=snapshot) > 0,
       over=scenario) == 0 AND COMPONENT_active
   COMPONENT_tightened_from_previous:
@@ -46,8 +46,8 @@ constraints:
     dims: [scenario, snapshot, DIM]
     where: COMPONENT_tightened
     expression: >-
-      COMPONENT_p - COMPONENT_p_max_pu * COMPONENT_BASE_nom * COMPONENT_status + (COMPONENT_p_max_pu *
-      COMPONENT_BASE_nom - COMPONENT_start_up_rate * COMPONENT_BASE_nom) * COMPONENT_start_up <= 0
+      COMPONENT_p - COMPONENT_p_max_pu * COMPONENT_NOM * COMPONENT_status + (COMPONENT_p_max_pu *
+      COMPONENT_NOM - COMPONENT_start_up_rate * COMPONENT_NOM) * COMPONENT_start_up <= 0
   COMPONENT_com_p_before:
     name: COMPONENT-com-p-before
     description: the previous power fits the share still on, the share stopping only up to its shut-down ramp
@@ -55,8 +55,8 @@ constraints:
     where: COMPONENT_tightened_from_previous
     expression: >-
       COMPONENT_previous_p
-      - COMPONENT_shut_down_rate * COMPONENT_BASE_nom * COMPONENT_previous_status
-      - (COMPONENT_p_max_pu * COMPONENT_BASE_nom - COMPONENT_shut_down_rate * COMPONENT_BASE_nom)
+      - COMPONENT_shut_down_rate * COMPONENT_NOM * COMPONENT_previous_status
+      - (COMPONENT_p_max_pu * COMPONENT_NOM - COMPONENT_shut_down_rate * COMPONENT_NOM)
       * (COMPONENT_status - COMPONENT_start_up) <= 0
   COMPONENT_com_partly_start_up:
     name: COMPONENT-com-partly-start-up
@@ -65,9 +65,9 @@ constraints:
     where: COMPONENT_tightened_from_previous
     expression: >-
       COMPONENT_p - COMPONENT_previous_p
-      - (COMPONENT_p_min_pu * COMPONENT_BASE_nom + COMPONENT_ramp_up_rate * COMPONENT_BASE_nom) * COMPONENT_status
-      + COMPONENT_p_min_pu * COMPONENT_BASE_nom * COMPONENT_previous_status
-      + (COMPONENT_p_min_pu * COMPONENT_BASE_nom + COMPONENT_ramp_up_rate * COMPONENT_BASE_nom - COMPONENT_start_up_rate * COMPONENT_BASE_nom)
+      - (COMPONENT_p_min_pu * COMPONENT_NOM + COMPONENT_ramp_up_rate * COMPONENT_NOM) * COMPONENT_status
+      + COMPONENT_p_min_pu * COMPONENT_NOM * COMPONENT_previous_status
+      + (COMPONENT_p_min_pu * COMPONENT_NOM + COMPONENT_ramp_up_rate * COMPONENT_NOM - COMPONENT_start_up_rate * COMPONENT_NOM)
       * COMPONENT_start_up <= 0
   COMPONENT_com_partly_shut_down:
     name: COMPONENT-com-partly-shut-down
@@ -76,9 +76,9 @@ constraints:
     where: COMPONENT_tightened_from_previous
     expression: >-
       COMPONENT_previous_p - COMPONENT_p
-      - COMPONENT_shut_down_rate * COMPONENT_BASE_nom * COMPONENT_previous_status
-      + (COMPONENT_shut_down_rate * COMPONENT_BASE_nom - COMPONENT_ramp_down_rate * COMPONENT_BASE_nom) * COMPONENT_status
-      - (COMPONENT_p_min_pu * COMPONENT_BASE_nom + COMPONENT_ramp_down_rate * COMPONENT_BASE_nom - COMPONENT_shut_down_rate * COMPONENT_BASE_nom)
+      - COMPONENT_shut_down_rate * COMPONENT_NOM * COMPONENT_previous_status
+      + (COMPONENT_shut_down_rate * COMPONENT_NOM - COMPONENT_ramp_down_rate * COMPONENT_NOM) * COMPONENT_status
+      - (COMPONENT_p_min_pu * COMPONENT_NOM + COMPONENT_ramp_down_rate * COMPONENT_NOM - COMPONENT_shut_down_rate * COMPONENT_NOM)
       * COMPONENT_start_up <= 0
 
 assumptions:
@@ -87,6 +87,6 @@ assumptions:
     where: COMPONENT_marginal_cost_curve
     description: a unit with a `marginal_cost` curve is not committable, as a status gate needs integers
   COMPONENT_committable_is_not_modular:
-    holds: NOT (COMPONENT_BASE_nom_mod > 0)
+    holds: NOT (COMPONENT_NOM_mod > 0)
     where: COMPONENT_committable AND count(COMPONENT_active, over=snapshot) > 0
     description: a committable unit is not modular, as the relaxation cannot share out modules

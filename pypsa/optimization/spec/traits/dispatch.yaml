@@ -4,12 +4,12 @@
 
 given:
   parameters:
-    COMPONENT_BASE_nom: {dims: [scenario, DIM]}
-    COMPONENT_BASE_nom_extendable: {dims: [DIM], dtype: bool}
+    COMPONENT_NOM: {dims: [scenario, DIM]}
+    COMPONENT_NOM_extendable: {dims: [DIM], dtype: bool}
     COMPONENT_active: {dims: [snapshot, DIM], dtype: bool}
     COMPONENT_p_set: {dims: [scenario, snapshot, DIM]}
   variables:
-    COMPONENT_BASE_nom_ext: {dims: [DIM]}
+    COMPONENT_NOM_ext: {dims: [DIM]}
   expressions:
     energy_limit_weight: {dims: [snapshot]}
 
@@ -34,14 +34,14 @@ variables:
     where: COMPONENT_active
 
 expressions:
-  COMPONENT_BASE_nom_effective:
+  COMPONENT_NOM_effective:
     description: the chosen build where it is extendable, the given one otherwise
     dims: [scenario, DIM]
     cases:
       extendable:
-        when: COMPONENT_BASE_nom_extendable
-        expression: COMPONENT_BASE_nom_ext
-    otherwise: COMPONENT_BASE_nom
+        when: COMPONENT_NOM_extendable
+        expression: COMPONENT_NOM_ext
+    otherwise: COMPONENT_NOM
 
 constraints:
   COMPONENT_p_set:

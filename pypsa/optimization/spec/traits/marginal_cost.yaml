@@ -5,8 +5,8 @@
 given:
   parameters:
     CVaR_omega: {dims: []}
-    COMPONENT_BASE_nom: {dims: [scenario, DIM]}
-    COMPONENT_BASE_nom_extendable: {dims: [DIM], dtype: bool}
+    COMPONENT_NOM: {dims: [scenario, DIM]}
+    COMPONENT_NOM_extendable: {dims: [DIM], dtype: bool}
     COMPONENT_active: {dims: [snapshot, DIM], dtype: bool}
     COMPONENT_active_asset: {dims: [DIM], dtype: bool}
     COMPONENT_marginal_cost_curve_cost: {dims: [DIM, breakpoint]}
@@ -14,7 +14,7 @@ given:
     period_weight_objective: {dims: [period]}
     snapshot_weightings_objective: {dims: [snapshot]}
   variables:
-    COMPONENT_P: {dims: [scenario, snapshot, DIM]}
+    COMPONENT_POWER: {dims: [scenario, snapshot, DIM]}
 
 dimensions:
   scenario: {}
@@ -67,11 +67,11 @@ expressions:
       curve:
         when: COMPONENT_marginal_cost_curve
         expression: COMPONENT_marginal_cost_piecewise
-    otherwise: COMPONENT_P * COMPONENT_marginal_cost
+    otherwise: COMPONENT_POWER * COMPONENT_marginal_cost
   COMPONENT_opex:
     expression: >-
       COMPONENT_operating_cost(COMPONENT_running_cost)
-      + COMPONENT_operating_cost((COMPONENT_P * COMPONENT_P) * COMPONENT_marginal_cost_quadratic)
+      + COMPONENT_operating_cost((COMPONENT_POWER * COMPONENT_POWER) * COMPONENT_marginal_cost_quadratic)
 
 conditions:
   COMPONENT_marginal_cost_curve:
@@ -90,7 +90,7 @@ conditions:
 
 assumptions:
   COMPONENT_marginal_cost_curve_on_a_fixed_build:
-    holds: "NOT COMPONENT_BASE_nom_extendable AND COMPONENT_BASE_nom > 0 AND COMPONENT_BASE_nom < inf"
+    holds: "NOT COMPONENT_NOM_extendable AND COMPONENT_NOM > 0 AND COMPONENT_NOM < inf"
     where: "COMPONENT_marginal_cost_curve"
     description: a `marginal_cost` curve needs a fixed, positive, finite nominal capacity
   COMPONENT_marginal_cost_quadratic_without_risk_preference:

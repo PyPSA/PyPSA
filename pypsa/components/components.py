@@ -172,6 +172,7 @@ class Components(
     _operational_variables: list[str] = []
     _formulation: tuple[str, ...] = ()
     _level_attrs: tuple[str, ...] = ()
+    _power_variable: str = ""
 
     def __init__(
         self,

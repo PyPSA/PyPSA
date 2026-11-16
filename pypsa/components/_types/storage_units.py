@@ -36,6 +36,7 @@ class StorageUnits(Components):
     """
 
     _operational_variables = ["p_dispatch", "p_store", "state_of_charge"]
+    _power_variable = "p_dispatch"
     _formulation = (
         "extendable",
         "carrier_expansion",

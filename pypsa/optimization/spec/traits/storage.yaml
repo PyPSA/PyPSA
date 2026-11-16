@@ -5,7 +5,7 @@
 given:
   parameters:
     GlobalConstraint_counts_snapshot: {dims: [scenario, snapshot, global_constraint], dtype: bool}
-    COMPONENT_BASE_nom_extendable: {dims: [DIM], dtype: bool}
+    COMPONENT_NOM_extendable: {dims: [DIM], dtype: bool}
     COMPONENT_active: {dims: [snapshot, DIM], dtype: bool}
     COMPONENT_operational_limit_weight: {dims: [scenario, DIM, global_constraint]}
     period_weight_objective: {dims: [period]}
@@ -14,7 +14,7 @@ given:
     snapshot_weightings_stores: {dims: [snapshot]}
   variables:
     COMPONENT_LEVEL: {dims: [scenario, snapshot, DIM]}
-    COMPONENT_P: {dims: [scenario, snapshot, DIM]}
+    COMPONENT_POWER: {dims: [scenario, snapshot, DIM]}
     COMPONENT_marginal_cost_piecewise: {dims: [scenario, snapshot, DIM]}
   conditions:
     COMPONENT_marginal_cost_curve: {dims: [DIM]}
@@ -217,7 +217,7 @@ piecewise:
     where: COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active AND COMPONENT_marginal_cost_curve_p
     method: lp
     links:
-      p: ["COMPONENT_P", "COMPONENT_marginal_cost_curve_p"]
+      p: ["COMPONENT_POWER", "COMPONENT_marginal_cost_curve_p"]
       cost: ["COMPONENT_marginal_cost_piecewise", "COMPONENT_marginal_cost_curve_cost", ">="]
   COMPONENT_marginal_cost_incremental:
     name: COMPONENT-marginal_cost_piecewise
@@ -229,7 +229,7 @@ piecewise:
     where: NOT COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active AND COMPONENT_marginal_cost_curve_p
     method: incremental
     links:
-      p: ["COMPONENT_P", "COMPONENT_marginal_cost_curve_p"]
+      p: ["COMPONENT_POWER", "COMPONENT_marginal_cost_curve_p"]
       cost: ["COMPONENT_marginal_cost_piecewise", "COMPONENT_marginal_cost_curve_cost", ">="]
 
 constraints:
@@ -237,13 +237,13 @@ constraints:
     name: COMPONENT-fix-p_store-lower
     description: a fixed asset stores no negative power
     dims: [scenario, snapshot, DIM]
-    where: NOT COMPONENT_BASE_nom_extendable AND COMPONENT_active
+    where: NOT COMPONENT_NOM_extendable AND COMPONENT_active
     expression: COMPONENT_p_store >= 0
   COMPONENT_ext_p_store_lower:
     name: COMPONENT-ext-p_store-lower
     description: an extendable asset stores no negative power
     dims: [scenario, snapshot, DIM]
-    where: COMPONENT_BASE_nom_extendable AND COMPONENT_active
+    where: COMPONENT_NOM_extendable AND COMPONENT_active
     expression: COMPONENT_p_store >= 0
 
 assumptions:

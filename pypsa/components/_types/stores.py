@@ -43,6 +43,7 @@ class Stores(Components):
     """
 
     _operational_variables = ["e", "p", "p_store"]
+    _power_variable = "p"
     _formulation = (
         "extendable",
         "carrier_expansion",

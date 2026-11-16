@@ -4,7 +4,7 @@
 
 given:
   variables:
-    COMPONENT_BASE_nom_ext: {dims: [DIM]}
+    COMPONENT_NOM_ext: {dims: [DIM]}
 
 dimensions:
   scenario: {}
@@ -29,6 +29,6 @@ parameters:
 
 expressions:
   COMPONENT_transmission_volume_expansion:
-    expression: sum(COMPONENT_BASE_nom_ext * COMPONENT_volume_weight, over=DIM)
+    expression: sum(COMPONENT_NOM_ext * COMPONENT_volume_weight, over=DIM)
   COMPONENT_transmission_expansion_cost:
-    expression: sum(COMPONENT_BASE_nom_ext * COMPONENT_expansion_cost_weight, over=DIM)
+    expression: sum(COMPONENT_NOM_ext * COMPONENT_expansion_cost_weight, over=DIM)

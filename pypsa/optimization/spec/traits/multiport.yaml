@@ -4,8 +4,8 @@
 
 given:
   parameters:
-    COMPONENT_BASE_nom: {dims: [scenario, DIM]}
-    COMPONENT_BASE_nom_extendable: {dims: [DIM], dtype: bool}
+    COMPONENT_NOM: {dims: [scenario, DIM]}
+    COMPONENT_NOM_extendable: {dims: [DIM], dtype: bool}
     COMPONENT_active: {dims: [snapshot, DIM], dtype: bool}
   variables:
     COMPONENT_p: {dims: [scenario, snapshot, DIM]}
@@ -14,7 +14,7 @@ dimensions:
   scenario: {}
   snapshot: {dtype: str, ordered: true}
   bus: {}
-  DIM_output: {}
+  DIM_port: {}
   DIM: {}
   breakpoint: {dtype: int, ordered: true}
 
@@ -23,33 +23,33 @@ parameters:
     description: >-
       energy a port delivers per unit of `p`, negative where it draws; the
       value at the snapshot the energy arrives applies
-    dims: [scenario, snapshot, "DIM_output"]
+    dims: [scenario, snapshot, "DIM_port"]
   COMPONENT_COEF_curve_p:
     description: >-
       `p` at each breakpoint of a port's piecewise curve: the `p_pu`
       breakpoints times `p_nom`. No curve means no rows
-    dims: ["DIM_output", breakpoint]
+    dims: ["DIM_port", breakpoint]
     missing: absent
-  COMPONENT_output_delay:
+  COMPONENT_port_delay:
     description: how long a port's energy takes to arrive, in hours of `snapshot_weightings.generators`
-    dims: ["DIM_output"]
+    dims: ["DIM_port"]
     dtype: int
 
 relations:
-  COMPONENT_output_DIM:
+  COMPONENT_port_DIM:
     description: the unit a port belongs to
-    key: DIM_output
+    key: DIM_port
     values: DIM
-  COMPONENT_output_bus:
+  COMPONENT_port_bus:
     description: the bus a port connects to
-    key: DIM_output
+    key: DIM_port
     values: bus
-  COMPONENT_output_delay_source:
+  COMPONENT_port_delay_source:
     description: >-
       the snapshot whose `p` a delayed port delivers at a snapshot, wrapping
       within the period where the port is cyclic. No row where the energy has
       not arrived yet, or where the port has no delay
-    key: ["DIM_output", snapshot]
+    key: ["DIM_port", snapshot]
     values: { source: snapshot }
     missing: absent
 
@@ -57,34 +57,34 @@ variables:
   COMPONENT_p_piecewise:
     name: COMPONENT-p{port}_piecewise
     description: what a port with a curve delivers, before its delay
-    dims: [scenario, snapshot, "DIM_output"]
-    where: COMPONENT_COEF_curve AND at(COMPONENT_active, by=COMPONENT_output_DIM[DIM])
+    dims: [scenario, snapshot, "DIM_port"]
+    where: COMPONENT_COEF_curve AND at(COMPONENT_active, by=COMPONENT_port_DIM[DIM])
 
 expressions:
-  COMPONENT_output_linear_arrival:
+  COMPONENT_port_linear_arrival:
     description: "`p` at the port's delay source times its coefficient"
-    dims: [scenario, snapshot, "DIM_output"]
+    dims: [scenario, snapshot, "DIM_port"]
     cases:
       delayed:
-        when: COMPONENT_output_delay > 0
-        expression: at(at(COMPONENT_p, by=COMPONENT_output_DIM[DIM]), by=COMPONENT_output_delay_source[source]) * COMPONENT_COEF
-    otherwise: at(COMPONENT_p, by=COMPONENT_output_DIM[DIM]) * COMPONENT_COEF
-  COMPONENT_output_curve_arrival:
+        when: COMPONENT_port_delay > 0
+        expression: at(at(COMPONENT_p, by=COMPONENT_port_DIM[DIM]), by=COMPONENT_port_delay_source[source]) * COMPONENT_COEF
+    otherwise: at(COMPONENT_p, by=COMPONENT_port_DIM[DIM]) * COMPONENT_COEF
+  COMPONENT_port_curve_arrival:
     description: the value read off the port's curve, at the port's delay source
-    dims: [scenario, snapshot, "DIM_output"]
+    dims: [scenario, snapshot, "DIM_port"]
     cases:
       delayed:
-        when: COMPONENT_output_delay > 0
-        expression: at(COMPONENT_p_piecewise, by=COMPONENT_output_delay_source[source])
+        when: COMPONENT_port_delay > 0
+        expression: at(COMPONENT_p_piecewise, by=COMPONENT_port_delay_source[source])
     otherwise: COMPONENT_p_piecewise
-  COMPONENT_output_arrival:
+  COMPONENT_port_arrival:
     description: what a port delivers at a snapshot, by its curve where it has one
-    dims: [scenario, snapshot, "DIM_output"]
+    dims: [scenario, snapshot, "DIM_port"]
     cases:
       curve:
         when: COMPONENT_COEF_curve
-        expression: COMPONENT_output_curve_arrival
-    otherwise: COMPONENT_output_linear_arrival
+        expression: COMPONENT_port_curve_arrival
+    otherwise: COMPONENT_port_linear_arrival
 
 conditions:
   COMPONENT_COEF_curve:
@@ -93,6 +93,6 @@ conditions:
 
 assumptions:
   COMPONENT_COEF_curve_on_a_fixed_build:
-    holds: "at(NOT COMPONENT_BASE_nom_extendable AND COMPONENT_BASE_nom != 0 AND COMPONENT_BASE_nom < inf, by=COMPONENT_output_DIM[DIM])"
+    holds: "at(NOT COMPONENT_NOM_extendable AND COMPONENT_NOM != 0 AND COMPONENT_NOM < inf, by=COMPONENT_port_DIM[DIM])"
     where: "COMPONENT_COEF_curve"
     description: a port's curve needs a fixed, non-zero, finite nominal capacity

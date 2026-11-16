@@ -4,7 +4,7 @@
 
 given:
   variables:
-    COMPONENT_BASE_nom_ext: {dims: [DIM]}
+    COMPONENT_NOM_ext: {dims: [DIM]}
 
 dimensions:
   DIM: {}
@@ -31,6 +31,6 @@ relations:
 
 expressions:
   COMPONENT_tech_capacity_expansion:
-    expression: sum(COMPONENT_BASE_nom_ext * COMPONENT_tech_capacity_weight, over=DIM)
+    expression: sum(COMPONENT_NOM_ext * COMPONENT_tech_capacity_weight, over=DIM)
   COMPONENT_additions:
-    expression: sum(COMPONENT_BASE_nom_ext * COMPONENT_first_active, over=DIM, by=COMPONENT_carrier[carrier])
+    expression: sum(COMPONENT_NOM_ext * COMPONENT_first_active, over=DIM, by=COMPONENT_carrier[carrier])

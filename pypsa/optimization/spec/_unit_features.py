@@ -86,7 +86,7 @@ def _maintenance_duration(s: NetworkSources, name: str, c: Components) -> xr.Dat
     return duration.where(s[f"{c.name}_maintainable"])
 
 
-@source("COMPONENT_BASE_nom_max")
+@source("COMPONENT_NOM_max")
 def _nom_max(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the build cap, absent where no scenario extends the unit."""
     extendable = s.da(c, c._operational_attrs["nom_extendable"]).astype(bool)

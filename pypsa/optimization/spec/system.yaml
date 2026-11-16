@@ -24,11 +24,11 @@ dimensions:
     description: generators, each on one bus
   link:
     description: controllable branches, each from `bus0` to the buses its ports deliver to
-  link_output:
+  link_port:
     description: the output ports of the links, one label per port (`bus1`, `bus2`, …)
   process:
     description: converters whose ports each draw or deliver at their own rate of `p`
-  process_output:
+  process_port:
     description: the ports of the processes, one label per port (`bus0`, `bus1`, …)
   load:
     description: demands, each on one bus

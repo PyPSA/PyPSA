@@ -27,10 +27,10 @@ def test_every_declared_trait_has_one_file():
 @pytest.mark.parametrize(
     ("component", "name", "renamed"),
     [
-        ("StorageUnit", "COMPONENT_BASE_nom_ext", "StorageUnit_p_nom_ext"),
+        ("StorageUnit", "COMPONENT_NOM_ext", "StorageUnit_p_nom_ext"),
         ("Store", "COMPONENT_LEVEL_initial", "Store_e_initial"),
-        ("Link", "COMPONENT_output_DIM", "Link_output_link"),
-        ("Line", "COMPONENT-ext-BASE_nom-lower", "Line-ext-s_nom-lower"),
+        ("Link", "COMPONENT_port_DIM", "Link_port_link"),
+        ("Line", "COMPONENT-ext-NOM-lower", "Line-ext-s_nom-lower"),
         ("Store", "COMPONENT_has_unit_years", "Store_has_unit_years"),
         ("Generator", "snapshot_period", "snapshot_period"),
     ],
@@ -40,8 +40,8 @@ def test_a_placeholder_takes_the_value_of_the_component(component, name, renamed
 
 
 def test_a_placeholder_without_value_fails():
-    with pytest.raises(KeyError, match="P"):
-        renamer(pypsa.Network().components["Line"])("COMPONENT_P")
+    with pytest.raises(KeyError, match="POWER"):
+        renamer(pypsa.Network().components["Line"])("COMPONENT_POWER")
 
 
 def test_no_placeholder_is_a_mathspec_keyword():
@@ -51,8 +51,8 @@ def test_no_placeholder_is_a_mathspec_keyword():
 def test_a_trait_description_takes_the_names_of_the_component(tmp_path):
     (tmp_path / "traits").mkdir()
     (tmp_path / "traits" / "multiport.yaml").write_text(
-        "dimensions:\n  DIM_output: {}\nparameters:\n  COMPONENT_COEF_x:\n"
-        "    dims: [DIM_output]\n    description: the `COEF` of a `DIM` port\n"
+        "dimensions:\n  DIM_port: {}\nparameters:\n  COMPONENT_COEF_x:\n"
+        "    dims: [DIM_port]\n    description: the `COEF` of a `DIM` port\n"
     )
     spec = render(tmp_path)[0]
     assert spec.parameters["Link_efficiency_x"].description == (
