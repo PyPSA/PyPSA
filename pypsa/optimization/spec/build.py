@@ -29,7 +29,11 @@ from linopy.expressions import LinearExpression
 from linopy.variables import Variable
 
 from pypsa.optimization.common import get_bus_counts
-from pypsa.optimization.scaling import KVL, check_sub_networks, global_constraint_factor
+from pypsa.optimization.scaling import (
+    KVL,
+    check_sub_networks,
+    global_constraint_factors,
+)
 from pypsa.optimization.spec._passive_network import (
     SecurityGroup,
     cycle_scaling,
@@ -555,73 +559,6 @@ def _relabel(
     m.add_objective(remapped, overwrite=True, sense=objective.sense)
 
 
-GC_SENSES = re.compile(r"GlobalConstraint_(?!flow_based).+_(ub|lb|eq)")
-GC = "global_constraint"
-
-
-def _merged_terms(parts: list[xr.Dataset]) -> xr.Dataset:
-    """Return the terms of the cells the parts hold, each cell live in exactly one part."""
-    terms = max(p.sizes["_term"] for p in parts)
-    padded = []
-    for p in parts:
-        p = p.pad(_term=(0, terms - p.sizes["_term"]))
-        live = p.labels != -1
-        p["coeffs"] = p.coeffs.where(live & p.vars.notnull(), 0).fillna(0)
-        p["vars"] = p.vars.where(live, -1).fillna(-1).astype(int)
-        padded.append(p)
-    merged = padded[0].copy()
-    for p in padded[1:]:
-        merged["coeffs"] = merged.coeffs + p.coeffs
-        merged["vars"] = xr.where(p.vars != -1, p.vars, merged.vars)
-    return merged
-
-
-def _merged(m: Model, parts: list[Part]) -> Part:
-    """Return one lhs and one set of fields of the cells the parts hold, each live in one part."""
-    cells = parts[0][1].copy()
-    for _, p in parts[1:]:
-        live = p.labels != -1
-        for field in ("sign", "rhs", "labels"):
-            cells[field] = xr.where(live, p[field], cells[field])
-    if parts[0][0].is_sparse:
-        masked = [e.where(c.labels != -1, 0) for e, c in parts]
-        return sum(masked[1:], masked[0]), cells
-    terms = [e.data[["coeffs", "vars"]].assign(labels=c.labels) for e, c in parts]
-    merged = _merged_terms(terms)
-    return LinearExpression(merged[["coeffs", "vars"]], m), cells
-
-
-def _merge_global_constraints(m: Model, squeeze: bool) -> None:
-    """Re-add the sense rows of each GlobalConstraint label as one `GlobalConstraint-<label>`.
-
-    The spec states each type once per sense, while PyPSA names one
-    constraint per label, whose sense may differ by scenario.
-    """
-    names = [k for k in m.constraints if GC_SENSES.fullmatch(k)]
-    cons = [m.constraints[k] for k in names]
-    labels: list = []
-    for con in cons:
-        built = (con.labels != -1).any([d for d in con.labels.dims if d != GC])
-        labels += [g for g in built.indexes[GC][built.values] if g not in labels]
-    for g in labels:
-        live = [
-            _part(con, {"global_constraint": con.indexes[GC].get_loc(g)}, drop=True)
-            for con in cons
-            if (con.labels.sel({GC: g}) != -1).any()
-        ]
-        lhs, cells = _merged(m, live)
-        if squeeze and "scenario" in cells.dims:
-            lhs = lhs.isel(scenario=0, drop=True)
-            cells = cells.squeeze("scenario", drop=True)
-        m.add_constraints(
-            Constraint(lhs, cells.sign, cells.rhs, m),
-            name=f"GlobalConstraint-{g}",
-            mask=cells.labels != -1,
-        )
-    for k in names:
-        m.remove_constraints(k)
-
-
 #: Columns PyPSA never scales: unit commitment, modules, maintenance and angles.
 UNSCALED = {
     "status",
@@ -689,8 +626,8 @@ def _rule(
 
     A row of a piecewise curve that holds only its weights and binaries
     takes `none`, one of a cost curve that holds the cost `objective`. A
-    row of a GlobalConstraint label takes `global`, one over the units of
-    a component on a bus `bus`, any other `none`.
+    row over the units of a component on a bus takes `bus`, any other
+    `none`.
     """
     for pattern, rule in rules:
         if pattern.fullmatch(name):
@@ -701,9 +638,7 @@ def _rule(
     cost = kind in COST_ROWS or kind.startswith("cost")
     if piecewise and curve.endswith("cost") and cost:
         return "objective"
-    component, _, rest = name.partition("-")
-    if component == "GlobalConstraint" and rest in n.c.global_constraints.names:
-        return "global"
+    component = name.partition("-")[0]
     attached = n.one_port_components | n.branch_components | {"Bus"}
     return "bus" if component in attached and "name" in con.labels.dims else "none"
 
@@ -764,7 +699,7 @@ def _scale_rows(
             case "objective":
                 con.scaling = objective
             case "global":
-                con.scaling = global_constraint_factor(n, name.partition("-")[2])
+                con.scaling = global_constraint_factors(n, con.labels.indexes["name"])
             case "cycle":
                 con.scaling = _cycle_factors(sources, con)
             case "carrier":
@@ -815,7 +750,6 @@ def build_model(
     mode = (options.get("transmission_losses") or {}).get("mode")
     rename = _renamer(s, spec_names(linearized_unit_commitment), mode)
     m = Model.from_spec(s, sources, expressions=False, rename=rename, **model_kwargs)
-    _merge_global_constraints(m, squeeze=not n.has_scenarios)
     _split_ports(m, sources)
     _relabel(
         m,
