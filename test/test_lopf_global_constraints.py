@@ -285,5 +285,5 @@ def test_transmission_cost_limit_overnight_cost():
         carrier_attribute="AC",
     )
     m = n.optimize.create_model()
-    con = m.constraints["GlobalConstraint-cost_limit"]
+    con = m.constraints["GlobalConstraint-transmission_expansion_cost_limit-ub"]
     assert (con.coeffs == 100.0).all()
