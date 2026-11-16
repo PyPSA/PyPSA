@@ -10,7 +10,7 @@ on:
     - master
     - release-branch-v*
   pull_request:
-    branches: ["*"]
+    branches: ["**"]
   schedule:
   - cron: "0 5 * * *"
   workflow_call:
