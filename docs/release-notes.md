@@ -40,7 +40,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- Fix failing tests with highspy 1.16.0: the [stochastic optimization guide](./user-guide/optimization/stochastic.md) now has a unique optimum, and maintenance tests compare solver results with a tolerance. (<!-- md:pr NNNN -->)
+- Fix failing tests with highspy 1.16.0: the [stochastic optimization guide](./user-guide/optimization/stochastic.md) now has a unique optimum, and maintenance tests compare solver results with a tolerance. (<!-- md:pr 2157 -->)
 - Fix compatibility with linopy 1.0, keeping linopy 0.10 supported. Both the dense and the sparse linopy backend (`model_kwargs={"sparse": True}`) are now tested. (<!-- md:pr 2129 -->)
 - [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model] now applies `pypsa.options.params.optimize.model_kwargs`, like [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. (<!-- md:pr 2129 -->)
 - Setting `committable` on a component without unit commitment support, such as a StorageUnit or Store, now raises a clear error in the consistency check before the model is built, instead of failing with 'Variable StorageUnit-status already assigned'. (<!-- md:pr 2127 -->)
