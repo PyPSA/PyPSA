@@ -41,7 +41,6 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- Maintenance tests compare solver results with a tolerance, so they pass with highspy 1.16.0. (<!-- md:pr 2157 -->)
 - Fix ramp limits raising an error with linopy versions after 0.9.1 when optimizing only part of the snapshots of a network with investment periods, e.g. in [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon]. (<!-- md:pr 2079 -->)
 - Re-adding an existing component with piecewise data via `n.add()` without `overwrite=True` no longer appends a second curve to it. (<!-- md:pr 2153 -->)
 - Fix [`n.pf(distribute_slack=True)`][pypsa.Network.pf] on single-bus sub-networks with `slack_weights` `"p_nom"`, `"p_nom_opt"` or custom weights. (<!-- md:pr 2152 -->)
