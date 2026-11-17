@@ -314,7 +314,7 @@ class NetworkSources(Mapping[str, Any]):
 
     def da(self, c: Components, attr: str) -> xr.DataArray:
         """Return a PyPSA attribute of a component in the spec's dims."""
-        values = self.values(c, attr)
+        values = self.numeric(c, attr)
         if values is None:
             raw = self.unit_array(c, c.da[attr])
             return raw.drop_vars([k for k in raw.coords if k not in raw.dims])
@@ -337,7 +337,7 @@ class NetworkSources(Mapping[str, Any]):
             return None
         return np.flatnonzero(c.static.index.isin(names))
 
-    def values(self, c: Components, attr: str) -> np.ndarray | None:
+    def numeric(self, c: Components, attr: str) -> np.ndarray | None:
         """Return a numeric PyPSA attribute over (scenario, snapshot, unit) or (scenario, unit), read off pandas.
 
         It holds what `unit_array` makes of `c.da[attr]`, without a step
@@ -371,16 +371,16 @@ class NetworkSources(Mapping[str, Any]):
         if attr not in c.static and attr not in c.dynamic:
             msg = f"no data prep for {name}: {c.name} has no attribute {attr}"
             raise NotImplementedError(msg)
-        values = self.values(c, attr)
-        da = self.da(c, attr) if values is None else None
+        values = self.numeric(c, attr)
         dtype = self.spec.parameters[name].dtype
         dims = self.declared(name)
-        if da is None:
+        if values is not None:
             if dtype in ("bool", "float"):
                 values = values.astype(self.dtype(name))
             elif dtype == "int" and not np.isnan(values).any():
                 values = values.astype(int)
             return self.framed(name, values, self.laid(c, values))
+        da = self.da(c, attr)
         if dtype == "bool":
             da = da.astype(bool)
         elif dtype == "float":
