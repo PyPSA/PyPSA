@@ -173,8 +173,8 @@ def test_model_creation(stochastic_benchmark_network):
 
     # Test operational variable Generator-p has scenario dimension
     assert n.model.variables["Generator-p"].dims == (
-        "scenario",
         "name",
+        "scenario",
         "snapshot",
     )
 

@@ -259,7 +259,9 @@ def triangle(ram_overrides=None, snapshots=1, domain=True) -> pypsa.Network:
 
 
 def net_position(n) -> pd.DataFrame:
-    return n.model["FlowBased-net_position"].solution.to_pandas()
+    """The net position of each zone bus, the buses where the variable has rows."""
+    var = n.model["FlowBased-net_position"]
+    return var.solution.where(var.labels != -1, drop=True).T.to_pandas()
 
 
 def add_corridor(n, ram=400) -> None:
@@ -283,7 +285,8 @@ def test_overwrite_drops_stale_dynamic_zone():
     c.add_flow_based(tv, ram=d["RAM"], overwrite=True)
     assert list(c.zonal_ptdf.columns) == ["A", "B"]
     n.optimize.create_model()
-    assert list(n.model["FlowBased-net_position"].indexes["bus"]) == ["A", "B"]
+    labels = n.model["FlowBased-net_position"].labels
+    assert list(labels.where(labels != -1, drop=True).indexes["bus"]) == ["A", "B"]
 
 
 def test_zonal_ptdf_rows_without_columns():
@@ -734,7 +737,7 @@ def test_mixed_static_and_dynamic_columns():
 
     ref = triangle(snapshots=2)
     ref.optimize()
-    np.testing.assert_allclose(net_position(n), net_position(ref)[["B", "C", "A"]])
+    np.testing.assert_allclose(net_position(n), net_position(ref))
     assert n.objective == pytest.approx(ref.objective)
 
 
@@ -912,7 +915,7 @@ def test_named_domain_validation(rows, attr, value, match):
 
 
 def _active_cnecs(n) -> pd.DataFrame:
-    return (n.model.constraints["GlobalConstraint-ram"].labels != -1).to_pandas()
+    return (n.model.constraints["GlobalConstraint-ram"].labels != -1).T.to_pandas()
 
 
 def _nan_ram_triangle(drops, snapshots=3) -> pypsa.Network:

@@ -356,12 +356,6 @@ def _zone_domain(s: NetworkSources) -> pd.Series:
     return domain.zone_domain.astype(object)
 
 
-def flow_based_zones(s: NetworkSources) -> pd.Index | None:
-    """Return the zone buses of the flow-based domain in PyPSA's column order, None without one."""
-    domain = _domain(s)
-    return None if domain is None else pd.Index(domain.zones, dtype=object)
-
-
 @source("flow_based_domain")
 def _flow_based_domains(s: NetworkSources, name: str) -> pd.Index:
     return pd.Index(_zone_domain(s).unique(), dtype=object)

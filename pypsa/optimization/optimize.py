@@ -928,7 +928,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 and "name" in constraint.dims
                 and not c.has_scenarios
             ):
-                dual = constraint.dual.to_series()
+                built = constraint.labels != -1
+                dual = constraint.dual.where(built, drop=True).to_series()
                 c.static.loc[dual.index, "mu"] = dual
 
             # SCALAR DUALS (constraints without snapshot dimension)

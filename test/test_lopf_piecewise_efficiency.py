@@ -289,7 +289,7 @@ class TestPiecewiseMultiPort2Bus:
         pd.testing.assert_series_equal(n.c[comp].dynamic.p.squeeze(), expected_p)
 
         expected_p1 = (
-            -1 * n.model.variables[f"{comp}-p1_piecewise"].solution.to_pandas()
+            -1 * n.model.variables[f"{comp}-p1_piecewise"].solution.T.to_pandas()
         )
         pd.testing.assert_frame_equal(
             n.c[comp].dynamic.p1, expected_p1, check_column_type=False
@@ -447,7 +447,7 @@ class TestPiecewiseMultiPort3Bus:
         pd.testing.assert_series_equal(n.c[comp].dynamic.p1.squeeze(), expected_p1)
 
         expected_p2 = (
-            -1 * n.model.variables[f"{comp}-p2_piecewise"].solution.to_pandas()
+            -1 * n.model.variables[f"{comp}-p2_piecewise"].solution.T.to_pandas()
         )
         pd.testing.assert_frame_equal(
             n.c[comp].dynamic.p2, expected_p2, check_column_type=False

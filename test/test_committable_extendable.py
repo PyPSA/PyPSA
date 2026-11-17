@@ -153,7 +153,7 @@ def test_committable_extendable_generator(base_network):
     min_power = p_min_pu * p_nom_opt
 
     for t in range(4):
-        if status_values.loc[t, "gas_gen"] == 0:
+        if status_values.loc["gas_gen", t] == 0:
             assert abs(dispatch_values.iloc[t]) < 1e-6
         else:
             assert dispatch_values.iloc[t] >= min_power - 1e-6

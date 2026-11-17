@@ -83,17 +83,17 @@ def test_optimize_link_only_network_skips_topology():
 @pytest.mark.parametrize(
     ("network", "entry", "dims"),
     [
-        pytest.param("ac_dc_network", "Generator-p", ("snapshot", "name"), id="var"),
+        pytest.param("ac_dc_network", "Generator-p", ("name", "snapshot"), id="var"),
         pytest.param(
             "ac_dc_network",
             "Kirchhoff-Voltage-Law",
-            ("snapshot", "cycle"),
+            ("cycle", "snapshot"),
             id="kvl",
         ),
         pytest.param(
             "ac_dc_stochastic",
             "Generator-p",
-            ("scenario", "name", "snapshot"),
+            ("name", "scenario", "snapshot"),
             id="stochastic-var",
         ),
         pytest.param(
@@ -105,13 +105,13 @@ def test_optimize_link_only_network_skips_topology():
         pytest.param(
             "ac_dc_stochastic",
             "Kirchhoff-Voltage-Law",
-            ("scenario", "snapshot", "cycle"),
+            ("cycle", "scenario", "snapshot"),
             id="stochastic-kvl",
         ),
     ],
 )
-def test_model_dims_keep_pypsa_order(request, network, entry, dims):
-    """The spec build once listed coords in its own order, e.g. `(name, snapshot)`."""
+def test_model_dims_lead_with_name(request, network, entry, dims):
+    """An entry lists `name` first, then its other dims by name."""
     m = request.getfixturevalue(network).optimize.create_model()
     item = m.variables[entry] if entry in m.variables else m.constraints[entry]
     assert item.labels.dims == dims

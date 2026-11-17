@@ -1563,8 +1563,8 @@ def test_linearized_uc_tightening_with_time_varying_costs(caplog):
 
     n.optimize.create_model(linearized_unit_commitment=True)
 
-    names = n.model.constraints["Generator-com-p-current"].indexes["name"]
-    assert list(names) == ["equal"]
+    labels = n.model.constraints["Generator-com-p-current"].labels
+    assert list(labels.where(labels != -1, drop=True).indexes["name"]) == ["equal"]
     assert "cannot be tightened" in caplog.text
 
 
@@ -1598,15 +1598,15 @@ def test_minimum_time_rows_at_window_boundary(short_time: int | None) -> None:
         )
     n.add("Load", "load", bus="bus", p_set=1)
     model = n.optimize.create_model(sparse=True)
-    status = model.variables["Generator-status"].labels.values
+    status = model.variables["Generator-status"].labels.T.values
     for kind, sign, transition in [
         ("up", -1, "start_up"),
         ("down", 1, "shut_down"),
     ]:
-        values = model.variables[f"Generator-{transition}"].labels.values
+        values = model.variables[f"Generator-{transition}"].labels.T.values
         constraint = model.constraints[f"Generator-com-{kind}-time"]
         generators = n.c.generators.static.index
-        labels = constraint.labels.reindex(name=generators, fill_value=-1).values
+        labels = constraint.labels.reindex(name=generators, fill_value=-1).T.values
         terms: dict[int, dict[int, float]] = {}
         for label, variable, coefficient in (
             constraint.to_polars().select("labels", "vars", "coeffs").iter_rows()
