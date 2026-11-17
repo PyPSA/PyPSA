@@ -227,8 +227,11 @@ class NetworkSources(Mapping[str, Any]):
         return tuple(self.spec.parameters[name].dims)
 
     def coords(self, dim: str) -> pd.Index:
-        """Return the labels of a dimension, as passed."""
-        return pd.Index(self[dim], name=None)
+        """Return the labels of a dimension, one index per build, named after it.
+
+        Every array of the build shares it, so its labels are hashed once.
+        """
+        return self.memo(f"{dim} labels", lambda: self[dim].rename(dim))
 
     def frame(self, name: str, da: xr.DataArray) -> xr.DataArray:
         """`da` broadcast over and laid out in the declared dims of `name`."""
@@ -254,7 +257,7 @@ class NetworkSources(Mapping[str, Any]):
     def filled(self, name: str, value: Any) -> xr.DataArray:
         """Return a grid over the declared dims of `name`, every cell `value`."""
         dims = self.declared(name)
-        coords = {d: self.coords(d).rename(d) for d in dims}
+        coords = {d: self.coords(d) for d in dims}
         nan = isinstance(value, float) and np.isnan(value)
         dtype = {"bool": bool, "int": float if nan else int}.get(
             self.spec.parameters[name].dtype,
@@ -265,14 +268,22 @@ class NetworkSources(Mapping[str, Any]):
 
     def static(self, c: Components) -> pd.DataFrame:
         """Return the static data of a component's units, of the first scenario."""
+        return self.memo(f"{c.name} static", lambda: self._static(c))
+
+    def _static(self, c: Components) -> pd.DataFrame:
         static = of_scenario(c.static, self.n)
         return static[static.index.isin(self.names(c))]
 
     def column(self, c: Components, attr: str, dtype: Any) -> xr.DataArray:
         """Return a static column of a component's units over its unit dim."""
         column = self.static(c)[attr]
-        index = {c._unit_dim: column.index.to_numpy(dtype=object)}
+        index = {c._unit_dim: self.labels(c, column.index)}
         return xr.DataArray(column.to_numpy(dtype=dtype), index, c._unit_dim)
+
+    def labels(self, c: Components, index: pd.Index) -> pd.Index | np.ndarray:
+        """Return the unit labels in `index`: the build's shared index where they are its units."""
+        names = self.names(c)
+        return names if index.equals(names) else index.to_numpy(dtype=object)
 
     def unit_array(self, c: Components, da: xr.DataArray) -> xr.DataArray:
         """Return a `c.da` array relabelled into the spec's dims."""
@@ -281,7 +292,7 @@ class NetworkSources(Mapping[str, Any]):
             names = self.names(c)
             if not da.indexes["name"].equals(names):
                 da = da.sel(name=da.indexes["name"].isin(names))
-            labels = da.indexes["name"].to_numpy(dtype=object)
+            labels = self.labels(c, da.indexes["name"])
             da = da.rename(name=dim).assign_coords({dim: labels})
         if "snapshot" in da.dims:
             if da.sizes["snapshot"] == len(self.n.snapshots):
@@ -329,6 +340,9 @@ class NetworkSources(Mapping[str, Any]):
 
     def active(self, c: Components) -> xr.DataArray:
         """Whether each unit is active at each build snapshot, (unit, snapshot)."""
+        return self.memo(f"{c.name} active", lambda: self._active(c))
+
+    def _active(self, c: Components) -> xr.DataArray:
         mask = c.get_activity_mask(self.network_index)
         if isinstance(mask.columns, pd.MultiIndex):
             mask = mask.T.groupby(level="name").any().T
@@ -336,15 +350,15 @@ class NetworkSources(Mapping[str, Any]):
         mask = mask.reindex(columns=names)
         return xr.DataArray(
             mask.to_numpy(dtype=bool),
-            coords={
-                "snapshot": self.snapshots,
-                c._unit_dim: names.to_numpy(dtype=object),
-            },
+            coords={"snapshot": self.snapshots, c._unit_dim: names},
             dims=["snapshot", c._unit_dim],
         )
 
     def active_by_period(self, c: Components) -> xr.DataArray:
         """Whether each unit is active in each period, (unit, period)."""
+        return self.memo(f"{c.name} active by period", lambda: self._by_period(c))
+
+    def _by_period(self, c: Components) -> xr.DataArray:
         active = self.active(c)
         if not len(self.period_of):
             return active.isel(snapshot=0, drop=True).expand_dims(period=self.periods)
