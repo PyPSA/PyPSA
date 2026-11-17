@@ -20,7 +20,6 @@ Generic functionality is implemented in the abstract module.
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -513,8 +512,8 @@ class Components(
 
     @property
     def _unit_dim(self) -> str:
-        """Dimension of the optimisation spec over the units, e.g. `storage_unit`."""
-        return re.sub(r"(?<!^)(?=[A-Z])", "_", self.name).lower()
+        """Dimension of the optimisation spec over the units, the component name, e.g. `StorageUnit`."""
+        return self.name
 
     @property
     def description(self) -> str:

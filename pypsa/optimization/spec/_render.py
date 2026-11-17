@@ -12,7 +12,7 @@ descriptions too. A word of a name or description, between `_` or `-`,
 is a placeholder if it is one of these:
 
 - `COMPONENT`: the component's name, as `StorageUnit`.
-- `UNIT`: its unit dimension, as `storage_unit`.
+- `UNIT`: its unit dimension, as `StorageUnit`.
 - `NOM`: its nominal capacity, `p_nom`, `s_nom` or `e_nom`.
 - `POWER`: its power variable, `p` or `p_dispatch`, where it has one.
 - `LEVEL`: its storage level variable, `e` or `state_of_charge`, and
@@ -59,6 +59,11 @@ if TYPE_CHECKING:
 
     from pypsa import Network
     from pypsa.components.components import Components
+
+
+def _snake(name: str) -> str:
+    """Return *name* in snake case, the stem of a component's own spec file, as `storage_unit`."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
 def formulated(n: Network, trait: str = "") -> list[Components]:
@@ -222,7 +227,7 @@ def render(
     for c in formulated(pypsa.Network()):
         rename = renamer(c)
         paths += [(f"traits/{t}.yaml", rename) for t in c._formulation]
-        paths.append((f"components/{c._unit_dim}.yaml", rename))
+        paths.append((f"components/{_snake(c.name)}.yaml", rename))
     spec: dict[str, Any] = {}
     patched: dict[str, Any] = {}
     names: Names = {section: {} for section in NAMED}

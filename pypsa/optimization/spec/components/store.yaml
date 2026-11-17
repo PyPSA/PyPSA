@@ -5,43 +5,43 @@
 parameters:
   Store_e_min_pu:
     description: least energy stored, per unit of nominal capacity; negative for a store that may go short
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
   Store_e_max_pu:
     description: most energy stored, per unit of nominal capacity
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
   Store_e_set:
     description: a given energy schedule. No value means no row
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     missing: absent
   Store_max_hours:
     description: >-
       energy capacity in hours of discharge at the power rating `e_nom /
       max_hours`. No value means unbounded power
-    dims: [scenario, store]
+    dims: [scenario, Store]
     missing: absent
   Store_marginal_cost_dispatch:
     description: cost of one unit of discharge, `p + p_store`
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
   Store_marginal_cost_store:
     description: cost of one unit of charging, `p_store`
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
   Store_split_dispatch:
     description: >-
       whether the store charges through `p_store`, apart from its net power
       `p`: true where an efficiency is not one, a cost applies to one direction
       only, or `cycles_max` is finite. Otherwise `p_store` is zero
-    dims: [scenario, store]
+    dims: [scenario, Store]
     dtype: bool
   Store_cycles_max:
     description: most full cycles over the horizon, discharge over `e_nom`. No value means no row
-    dims: [scenario, store]
+    dims: [scenario, Store]
     missing: absent
 
 variables:
   Store_e:
     name: Store-e
     description: energy stored at the end of a snapshot
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: Store_active
 
 expressions:
@@ -49,13 +49,13 @@ expressions:
     description: >-
       least discharge per unit of `e_nom`: zero for a store that splits its
       dispatch, the most charging as negative discharge otherwise
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     cases:
       split: { when: Store_split_dispatch, expression: 0 }
     otherwise: Store_p_min_pu / Store_max_hours
   Store_charge_cap_pu:
     description: most charging through `p_store` per unit of `e_nom`; zero for a store that does not split its dispatch
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     cases:
       split: { when: Store_split_dispatch, expression: -Store_p_min_pu / Store_max_hours }
     otherwise: 0
@@ -63,31 +63,31 @@ expressions:
     expression: >-
       Store_operating_cost((Store_p + Store_p_store) * Store_marginal_cost_dispatch)
       + Store_operating_cost(Store_p_store * Store_marginal_cost_store)
-  Store_injection: sum(Store_sign * Store_p, over=store, by=Store_bus[bus])
+  Store_injection: sum(Store_sign * Store_p, over=Store, by=Store_bus[bus])
 
 constraints:
   Store_fix_e_lower:
     name: Store-fix-e-lower
     description: a fixed store holds at least its floor
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: not Store_e_nom_extendable AND Store_active AND (Store_e_nom < inf OR Store_e_min_pu == 0)
     expression: Store_e >= Store_e_min_pu * Store_e_nom_rated
   Store_fix_e_upper:
     name: Store-fix-e-upper
     description: a fixed store holds at most its nominal capacity
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: not Store_e_nom_extendable AND Store_active AND (Store_e_nom < inf OR Store_e_max_pu == 0)
     expression: Store_e <= Store_e_max_pu * Store_e_nom_rated
   Store_ext_e_lower:
     name: Store-ext-e-lower
     description: an extendable store holds at least its floor of the chosen build
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: Store_e_nom_extendable AND Store_active
     expression: Store_e >= Store_e_min_pu * Store_e_nom_ext
   Store_ext_e_upper:
     name: Store-ext-e-upper
     description: an extendable store holds at most the chosen build
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: Store_e_nom_extendable AND Store_active
     expression: Store_e <= Store_e_max_pu * Store_e_nom_ext
   Store_fix_p_lower:
@@ -95,7 +95,7 @@ constraints:
     description: >-
       a fixed store discharges at least its floor. No row for a store that does
       not split its dispatch and has no `max_hours`
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: >-
       NOT Store_e_nom_extendable AND Store_active AND (Store_split_dispatch OR Store_max_hours)
       AND (Store_e_nom < inf OR Store_split_dispatch OR Store_p_min_pu == 0)
@@ -103,7 +103,7 @@ constraints:
   Store_fix_p_upper:
     name: Store-fix-p-upper
     description: a fixed store discharges at most its power rating. No row without `max_hours`
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: NOT Store_e_nom_extendable AND Store_active AND Store_max_hours AND (Store_e_nom < inf OR Store_p_max_pu == 0)
     expression: Store_p + Store_p_store <= Store_p_max_pu / Store_max_hours * Store_e_nom_rated
   Store_fix_p_store_upper:
@@ -111,7 +111,7 @@ constraints:
     description: >-
       a fixed store charges through `p_store` at most its power rating where it
       splits its dispatch, not at all otherwise
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: >-
       NOT Store_e_nom_extendable AND Store_active AND (NOT Store_split_dispatch OR Store_max_hours)
       AND (Store_e_nom < inf OR NOT Store_split_dispatch OR Store_p_min_pu == 0)
@@ -121,13 +121,13 @@ constraints:
     description: >-
       an extendable store discharges at least its floor of the chosen build. No
       row for a store that does not split its dispatch and has no `max_hours`
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: Store_e_nom_extendable AND Store_active AND (Store_split_dispatch OR Store_max_hours)
     expression: Store_p + Store_p_store >= Store_discharge_floor_pu * Store_e_nom_ext
   Store_ext_p_upper:
     name: Store-ext-p-upper
     description: an extendable store discharges at most its power rating of the chosen build. No row without `max_hours`
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: Store_e_nom_extendable AND Store_active AND Store_max_hours
     expression: Store_p + Store_p_store <= Store_p_max_pu / Store_max_hours * Store_e_nom_ext
   Store_ext_p_store_upper:
@@ -135,7 +135,7 @@ constraints:
     description: >-
       an extendable store charges through `p_store` at most its power rating of
       the chosen build where it splits its dispatch, not at all otherwise
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: Store_e_nom_extendable AND Store_active AND (NOT Store_split_dispatch OR Store_max_hours)
     expression: Store_p_store <= Store_charge_cap_pu * Store_e_nom_ext
   Store_energy_balance:
@@ -144,7 +144,7 @@ constraints:
       the energy stored is the energy carried in, less the discharge before its
       efficiency, plus the charge after its own, plus inflow less spill. `p` is
       the discharge less `p_store`
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: Store_active
     expression: >-
       Store_level_carried_in
@@ -155,12 +155,12 @@ constraints:
   Store_cycles_max:
     name: Store-cycles_max
     description: the discharge over the horizon is at most `cycles_max` times the build
-    dims: [scenario, store]
+    dims: [scenario, Store]
     where: Store_cycles_max AND Store_active_asset
     expression: sum((Store_p + Store_p_store) * snapshot_weightings_stores, over=snapshot) <= Store_cycles_max * Store_e_nom_effective
   Store_e_set:
     name: Store-e_set
     description: the energy stored follows the given schedule
-    dims: [scenario, snapshot, store]
+    dims: [scenario, snapshot, Store]
     where: Store_e_set AND Store_active
     expression: Store_e == Store_e_set

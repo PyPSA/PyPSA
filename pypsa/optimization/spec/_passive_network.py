@@ -418,7 +418,7 @@ def _ptdf(s: NetworkSources, name: str) -> xr.DataArray:
     domain = _domain(s)
     if domain is None:
         return s.filled(name, np.nan)
-    dim = "bus" if name.endswith("zonal_ptdf") else "link"
+    dim = "bus" if name.endswith("zonal_ptdf") else "Link"
     columns = domain.zones if dim == "bus" else domain.links
     ptdf = _flow_based_array(s, "zonal_ptdf").sel(bus=list(columns))
     ptdf = ptdf.rename(bus=dim).reindex({dim: s.coords(dim).to_numpy(dtype=object)})

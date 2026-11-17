@@ -282,7 +282,7 @@ SPLITS = {"{s}": "scenario", "{k}": "segment"}
 #: The placeholder suffix of the security rows, which PyPSA names per component and sub-network.
 SECURITY = "-for-{c}-outage-in-sub-network-{n}"
 #: The port dims a `{port}` placeholder in a PyPSA name splits along, with the unit dim of each part.
-PORTS = {"link_port": "link", "process_port": "process"}
+PORTS = {"Link_port": "Link", "Process_port": "Process"}
 
 
 Part = tuple[LinearExpression, xr.Dataset]

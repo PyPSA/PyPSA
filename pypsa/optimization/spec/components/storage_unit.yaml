@@ -5,46 +5,46 @@
 parameters:
   StorageUnit_p_min_pu:
     description: least power, per unit of nominal power
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
   StorageUnit_p_max_pu:
     description: most power, per unit of nominal power
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
   StorageUnit_p_set:
     description: a given net power schedule, dispatch minus storing. No value means no row
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     missing: absent
   StorageUnit_max_hours:
     description: energy capacity, in hours of dispatch at nominal power
-    dims: [scenario, storage_unit]
+    dims: [scenario, StorageUnit]
   StorageUnit_p_dispatch_set:
     description: a given dispatch schedule. No value means no row
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     missing: absent
   StorageUnit_p_store_set:
     description: a given storing schedule. No value means no row
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     missing: absent
   StorageUnit_state_of_charge_set:
     description: a given state of charge schedule. No value means no row
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     missing: absent
 
 variables:
   StorageUnit_p_dispatch:
     name: StorageUnit-p_dispatch
     description: power delivered to the bus
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_active
   StorageUnit_state_of_charge:
     name: StorageUnit-state_of_charge
     description: energy stored at the end of a snapshot
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_active
 
 expressions:
   StorageUnit_injection:
     expression: >-
-      sum(StorageUnit_sign * (StorageUnit_p_dispatch - StorageUnit_p_store), over=storage_unit, by=StorageUnit_bus[bus])
+      sum(StorageUnit_sign * (StorageUnit_p_dispatch - StorageUnit_p_store), over=StorageUnit, by=StorageUnit_bus[bus])
 
 conditions:
   StorageUnit_fix:
@@ -58,61 +58,61 @@ constraints:
   StorageUnit_fix_p_dispatch_lower:
     name: StorageUnit-fix-p_dispatch-lower
     description: dispatch is not negative
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_fix
     expression: StorageUnit_p_dispatch >= 0
   StorageUnit_fix_p_dispatch_upper:
     name: StorageUnit-fix-p_dispatch-upper
     description: dispatch is at most `p_max_pu` times the nominal power
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_p_max_pu == 0)
     expression: StorageUnit_p_dispatch <= StorageUnit_p_max_pu * StorageUnit_p_nom_rated
   StorageUnit_fix_p_store_upper:
     name: StorageUnit-fix-p_store-upper
     description: storing is at most `-p_min_pu` times the nominal power
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_p_min_pu == 0)
     expression: StorageUnit_p_store <= -StorageUnit_p_min_pu * StorageUnit_p_nom_rated
   StorageUnit_fix_state_of_charge_lower:
     name: StorageUnit-fix-state_of_charge-lower
     description: the state of charge is not negative
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_fix
     expression: StorageUnit_state_of_charge >= 0
   StorageUnit_fix_state_of_charge_upper:
     name: StorageUnit-fix-state_of_charge-upper
     description: the state of charge is at most `max_hours` times the nominal power
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_max_hours == 0)
     expression: StorageUnit_state_of_charge <= StorageUnit_max_hours * StorageUnit_p_nom_rated
   StorageUnit_ext_p_dispatch_lower:
     name: StorageUnit-ext-p_dispatch-lower
     description: dispatch is not negative
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_ext
     expression: StorageUnit_p_dispatch >= 0
   StorageUnit_ext_p_dispatch_upper:
     name: StorageUnit-ext-p_dispatch-upper
     description: dispatch is at most `p_max_pu` times the chosen build
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_ext
     expression: StorageUnit_p_dispatch <= StorageUnit_p_max_pu * StorageUnit_p_nom_ext
   StorageUnit_ext_p_store_upper:
     name: StorageUnit-ext-p_store-upper
     description: storing is at most `-p_min_pu` times the chosen build
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_ext
     expression: StorageUnit_p_store <= -StorageUnit_p_min_pu * StorageUnit_p_nom_ext
   StorageUnit_ext_state_of_charge_lower:
     name: StorageUnit-ext-state_of_charge-lower
     description: the state of charge is not negative
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_ext
     expression: StorageUnit_state_of_charge >= 0
   StorageUnit_ext_state_of_charge_upper:
     name: StorageUnit-ext-state_of_charge-upper
     description: the state of charge is at most `max_hours` times the chosen build
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_ext
     expression: StorageUnit_state_of_charge <= StorageUnit_max_hours * StorageUnit_p_nom_ext
   StorageUnit_energy_balance:
@@ -120,7 +120,7 @@ constraints:
     description: >-
       the state of charge is the energy carried in, plus what is stored, less
       what is dispatched, plus inflow less spill
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_active
     expression: >-
       StorageUnit_level_carried_in
@@ -131,24 +131,24 @@ constraints:
   StorageUnit_p_set:
     name: StorageUnit-p_set
     description: dispatch less storing follows the given schedule
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_p_set AND StorageUnit_active
     expression: StorageUnit_p_dispatch - StorageUnit_p_store == StorageUnit_p_set
   StorageUnit_p_dispatch_set:
     name: StorageUnit-p_dispatch_set
     description: dispatch follows the given schedule
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_p_dispatch_set AND StorageUnit_active
     expression: StorageUnit_p_dispatch == StorageUnit_p_dispatch_set
   StorageUnit_p_store_set:
     name: StorageUnit-p_store_set
     description: storing follows the given schedule
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_p_store_set AND StorageUnit_active
     expression: StorageUnit_p_store == StorageUnit_p_store_set
   StorageUnit_state_of_charge_set:
     name: StorageUnit-state_of_charge_set
     description: the state of charge follows the given schedule
-    dims: [scenario, snapshot, storage_unit]
+    dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_state_of_charge_set AND StorageUnit_active
     expression: StorageUnit_state_of_charge == StorageUnit_state_of_charge_set

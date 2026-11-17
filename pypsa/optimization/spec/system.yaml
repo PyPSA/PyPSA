@@ -20,25 +20,25 @@ dimensions:
     ordered: true
   bus:
     description: network nodes
-  generator:
+  Generator:
     description: generators, each on one bus
-  link:
+  Link:
     description: controllable branches, each from `bus0` to the buses its ports deliver to
-  link_port:
+  Link_port:
     description: the output ports of the links, one label per port (`bus1`, `bus2`, …)
-  process:
+  Process:
     description: converters whose ports each draw or deliver at their own rate of `p`
-  process_port:
+  Process_port:
     description: the ports of the processes, one label per port (`bus0`, `bus1`, …)
-  load:
+  Load:
     description: demands, each on one bus
-  storage_unit:
+  StorageUnit:
     description: storage units with a power capacity and `max_hours` of energy, each on one bus
-  store:
+  Store:
     description: energy stores, each on one bus
-  line:
+  Line:
     description: passive branches, their flow set by impedance
-  transformer:
+  Transformer:
     description: passive branches with a tap ratio and a fixed or optimised phase shift
   cycle:
     description: >-
@@ -143,7 +143,7 @@ parameters:
     missing: 0
   GlobalConstraint_link_ptdf:
     description: the factor of a `flow_based` row for a corridor link
-    dims: [scenario, snapshot, global_constraint, link]
+    dims: [scenario, snapshot, global_constraint, Link]
     missing: 0
   Bus_flow_based_zone:
     description: whether the bus is a zone of a flow-based domain
@@ -160,15 +160,15 @@ relations:
     key: bus
     values: flow_based_domain
     missing: absent
-  Outage_line:
+  Outage_Line:
     description: the line an outage takes out
     key: outage
-    values: line
+    values: Line
     missing: absent
-  Outage_transformer:
+  Outage_Transformer:
     description: the transformer an outage takes out
     key: outage
-    values: transformer
+    values: Transformer
     missing: absent
 
 variables:
@@ -289,8 +289,8 @@ expressions:
     description: the flow of the branch an outage takes out, before the outage
     dims: [scenario, snapshot, outage]
     cases:
-      line: { when: Outage_line, expression: "at(Line_s_monitored, by=Outage_line[line])" }
-    otherwise: at(Transformer_s_monitored, by=Outage_transformer[transformer])
+      line: { when: Outage_Line, expression: "at(Line_s_monitored, by=Outage_Line[Line])" }
+    otherwise: at(Transformer_s_monitored, by=Outage_Transformer[Transformer])
   FlowBased_injection:
     description: a zone bus's net position leaves the bus
     dims: [scenario, snapshot, bus]
@@ -445,7 +445,7 @@ constraints:
       AND GlobalConstraint_ram AND GlobalConstraint_counts_snapshot
     expression: >-
       sum(GlobalConstraint_zonal_ptdf * FlowBased_net_position, over=bus)
-      + sum(GlobalConstraint_link_ptdf * Link_p, over=link)
+      + sum(GlobalConstraint_link_ptdf * Link_p, over=Link)
       <= GlobalConstraint_ram
   FlowBased_balance:
     name: FlowBased-balance

@@ -7,13 +7,13 @@ parameters:
     description: >-
       what a port delivers at each breakpoint of its `rate` curve: `p` times
       `rate`, and zero where that is undefined
-    dims: [process_port, breakpoint]
+    dims: [Process_port, breakpoint]
     missing: absent
 
 expressions:
   Process_injection:
     expression: >-
-      sum(Process_port_arrival, over=process_port, by=Process_port_bus[bus])
+      sum(Process_port_arrival, over=Process_port, by=Process_port_bus[bus])
 
 piecewise:
   Process_rate_incremental:
@@ -22,10 +22,10 @@ piecewise:
       what a port delivers equals its `rate` curve at `p`, by segments filled in
       order; the status gates the curve of a committable process
     along: breakpoint
-    dims: [scenario, snapshot, process_port]
-    where: Process_rate_curve AND at(Process_active, by=Process_port_process[process]) AND Process_rate_curve_p
+    dims: [scenario, snapshot, Process_port]
+    where: Process_rate_curve AND at(Process_active, by=Process_port_Process[Process]) AND Process_rate_curve_p
     method: incremental
-    activity: at(Process_status, by=Process_port_process[process])
+    activity: at(Process_status, by=Process_port_Process[Process])
     links:
-      p: ["at(Process_p, by=Process_port_process[process])", Process_rate_curve_p]
+      p: ["at(Process_p, by=Process_port_Process[Process])", Process_rate_curve_p]
       transfer: [Process_p_piecewise, Process_rate_curve_transfer]

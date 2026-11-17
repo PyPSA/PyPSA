@@ -34,7 +34,7 @@ def test_every_declared_trait_has_one_file():
     [
         ("StorageUnit", "COMPONENT_NOM_ext", "StorageUnit_p_nom_ext"),
         ("Store", "COMPONENT_LEVEL_initial", "Store_e_initial"),
-        ("Link", "COMPONENT_port_UNIT", "Link_port_link"),
+        ("Link", "COMPONENT_port_UNIT", "Link_port_Link"),
         ("Line", "COMPONENT-ext-NOM-lower", "Line-ext-s_nom-lower"),
         ("Store", "COMPONENT_has_unit_years", "Store_has_unit_years"),
         ("Generator", "snapshot_period", "snapshot_period"),
@@ -61,10 +61,10 @@ def test_a_trait_description_takes_the_names_of_the_component(tmp_path):
     )
     spec = render(tmp_path)[0]
     assert spec.parameters["Link_efficiency_x"].description == (
-        "the `efficiency` of a `link` port"
+        "the `efficiency` of a `Link` port"
     )
     assert spec.parameters["Process_rate_x"].description == (
-        "the `rate` of a `process` port"
+        "the `rate` of a `Process` port"
     )
 
 
@@ -144,7 +144,7 @@ def test_a_parameter_of_a_component_without_units_is_checked(
 ):
     n = ac_dc_network
     assert n.c.stores.static.empty
-    s = mathspec.override(spec(), [{"parameters": {name: {"dims": ["store"]}}}])
+    s = mathspec.override(spec(), [{"parameters": {name: {"dims": ["Store"]}}}])
     with pytest.raises(error, match=match):
         NetworkSources(n, s, n.snapshots, n.snapshots)[name]
 
