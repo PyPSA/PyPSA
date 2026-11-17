@@ -36,7 +36,7 @@ dependencies = [
     "pyyaml",
     "xarray",
     "netcdf4",
-    "linopy @ git+https://github.com/PyPSA/linopy.git@bda47bc7f35f90af6572eccb80fdfedb28e5b4fa",
+    "linopy @ git+https://github.com/PyPSA/linopy.git@d7c42a44ffbc9a76121bce9b335871a532550380",
     "mathspec @ git+https://github.com/energy-models/mathspec.git@cc531151128e63af592628b697dd44ab93a1795a",
     "matplotlib",
     "plotly",
