@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build-model:
-    # Time `create_model` against the last release, see test/benchmarks/build_model.py
+    # Time `create_model` against master, see test/benchmarks/build_model.py
     name: Build benchmarks
     runs-on: ubuntu-latest
     steps:
@@ -36,10 +36,10 @@ jobs:
     - name: Measure the pull request
       run: uv run python test/benchmarks/build_model.py measure result.json
 
-    - name: Measure the last release
-      run: >
-        uv run --isolated --no-project --with pypsa
-        python test/benchmarks/build_model.py measure reference.json
+    - name: Measure master
+      run: |
+        git worktree add --detach ../master origin/master
+        PYTHONPATH="$PWD/../master" uv run python test/benchmarks/build_model.py measure reference.json
 
     - name: Compare
       run: >
