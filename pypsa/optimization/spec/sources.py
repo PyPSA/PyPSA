@@ -328,14 +328,23 @@ class NetworkSources(Mapping[str, Any]):
         return ("scenario", *varying, c._unit_dim)
 
     def kept(self, c: Components) -> np.ndarray | None:
-        """Return the positions of the build's units in `c.static`, None where they are all of it."""
+        """Return the positions of the build's units in `c.static`, in their order, None where they are all of it.
+
+        Raises:
+            ValueError: A unit of the build is not in `c.static`.
+
+        """
         return self.memo(f"{c.name} kept", lambda: self._kept(c))
 
     def _kept(self, c: Components) -> np.ndarray | None:
         names = self.names(c)
         if c.static.index.equals(names):
             return None
-        return np.flatnonzero(c.static.index.isin(names))
+        kept = c.static.index.get_indexer(names)
+        if (kept == -1).any():
+            msg = f"{c.name} has no static data of {list(names[kept == -1])}"
+            raise ValueError(msg)
+        return kept
 
     def numeric(self, c: Components, attr: str) -> np.ndarray | None:
         """Return a numeric PyPSA attribute over (scenario, snapshot, unit) or (scenario, unit), read off pandas.
