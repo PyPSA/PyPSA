@@ -649,12 +649,6 @@ COST_ROWS = {s.removeprefix("_") for s in (PWL_CHORD_SUFFIX, PWL_OUTPUT_LINK_SUF
 PLACEHOLDER = re.compile(r"\\\{\w+\\\}")
 
 
-def _scaled(entry: Variable | Constraint, factor: Any) -> None:
-    """Give `entry` the scaling `factor`; the factor `1.0` is the one it has."""
-    if not (isinstance(factor, float) and factor == 1.0):
-        entry.scaling = factor
-
-
 def _scale_columns(m: Model, n: Network, objective: float) -> None:
     """Give every column PyPSA's factor.
 
@@ -666,7 +660,7 @@ def _scale_columns(m: Model, n: Network, objective: float) -> None:
     for name, var in m.variables.items():
         component, _, attr = name.partition("-")
         if component == "CVaR" or attr.endswith("cost_piecewise"):
-            _scaled(var, objective)
+            var.scaling = objective
         elif (
             component in attached
             and "name" in var.labels.dims
@@ -674,7 +668,7 @@ def _scale_columns(m: Model, n: Network, objective: float) -> None:
             and "_piecewise_" not in attr
             and not (var.attrs.get("binary") or var.attrs.get("integer"))
         ):
-            _scaled(var, n.c[component]._scaling(var.labels.indexes["name"]))
+            var.scaling = n.c[component]._scaling(var.labels.indexes["name"])
 
 
 def _rules(
@@ -766,11 +760,11 @@ def _scale_rows(
         match _rule(name, con, n, rules):
             case "bus":
                 component = name.partition("-")[0]
-                _scaled(con, n.c[component]._scaling(con.labels.indexes["name"]))
+                con.scaling = n.c[component]._scaling(con.labels.indexes["name"])
             case "objective":
-                _scaled(con, objective)
+                con.scaling = objective
             case "global":
-                _scaled(con, global_constraint_factor(n, name.partition("-")[2]))
+                con.scaling = global_constraint_factor(n, name.partition("-")[2])
             case "cycle":
                 con.scaling = _cycle_factors(sources, con)
             case "carrier":
