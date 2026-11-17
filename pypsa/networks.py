@@ -727,7 +727,7 @@ class Network(
          * Generator-ext-p-lower (snapshot, name)
          * Generator-ext-p_nom-lower (name)
          * Generator-ext-p-upper (snapshot, name)
-         * GlobalConstraint-primary_energy-ub (name)
+         * GlobalConstraint-primary_energy_max (name)
          * Kirchhoff-Voltage-Law (snapshot, cycle)
          * Line-ext-s-lower (snapshot, name)
          * Line-ext-s_nom-lower (name)

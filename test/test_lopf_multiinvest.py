@@ -496,7 +496,7 @@ def test_global_constraint_primary_energy_storage_stochastic(n_sus):
 
     status, cond = n_sus.optimize(multi_investment_periods=True)
     assert status == "ok"
-    co2 = n_sus.model.constraints["GlobalConstraint-primary_energy-eq"]
+    co2 = n_sus.model.constraints["GlobalConstraint-primary_energy_set"]
     assert co2.rhs.sel(name="co2limit")[0] == -77000.0
 
 

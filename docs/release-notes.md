@@ -30,7 +30,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] now builds its model from a declarative YAML specification of the PyPSA formulation in `pypsa/optimization/spec/`, read by linopy. The call and the results are unchanged. Requires Python 3.12 and `linopy>=1.0`. (<!-- md:pr 2128 -->)
     - **Behavior change**: The modules `pypsa.optimization.constraints` and `pypsa.optimization.variables` and the `define_*` functions are removed.
     - **Behavior change**: A component without any active row gets no constraint, where it got a fully masked one before.
-    - **Behavior change**: The model holds one constraint per type and sense of global constraint, indexed by `name`, as `GlobalConstraint-primary_energy-ub` with the sense `ub`, `lb` or `eq`. Before, it held one constraint `GlobalConstraint-{name}` per global constraint.
+    - **Behavior change**: The model holds one constraint per type and sense of global constraint, indexed by `name`, as `GlobalConstraint-primary_energy_max` with the suffix `_max` (`<=`), `_min` (`>=`) or `_set` (`==`). Before, it held one constraint `GlobalConstraint-{name}` per global constraint.
     - **Behavior change**: Unsupported input is now refused with a `ValueError` that quotes the broken assumption, where some cases raised `NotImplementedError` before.
 - Add the argument `consistency_check` to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] to skip the consistency check before building the model.
 
