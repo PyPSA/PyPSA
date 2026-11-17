@@ -25,7 +25,7 @@ from pypsa._options import options
 from pypsa.optimization.spec._render import PLACEHOLDERS, WORD, formulated, renamer
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Hashable
 
     from mathspec.spec import Spec
 
@@ -246,15 +246,23 @@ class NetworkSources(Mapping[str, Any]):
 
     def frame(self, name: str, da: xr.DataArray) -> xr.DataArray:
         """`da` broadcast over and laid out in the declared dims of `name`."""
+        for dim in self.missing(name, da.dims):
+            da = da.expand_dims({dim: self.coords(dim)})
+        return da.transpose(*self.declared(name)).rename(name)
+
+    def missing(self, name: str, laid: Collection[Hashable]) -> list[str]:
+        """Return the declared dims of `name` that `laid` lacks.
+
+        Raises:
+            ValueError: `laid` holds a dim `name` does not declare.
+
+        """
         dims = self.declared(name)
-        for dim in dims:
-            if dim not in da.dims:
-                da = da.expand_dims({dim: self.coords(dim)})
-        extra = [d for d in da.dims if d not in dims]
+        extra = [d for d in laid if d not in dims]
         if extra:
             msg = f"{name}: dims {extra} are not declared ({dims})"
             raise ValueError(msg)
-        return da.transpose(*dims).rename(name)
+        return [d for d in dims if d not in laid]
 
     def unpopulated(self, name: str) -> bool:
         """Whether a declared dim of parameter `name` has no label, so it has no cell to read."""
@@ -432,10 +440,9 @@ class NetworkSources(Mapping[str, Any]):
         dims = self.declared(name)
         if "scenario" not in dims:
             values, laid = values[0], laid[1:]
-        for dim in dims:
-            if dim not in laid:
-                shape = (len(self.coords(dim)), *values.shape)
-                values, laid = np.broadcast_to(values, shape), (dim, *laid)
+        for dim in self.missing(name, laid):
+            shape = (len(self.coords(dim)), *values.shape)
+            values, laid = np.broadcast_to(values, shape), (dim, *laid)
         values = values.transpose([laid.index(d) for d in dims])
         return xr.DataArray(values, {d: self.coords(d) for d in dims}, dims, name)
 
