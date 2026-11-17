@@ -569,8 +569,7 @@ options._add_future_flag(
     "components_api",
     "`n.<name>` returns the `Components` object instead of the static DataFrame, "
     "and `n.<name>_t` is deprecated. See `https://go.pypsa.org/new-components-api`.",
-    # Silent while unset: `n.<name>` is the most common access path, so a warning
-    # there would reach nearly every user.
+    # Silent while unset, since `n.<name>` is the most common access path.
     None,
 )
 options._add_alias("api.new_components_api", "future.components_api", invert=False)
