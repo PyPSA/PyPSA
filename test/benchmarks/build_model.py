@@ -37,10 +37,10 @@ SPARSE = {
     "carbon_management": True,
 }
 BUDGET = {
-    "ac_dc_meshed": 3.7,
-    "scigrid_de": 4.1,
-    "model_energy": 4.0,
-    "carbon_management": 2.8,
+    "ac_dc_meshed": 3.9,
+    "scigrid_de": 2.45,
+    "model_energy": 4.1,
+    "carbon_management": 2.5,
 }
 
 
