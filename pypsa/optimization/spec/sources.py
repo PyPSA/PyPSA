@@ -277,11 +277,9 @@ class NetworkSources(Mapping[str, Any]):
         """Return a grid over the declared dims of `name`, every cell `value`."""
         dims = self.declared(name)
         coords = {d: self.coords(d) for d in dims}
-        nan = isinstance(value, float) and np.isnan(value)
-        dtype = {"bool": bool, "int": float if nan else int}.get(
-            self.spec.parameters[name].dtype,
-            object if isinstance(value, str) else float,
-        )
+        dtype = self.dtype(name)
+        if dtype is int and isinstance(value, float) and np.isnan(value):
+            dtype = float
         shape = [len(c) for c in coords.values()]
         return xr.DataArray(np.full(shape, value, dtype=dtype), coords, dims, name)
 
@@ -334,11 +332,15 @@ class NetworkSources(Mapping[str, Any]):
         """Return a PyPSA attribute of a component in the spec's dims."""
         values = self.numeric(c, attr)
         if values is None:
-            raw = self.unit_array(c, c.da[attr])
-            return raw.drop_vars([k for k in raw.coords if k not in raw.dims])
+            return self.read(c, attr)
         dims = self.laid(c, values)
         coords = {d: self.coords(d) for d in dims}
         return xr.DataArray(values, coords, dims, attr)
+
+    def read(self, c: Components, attr: str) -> xr.DataArray:
+        """Return a PyPSA attribute of a component in the spec's dims, read through `c.da`."""
+        raw = self.unit_array(c, c.da[attr])
+        return raw.drop_vars([k for k in raw.coords if k not in raw.dims])
 
     def laid(self, c: Components, values: np.ndarray) -> tuple[str, ...]:
         """Return the dims `values` lays a PyPSA attribute over."""
@@ -383,7 +385,7 @@ class NetworkSources(Mapping[str, Any]):
             values = column.reshape(1, -1).repeat(len(self.n.snapshots), axis=0)
         else:
             values = c._as_dynamic(attr).to_numpy()
-        if not isinstance(values, np.ndarray) or values.dtype.kind not in "biuf":
+        if values.dtype.kind not in "biuf":
             return None
         kept = self.kept(c)
         if kept is not None:
@@ -414,24 +416,21 @@ class NetworkSources(Mapping[str, Any]):
         """Return a parameter `<Component>_<attr>` named after a PyPSA attribute, read off `c.da`."""
         attr = self.attr(c, name)
         values = self.numeric(c, attr)
-        dtype = self.spec.parameters[name].dtype
-        dims = self.declared(name)
         if values is not None:
-            if dtype in ("bool", "float"):
-                values = values.astype(self.dtype(name))
-            elif dtype == "int" and not np.isnan(values).any():
-                values = values.astype(int)
-            return self.framed(name, values, self.laid(c, values))
-        da = self.da(c, attr)
-        if dtype == "bool":
-            da = da.astype(bool)
-        elif dtype == "float":
-            da = da.astype(float)
-        elif dtype == "int" and not da.isnull().any():
-            da = da.astype(int)
-        if "scenario" in da.dims and "scenario" not in dims:
+            return self.framed(name, self.cast(name, values), self.laid(c, values))
+        da = self.cast(name, self.read(c, attr))
+        if "scenario" in da.dims and "scenario" not in self.declared(name):
             da = da.isel(scenario=0, drop=True)
         return self.frame(name, da)
+
+    def cast[A: (np.ndarray, xr.DataArray)](self, name: str, values: A) -> A:
+        """Return `values` in the declared dtype of parameter `name`, an int with a NaN as it is."""
+        declared = self.spec.parameters[name].dtype
+        if declared in ("bool", "float"):
+            return values.astype(self.dtype(name))
+        if declared == "int" and not pd.isna(values).any():
+            return values.astype(int)
+        return values
 
     def framed(
         self, name: str, values: np.ndarray, laid: tuple[str, ...]
