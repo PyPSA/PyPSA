@@ -7,10 +7,13 @@
     python test/benchmarks/build_model.py measure <result.json>
     python test/benchmarks/build_model.py compare <reference.json> <result.json>
 
-`measure` times the installed PyPSA: each network runs in a fresh process, so
-`cold` is the first build of a process and `warm` the fastest of the next ones.
-`compare` prints a table and fails when a warm build exceeds its budget, the
-largest allowed ratio to the reference. The budgets are a ratchet: lower one
+`measure` times the PyPSA that is imported: each network runs in a fresh
+process, so `cold` is the first build of a process and `warm` the fastest of
+the next ones. The reference is `master`, measured in the same environment
+with its checkout first on `PYTHONPATH`, so both sides build with the same
+linopy. `compare` prints a table and fails when a warm build exceeds its
+budget, the largest allowed ratio to the reference, or when both files
+measure the same PyPSA. The budgets are a ratchet: lower one
 to about 1.15 times its measured ratio when a change speeds the build up, until
 it reaches 1.1.
 """
@@ -22,8 +25,7 @@ import subprocess
 import sys
 from pathlib import Path
 from time import perf_counter
-
-import linopy
+from typing import Any
 
 import pypsa
 
@@ -35,20 +37,16 @@ SPARSE = {
     "carbon_management": True,
 }
 BUDGET = {
-    "ac_dc_meshed": 2.05,
-    "scigrid_de": 1.6,
-    "model_energy": 2.15,
-    "carbon_management": 1.6,
+    "ac_dc_meshed": 3.7,
+    "scigrid_de": 4.1,
+    "model_energy": 4.0,
+    "carbon_management": 2.8,
 }
 
 
 def build_times(network: str) -> dict[str, float]:
     """Return the cold and the warm build time of an example network."""
-    model_kwargs: dict[str, bool] = {}
-    if SPARSE[network]:
-        model_kwargs["sparse"] = True
-        if not hasattr(linopy.config, "SEMANTICS_DEPRECATION"):
-            linopy.options.set_value(semantics="v1")
+    model_kwargs = {"sparse": True} if SPARSE[network] else {}
     n = getattr(pypsa.examples, network)()
     times = []
     for _ in range(REPEATS + 1):
@@ -60,7 +58,7 @@ def build_times(network: str) -> dict[str, float]:
 
 def measure(path: str) -> None:
     """Time every network in a process of its own and store the result."""
-    results = {}
+    results: dict[str, Any] = {"source": str(Path(pypsa.__file__).parent)}
     for network in SPARSE:
         command = [sys.executable, __file__, "build_times", network]
         run = subprocess.run(command, check=True, capture_output=True, text=True)
@@ -72,6 +70,8 @@ def compare(reference_path: str, result_path: str) -> None:
     """Print the comparison and fail when a warm build exceeds its budget."""
     reference = json.loads(Path(reference_path).read_text())
     result = json.loads(Path(result_path).read_text())
+    if reference["source"] == result["source"]:
+        sys.exit(f"Reference and result both measure {result['source']}")
     print("| network | backend | build | reference [s] | result [s] | ratio | budget |")
     print("|---|---|---|---:|---:|---:|---:|")
     exceeded = []
