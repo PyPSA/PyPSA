@@ -107,7 +107,8 @@ def test_assign_duals_noname(ac_dc_network):
         dual_network_investment, rel=1e-8, abs=1e-10
     )
 
-    dual_model_co2 = float(n.model.constraints["GlobalConstraint-co2_limit"].dual)
+    co2 = n.model.constraints["GlobalConstraint-primary_energy-upper"]
+    dual_model_co2 = float(co2.dual.sel(name="co2_limit"))
     dual_network_co2 = float(n.c.global_constraints.static.mu.loc["co2_limit"])
     assert dual_model_co2 == pytest.approx(dual_network_co2, rel=1e-8, abs=1e-10)
 
@@ -284,5 +285,5 @@ def test_transmission_cost_limit_overnight_cost():
         carrier_attribute="AC",
     )
     m = n.optimize.create_model()
-    con = m.constraints["GlobalConstraint-cost_limit"]
+    con = m.constraints["GlobalConstraint-transmission_expansion_cost_limit-upper"]
     assert (con.coeffs == 100.0).all()

@@ -849,7 +849,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             # Dual variable doesn't have a designated component are ignored
 
             # Split constraint name into component and attribute
-            # GlobalConstraints refer instead to the component name, e.g. "GlobalConstraint-X"
+            # Custom GlobalConstraints refer instead to the component name, e.g. "GlobalConstraint-X"
             try:
                 prefix, suffix = constraint_name.split("-", 1)
                 c = self._n.components[prefix]
@@ -922,8 +922,16 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 # Assign dynamic duals to component
                 _set_dynamic_data(self._n, c.name, dual_attr_name, dual_df)
 
+            # Duals per global constraint, of one type and sense
+            elif (
+                c.name == "GlobalConstraint"
+                and "name" in constraint.dims
+                and not c.has_scenarios
+            ):
+                dual = constraint.dual.to_series()
+                c.static.loc[dual.index, "mu"] = dual
+
             # SCALAR DUALS (constraints without snapshot dimension)
-            # else:
             elif c.name == "GlobalConstraint" and suffix in c.static.index:
                 if c.has_scenarios:
                     raise NotImplementedError()

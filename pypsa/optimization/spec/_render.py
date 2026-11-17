@@ -41,7 +41,7 @@ Names = dict[str, dict[str, Name]]
 #: The sections whose entries may carry a `name:`.
 NAMED = ("variables", "constraints", "piecewise")
 #: The rules a constraint may name in `scaling:` for the factor of its rows.
-SCALINGS = frozenset({"bus", "objective", "none", "cycle", "carrier"})
+SCALINGS = frozenset({"bus", "objective", "none", "cycle", "carrier", "global"})
 #: The scaling rule of each entry that names one, by its key.
 Scalings = dict[str, str]
 #: A word of a name, between `_` or `-`.
