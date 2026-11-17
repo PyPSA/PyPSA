@@ -871,32 +871,13 @@ def _store_split_dispatch(s: NetworkSources, name: str) -> xr.DataArray:
 def _bus_attached(s: NetworkSources, name: str) -> xr.DataArray:
     """Whether any active unit has a port at each bus, (bus, snapshot)."""
     buses = s.coords("bus")
-    attached = xr.DataArray(
-        np.zeros((len(buses), len(s.snapshots)), dtype=bool),
-        coords={"bus": buses.to_numpy(), "snapshot": s.snapshots},
-        dims=["bus", "snapshot"],
-    )
+    attached = np.zeros((len(buses), len(s.snapshots)), dtype=bool)
     for c in s.units.values():
-        active = s.active(c)
+        active = s.active(c).transpose(c._unit_dim, "snapshot").to_numpy()
+        static = s.static(c)
         for port in c.ports:
-            at = s.column(c, f"bus{port}", object)
-            attached = attached | _any_by_bus(active, at, buses)
-    return attached
-
-
-def _any_by_bus(
-    active: xr.DataArray, bus: xr.DataArray, buses: pd.Index
-) -> xr.DataArray:
-    """Whether any active unit sits at each bus, (bus, snapshot)."""
-    unit = bus.dims[0]
-    if not active.sizes[unit]:
-        return xr.DataArray(False)
-    frame = pd.DataFrame(
-        active.transpose(unit, "snapshot").to_numpy(), index=bus.to_numpy()
-    )
-    grouped = frame.groupby(level=0).any().reindex(buses, fill_value=False)
-    return xr.DataArray(
-        grouped.to_numpy(dtype=bool),
-        coords={"bus": buses.to_numpy(), "snapshot": active.snapshot.values},
-        dims=["bus", "snapshot"],
-    )
+            at = buses.get_indexer(static[f"bus{port}"].to_numpy(dtype=object))
+            found = at != -1
+            np.logical_or.at(attached, at[found], active[found])
+    coords = {"bus": buses, "snapshot": s.coords("snapshot")}
+    return xr.DataArray(attached, coords, ("bus", "snapshot"))
