@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pypsa._options import options
 from pypsa.optimization.spec._render import PLACEHOLDERS, WORD, formulated, renamer
 
 if TYPE_CHECKING:
@@ -313,8 +314,56 @@ class NetworkSources(Mapping[str, Any]):
 
     def da(self, c: Components, attr: str) -> xr.DataArray:
         """Return a PyPSA attribute of a component in the spec's dims."""
-        raw = self.unit_array(c, c.da[attr])
-        return raw.drop_vars([k for k in raw.coords if k not in raw.dims])
+        values = self.values(c, attr)
+        if values is None:
+            raw = self.unit_array(c, c.da[attr])
+            return raw.drop_vars([k for k in raw.coords if k not in raw.dims])
+        dims = self.laid(c, values)
+        coords = {d: self.coords(d) for d in dims}
+        return xr.DataArray(values, coords, dims, attr)
+
+    def laid(self, c: Components, values: np.ndarray) -> tuple[str, ...]:
+        """Return the dims `values` lays a PyPSA attribute over."""
+        varying = ("snapshot",) if values.ndim == 3 else ()
+        return ("scenario", *varying, c._unit_dim)
+
+    def kept(self, c: Components) -> np.ndarray | None:
+        """Return the positions of the build's units in `c.static`, None where they are all of it."""
+        return self.memo(f"{c.name} kept", lambda: self._kept(c))
+
+    def _kept(self, c: Components) -> np.ndarray | None:
+        names = self.names(c)
+        if c.static.index.equals(names):
+            return None
+        return np.flatnonzero(c.static.index.isin(names))
+
+    def values(self, c: Components, attr: str) -> np.ndarray | None:
+        """Return a numeric PyPSA attribute over (scenario, snapshot, unit) or (scenario, unit), read off pandas.
+
+        It holds what `unit_array` makes of `c.da[attr]`, without a step
+        through xarray. None for what only that reads: a network with
+        scenarios, the activity mask, labels and an attribute the
+        component lacks.
+        """
+        if self.n.has_scenarios or options.debug.runtime_verification:
+            return None
+        if attr == "active" or attr not in c.static:
+            return None
+        column = c.static[attr].to_numpy()
+        if attr not in c.dynamic.keys():
+            values = column
+        elif c.dynamic[attr].columns.empty:
+            values = column.reshape(1, -1).repeat(len(self.n.snapshots), axis=0)
+        else:
+            values = c._as_dynamic(attr).to_numpy()
+        if not isinstance(values, np.ndarray) or values.dtype.kind not in "biuf":
+            return None
+        kept = self.kept(c)
+        if kept is not None:
+            values = values[..., kept]
+        if values.ndim == 2:
+            values = values[self.positions]
+        return values[np.newaxis]
 
     def attribute(self, c: Components, name: str) -> xr.DataArray:
         """Return a parameter `<Component>_<attr>` named after a PyPSA attribute, read off `c.da`."""
@@ -322,21 +371,45 @@ class NetworkSources(Mapping[str, Any]):
         if attr not in c.static and attr not in c.dynamic:
             msg = f"no data prep for {name}: {c.name} has no attribute {attr}"
             raise NotImplementedError(msg)
-        da = self.da(c, attr)
+        values = self.values(c, attr)
+        da = self.da(c, attr) if values is None else None
         dtype = self.spec.parameters[name].dtype
+        dims = self.declared(name)
+        if da is None:
+            if dtype in ("bool", "float"):
+                values = values.astype(self.dtype(name))
+            elif dtype == "int" and not np.isnan(values).any():
+                values = values.astype(int)
+            return self.framed(name, values, self.laid(c, values))
         if dtype == "bool":
             da = da.astype(bool)
         elif dtype == "float":
             da = da.astype(float)
         elif dtype == "int" and not da.isnull().any():
             da = da.astype(int)
-        dims = self.declared(name)
         if "scenario" in da.dims and "scenario" not in dims:
             da = da.isel(scenario=0, drop=True)
         if "snapshot" in da.dims and "snapshot" not in dims:
             msg = f"{name} varies by snapshot in the network, the spec holds it static"
             raise ValueError(msg)
         return self.frame(name, da)
+
+    def framed(
+        self, name: str, values: np.ndarray, laid: tuple[str, ...]
+    ) -> xr.DataArray:
+        """`values` over `laid` broadcast over and laid out in the declared dims of `name`, as `frame` lays an array."""
+        dims = self.declared(name)
+        if "scenario" not in dims:
+            values, laid = values[0], laid[1:]
+        if "snapshot" in laid and "snapshot" not in dims:
+            msg = f"{name} varies by snapshot in the network, the spec holds it static"
+            raise ValueError(msg)
+        for dim in dims:
+            if dim not in laid:
+                shape = (len(self.coords(dim)), *values.shape)
+                values, laid = np.broadcast_to(values, shape), (dim, *laid)
+        values = values.transpose([laid.index(d) for d in dims])
+        return xr.DataArray(values, {d: self.coords(d) for d in dims}, dims, name)
 
     def active(self, c: Components) -> xr.DataArray:
         """Whether each unit is active at each build snapshot, (unit, snapshot)."""
