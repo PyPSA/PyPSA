@@ -43,7 +43,8 @@ def future_flag(name: str) -> bool:
     """Return whether the 2.0 behaviour of `pypsa.options.future.<name>` is on.
 
     An unset flag (None) keeps the current behaviour and warns once per process,
-    at the first call that depends on it.
+    at the first call that depends on it, unless it was registered without a
+    warning.
     """
     options = pypsa._options.options
     value = options.get_option(f"future.{name}")
@@ -51,6 +52,8 @@ def future_flag(name: str) -> bool:
         _warned.add(name)
         node = options._get_node(f"future.{name}")
         warning = node.warning if isinstance(node, pypsa._options.FutureOption) else ""
+        if warning is None:
+            return False
         warnings.warn(
             f"{warning} Set `pypsa.options.future.{name}` to True to opt in now or "
             "to False to keep the current behaviour.",

@@ -1180,16 +1180,13 @@ def test_components_api_flag_and_old_key(key, value):
 
 
 @pytest.mark.parametrize("flag", [None, False])
-def test_components_api_legacy_accessors_warn_only_unset(flag):
-    """Legacy getters and setters warn once, from the user's line, only if unset."""
+def test_components_api_legacy_accessors_silent(flag):
+    """Legacy getters and setters don't warn while the new API is off."""
     n = pypsa.examples.ac_dc_meshed()
     with (
         pypsa.option_context("future.components_api", flag),
-        warnings.catch_warnings(record=True) as rec,
+        warnings.catch_warnings(),
     ):
-        warnings.simplefilter("always")
+        warnings.simplefilter("error", pypsa.PyPSA2Warning)
         n.buses = n.c.buses.static
         assert isinstance(n.lines, pd.DataFrame)
-    hits = [w for w in rec if issubclass(w.category, pypsa.PyPSA2Warning)]
-    assert len(hits) == (flag is None)
-    assert all(w.filename == __file__ for w in hits)

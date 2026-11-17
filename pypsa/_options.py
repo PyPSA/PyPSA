@@ -63,7 +63,7 @@ class Option:
 class FutureOption(Option):
     """Flag for a PyPSA 2.0 behaviour change: None (unset), True or False."""
 
-    def __init__(self, docs: str = "", warning: str = "") -> None:
+    def __init__(self, docs: str = "", warning: str | None = None) -> None:
         super().__init__(None, None, docs)
         self.warning = warning
 
@@ -219,11 +219,11 @@ class OptionsNode:
             node = node._children[part]
         node._children[name] = option
 
-    def _add_future_flag(self, name: str, docs: str, warning: str) -> None:
+    def _add_future_flag(self, name: str, docs: str, warning: str | None) -> None:
         """Register the flag `future.<name>`, unset (None) by default.
 
         `warning` is shown while the flag is unset: what changes in 2.0 and how to
-        prepare for it.
+        prepare for it. With `warning=None` the unset flag stays silent.
         """
         self._replace_leaf(f"future.{name}", FutureOption(docs, warning))
 
@@ -569,9 +569,9 @@ options._add_future_flag(
     "components_api",
     "`n.<name>` returns the `Components` object instead of the static DataFrame, "
     "and `n.<name>_t` is deprecated. See `https://go.pypsa.org/new-components-api`.",
-    "From PyPSA 2.0 on, `n.<name>` returns the `Components` object instead of the "
-    "static DataFrame. `n.c.<name>.static` and `n.c.<name>.dynamic` work in both. "
-    "See https://go.pypsa.org/new-components-api.",
+    # Silent while unset: `n.<name>` is the most common access path, so a warning
+    # there would reach nearly every user.
+    None,
 )
 options._add_alias("api.new_components_api", "future.components_api", invert=False)
 options._add_future_flag(

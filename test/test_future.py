@@ -55,6 +55,13 @@ def test_unset_warns_once_and_keeps_current_behaviour(flag):
     assert rec[0].filename == __file__
 
 
+def test_unset_flag_without_warning_is_silent():
+    _options.options._add_future_flag(FLAG, DOCS, None)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert future_flag(FLAG) is False
+
+
 @pytest.mark.parametrize("value", [True, False])
 def test_set_flag_is_silent(flag, value):
     with warnings.catch_warnings():

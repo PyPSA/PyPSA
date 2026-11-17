@@ -32,7 +32,6 @@ from pyproj import CRS
 from pypsa._future import future_flag
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
-from pypsa.components.types import component_types_df
 from pypsa.consistency import check_for_unknown_buses
 from pypsa.constants import piecewise_attrs
 from pypsa.descriptors import (
@@ -1364,9 +1363,6 @@ class NetworkIOMixin(_NetworkABC):
             "_name",
             "_pypsa_version",
         }
-        # Skip legacy accessors to avoid triggering the `future.components_api` warning.
-        for list_name in component_types_df.list_name:
-            skip_attrs |= {list_name, f"{list_name}_t"}
 
         _attrs = {}
         for attr in dir(self):

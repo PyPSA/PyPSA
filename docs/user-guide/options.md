@@ -145,9 +145,10 @@ attribute_typos:
 ### Future flags { #future-flags }
 
 Opt in to behaviour that changes in PyPSA 2.0. A flag left at `None` keeps the
-current behaviour and warns once. Set it to `True` to adopt the 2.0 behaviour or to
-`False` to keep the current one. `PYPSA_FUTURE=true` sets all flags at once. The old
-options `api.legacy_string_dtype`, `api.new_components_api` and
+current behaviour and warns once, except `components_api`, which stays silent. Set
+it to `True` to adopt the 2.0 behaviour or to `False` to keep the current one.
+`PYPSA_FUTURE=true` sets all flags at once. The old options
+`api.legacy_string_dtype`, `api.new_components_api` and
 `params.optimize.include_objective_constant` are deprecated aliases.
 
 ``` py
