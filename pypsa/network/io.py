@@ -488,10 +488,16 @@ class _ExporterCSV(_Exporter):
 
         Needed to not have stale sheets for empty components.
         """
-        if fns := list(self.path.joinpath(list_name).glob("*.csv")):
+        fns = [
+            *self.path.glob(f"{list_name}.csv"),
+            *self.path.glob(f"{list_name}-*.csv"),
+        ]
+        if fns:
             for fn in fns:
                 fn.unlink()
-            logger.warning("Stale csv file(s) %s removed", ", ".join(fns))
+            logger.warning(
+                "Stale csv file(s) %s removed", ", ".join(fn.name for fn in fns)
+            )
 
     def remove_series(self, list_name: str, attr: str) -> None:
         """Remove dynamic components data.
@@ -540,16 +546,16 @@ class _ImporterExcel(_Importer):
             msg = f"Invalid path type. Expected str or Path, got {type(path)}."
             raise TypeError(msg)
 
-        path = Path(path)
-        if not path.is_file():
-            msg = f"Excel file {path} does not exist."
-            raise FileNotFoundError(msg)
         self.engine = engine
 
         reader = partial(pd.read_excel, sheet_name=None, engine=self.engine)
         if validators.url(str(path)):
             self.sheets = _retrieve_from_url(str(path), reader)
         else:
+            path = Path(path)
+            if not path.is_file():
+                msg = f"Excel file {path} does not exist."
+                raise FileNotFoundError(msg)
             self.sheets = reader(path)
         self.index: dict = {}
 

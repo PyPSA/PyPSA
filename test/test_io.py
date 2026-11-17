@@ -748,6 +748,85 @@ def test_examples_consistency(tmp_path, example_network):
     assert n.equals(n2, log_mode="strict")
 
 
+requires_excel = pytest.mark.skipif(
+    not excel_installed, reason="openpyxl not installed"
+)
+
+
+@pytest.mark.parametrize("fmt", ["csv", pytest.param("xlsx", marks=requires_excel)])
+def test_reexport_drops_removed_components(ac_dc_network, tmp_path, fmt):
+    n = ac_dc_network.copy()
+    fn = tmp_path / ("network.xlsx" if fmt == "xlsx" else "network")
+
+    def export():
+        if fmt == "xlsx":
+            n.export_to_excel(fn)
+        else:
+            n.export_to_csv_folder(fn)
+
+    export()
+    n.remove("Generator", n.c.generators.static.index)
+    export()
+
+    assert pypsa.Network(fn).generators.empty
+
+
+@pytest.mark.parametrize(
+    ("importer", "path", "error", "match"),
+    [
+        (
+            pypsa.Network.import_from_csv_folder,
+            "missing",
+            FileNotFoundError,
+            "does not exist",
+        ),
+        pytest.param(
+            pypsa.Network.import_from_excel,
+            "missing.xlsx",
+            FileNotFoundError,
+            "does not exist",
+            marks=requires_excel,
+        ),
+        (
+            pypsa.Network.import_from_netcdf,
+            "ftp://example.com/n.nc",
+            ValueError,
+            "Invalid URL",
+        ),
+    ],
+)
+def test_import_invalid_path_raises(importer, path, error, match):
+    with pypsa.option_context("general.allow_network_requests", True):
+        with pytest.raises(error, match=match):
+            importer(pypsa.Network(), path)
+
+
+@requires_excel
+def test_excel_from_url(ac_dc_network, tmp_path, monkeypatch):
+    import shutil
+
+    local = tmp_path / "network.xlsx"
+    ac_dc_network.export_to_excel(local)
+    monkeypatch.setattr(
+        pypsa.network.io, "urlretrieve", lambda url, fn: shutil.copy(local, fn)
+    )
+
+    with pypsa.option_context("general.allow_network_requests", True):
+        n = pypsa.Network("https://example.com/network.xlsx")
+
+    assert n.c.generators.static.index.equals(ac_dc_network.c.generators.static.index)
+
+
+def test_failed_url_retrieval_raises(monkeypatch):
+    def fail(url, fn):
+        raise OSError("unreachable")
+
+    monkeypatch.setattr(pypsa.network.io, "urlretrieve", fail)
+    with pypsa.option_context("general.allow_network_requests", True):
+        with pytest.raises(ValueError, match="Failed to retrieve.*unreachable"):
+            pypsa.Network("https://example.com/unreachable.nc")
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 12), reason="Test requires Python 3.12 or higher"
 )
