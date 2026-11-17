@@ -160,16 +160,26 @@ class NetworkSources(Mapping[str, Any]):
         return self._cache[key]
 
     def _derive(self, name: str) -> Any:
+        derive = self.derivation(name)
         if name in self.spec.parameters and self.unpopulated(name):
             return self.filled(name, "" if self.dtype(name) is object else 0)
-        if name in self._providers:
-            value = self._providers[name](self, name)
-        elif name in self.spec.parameters and (c := self.component(name)) is not None:
-            value = self.attribute(c, name)
-        else:
-            msg = f"no data prep for {name}"
-            raise NotImplementedError(msg)
+        value = derive()
         return self.frame(name, value) if isinstance(value, xr.DataArray) else value
+
+    def derivation(self, name: str) -> Callable[[], Any]:
+        """Return the derivation of `name`: its provider, else the PyPSA attribute it names.
+
+        Raises:
+            NotImplementedError: `name` has neither.
+
+        """
+        if name in self._providers:
+            return functools.partial(self._providers[name], self, name)
+        if name in self.spec.parameters and (c := self.component(name)) is not None:
+            self.attr(c, name)
+            return functools.partial(self.attribute, c, name)
+        msg = f"no data prep for {name}"
+        raise NotImplementedError(msg)
 
     def component(self, name: str) -> Components | None:
         """Return the component a source name opens with, None for another name."""
@@ -374,12 +384,27 @@ class NetworkSources(Mapping[str, Any]):
             values = values[self.positions]
         return values[np.newaxis]
 
-    def attribute(self, c: Components, name: str) -> xr.DataArray:
-        """Return a parameter `<Component>_<attr>` named after a PyPSA attribute, read off `c.da`."""
+    def attr(self, c: Components, name: str) -> str:
+        """Return the PyPSA attribute a parameter `<Component>_<attr>` names.
+
+        Raises:
+            NotImplementedError: `c` has no such attribute.
+            ValueError: The attribute varies by snapshot, the spec holds it static.
+
+        """
         attr = name.removeprefix(f"{c.name}_")
         if attr not in c.static and attr not in c.dynamic:
             msg = f"no data prep for {name}: {c.name} has no attribute {attr}"
             raise NotImplementedError(msg)
+        varies = attr == "active" or attr in c.dynamic.keys()
+        if varies and "snapshot" not in self.declared(name):
+            msg = f"{name} varies by snapshot in the network, the spec holds it static"
+            raise ValueError(msg)
+        return attr
+
+    def attribute(self, c: Components, name: str) -> xr.DataArray:
+        """Return a parameter `<Component>_<attr>` named after a PyPSA attribute, read off `c.da`."""
+        attr = self.attr(c, name)
         values = self.numeric(c, attr)
         dtype = self.spec.parameters[name].dtype
         dims = self.declared(name)
@@ -398,9 +423,6 @@ class NetworkSources(Mapping[str, Any]):
             da = da.astype(int)
         if "scenario" in da.dims and "scenario" not in dims:
             da = da.isel(scenario=0, drop=True)
-        if "snapshot" in da.dims and "snapshot" not in dims:
-            msg = f"{name} varies by snapshot in the network, the spec holds it static"
-            raise ValueError(msg)
         return self.frame(name, da)
 
     def framed(
@@ -410,9 +432,6 @@ class NetworkSources(Mapping[str, Any]):
         dims = self.declared(name)
         if "scenario" not in dims:
             values, laid = values[0], laid[1:]
-        if "snapshot" in laid and "snapshot" not in dims:
-            msg = f"{name} varies by snapshot in the network, the spec holds it static"
-            raise ValueError(msg)
         for dim in dims:
             if dim not in laid:
                 shape = (len(self.coords(dim)), *values.shape)
