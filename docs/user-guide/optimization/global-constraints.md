@@ -13,7 +13,7 @@ By default, global constraints span across all investment periods. For models wi
 
 !!! note "Naming Convention"
 
-    Global constraints carry the name scheme `GlobalConstraint-{type}_{suffix}` in the Linopy model, with the suffix `upper` (`<=`), `lower` (`>=`) or `set` (`==`), as in `GlobalConstraint-primary_energy_upper`. Each is indexed by `name`, the global constraints of that type and sense. All `flow_based` rows share the one constraint `GlobalConstraint-ram`, indexed by `name`. Their net positions and the balance of the net positions are `FlowBased-net_position` and `FlowBased-balance`.
+    Global constraints carry the name scheme `GlobalConstraint-{type}-{sense}` in the Linopy model, with the sense `upper` (`<=`) or `lower` (`>=`), or `GlobalConstraint-{type}_set` (`==`), as in `GlobalConstraint-primary_energy-upper`. Each is indexed by `name`, the global constraints of that type and sense. All `flow_based` rows share the one constraint `GlobalConstraint-ram`, indexed by `name`. Their net positions and the balance of the net positions are `FlowBased-net_position` and `FlowBased-balance`.
 
 ## Primary Energy
 

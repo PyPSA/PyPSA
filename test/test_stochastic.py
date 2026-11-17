@@ -1539,7 +1539,7 @@ def test_primary_energy_constraint_stochastic(ac_dc_stochastic):
     assert ("low", "co2_limit") in n.c.global_constraints.static.index
     assert ("high", "co2_limit") in n.c.global_constraints.static.index
     n.optimize.create_model()
-    constraint = n.model.constraints["GlobalConstraint-primary_energy_upper"]
+    constraint = n.model.constraints["GlobalConstraint-primary_energy-upper"]
     assert constraint.indexes["name"].tolist() == ["co2_limit"]
     assert "scenario" in constraint.dims
 
@@ -1582,7 +1582,7 @@ def test_operational_limit_constraint_stochastic():
 
     # Create model to verify constraints are properly added
     n.optimize.create_model()
-    constraint = n.model.constraints["GlobalConstraint-operational_limit_upper"]
+    constraint = n.model.constraints["GlobalConstraint-operational_limit-upper"]
     assert constraint.indexes["name"].tolist() == ["solar_limit"]
     assert "scenario" in constraint.dims
 
@@ -1733,7 +1733,7 @@ def test_transmission_volume_expansion_limit_constraint_stochastic():
     # Build model and verify a single constraint with scenario dimension
     n.optimize.create_model()
     constraint = n.model.constraints[
-        "GlobalConstraint-transmission_volume_expansion_limit_upper"
+        "GlobalConstraint-transmission_volume_expansion_limit-upper"
     ]
     assert constraint.indexes["name"].tolist() == ["tx_vol"]
     assert "scenario" in constraint.dims
