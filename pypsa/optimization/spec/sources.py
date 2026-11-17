@@ -372,7 +372,8 @@ class NetworkSources(Mapping[str, Any]):
         It holds what `unit_array` makes of `c.da[attr]`, without a step
         through xarray. None for what only that reads: a network with
         scenarios, the activity mask, labels and an attribute the
-        component lacks.
+        component lacks. Under `options.debug.runtime_verification` it is
+        None too, so every read passes the integrity check of `c.da`.
         """
         if self.n.has_scenarios or options.debug.runtime_verification:
             return None
