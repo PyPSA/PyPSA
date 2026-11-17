@@ -130,11 +130,10 @@ class NetworkDescriptorsMixin(_NetworkABC):
         snapshots : pandas.Index
             Restrict to these snapshots rather than n.snapshots.
         inds : pandas.Index
-            Restrict to these component names rather than all components. For
-            stochastic networks, the names are selected in all scenarios. The
-            columns follow component order, duplicates are collapsed and unknown
-            names dropped. In PyPSA 2.0, columns follow `inds` order, duplicates
-            are kept and unknown names raise a `KeyError`.
+            Restrict to these component names rather than all components. The
+            columns follow the order of `inds`, duplicates are kept and unknown
+            names raise a `KeyError`. For stochastic networks, the names are
+            selected across all scenarios.
 
         Returns
         -------
