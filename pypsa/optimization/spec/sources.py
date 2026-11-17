@@ -159,6 +159,8 @@ class NetworkSources(Mapping[str, Any]):
         return self._cache[key]
 
     def _derive(self, name: str) -> Any:
+        if name in self.spec.parameters and self.unpopulated(name):
+            return self.filled(name, "" if self.dtype(name) is object else 0)
         if name in self._providers:
             value = self._providers[name](self, name)
         elif name in self.spec.parameters and (c := self.component(name)) is not None:
@@ -240,10 +242,19 @@ class NetworkSources(Mapping[str, Any]):
             raise ValueError(msg)
         return da.transpose(*dims).rename(name)
 
+    def unpopulated(self, name: str) -> bool:
+        """Whether a declared dim of parameter `name` has no label, so it has no cell to read."""
+        return any(not len(self.coords(dim)) for dim in self.declared(name))
+
+    def dtype(self, name: str) -> type:
+        """Return the numpy dtype of the declared dtype of parameter `name`."""
+        declared = self.spec.parameters[name].dtype
+        return {"bool": bool, "int": int, "str": object}.get(declared, float)
+
     def filled(self, name: str, value: Any) -> xr.DataArray:
         """Return a grid over the declared dims of `name`, every cell `value`."""
         dims = self.declared(name)
-        coords = {d: self.coords(d).to_numpy() for d in dims}
+        coords = {d: self.coords(d).rename(d) for d in dims}
         nan = isinstance(value, float) and np.isnan(value)
         dtype = {"bool": bool, "int": float if nan else int}.get(
             self.spec.parameters[name].dtype,
