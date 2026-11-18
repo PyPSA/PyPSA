@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from pypsa.optimization.flow_based import _FlowBasedDomain
 
 DEG2RAD = np.pi / 180
+CYCLE_SCALE = 1e5
 NO_DOMAIN = "flow_based"
 
 
@@ -107,6 +108,16 @@ def cycle_scaling(s: NetworkSources) -> xr.DataArray:
         grid[i] = weighted.max().reindex(labels).to_numpy(dtype=float)
     coords = {"period": s.periods, "cycle": labels.to_numpy(dtype=object)}
     return xr.DataArray(grid, coords=coords, dims=("period", "cycle"))
+
+
+@source("deg2rad")
+def _deg2rad(s: NetworkSources, name: str) -> float:
+    return DEG2RAD
+
+
+@source("Cycle_scale")
+def _cycle_scale(s: NetworkSources, name: str) -> float:
+    return CYCLE_SCALE
 
 
 @source("COMPONENT_cycle_weight")
@@ -239,11 +250,11 @@ def _cuts(s: NetworkSources, c: Components) -> tuple[xr.DataArray, xr.DataArray]
     atol = _secant_options(s)[0]
     factors = _secant_factors(s, c)
     pad = (0, len(segment) - len(factors) + 1)
-    a = segment.copy(data=np.pad(factors[:-1], pad))
-    b = segment.copy(data=np.pad(factors[1:], pad))
+    a = segment.copy(data=np.pad(factors[:-1], pad, constant_values=np.nan))
+    b = segment.copy(data=np.pad(factors[1:], pad, constant_values=np.nan))
     lossy = r > 0
     slope = 2 * (atol * r.where(lossy, 0)) ** 0.5 * (a + b)
-    offset = (-4 * atol * a * b).where(lossy, 0.0)
+    offset = (-4 * atol * a * b).where(lossy, 0 * a)
     return slope, offset
 
 

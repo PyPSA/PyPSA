@@ -114,6 +114,12 @@ parameters:
     description: whether the run models transmission losses
     dims: []
     dtype: bool
+  deg2rad:
+    description: radians per degree, to convert an angle given in degrees
+    dims: []
+  Cycle_scale:
+    description: the factor on each KVL row, as the impedance weights are tiny
+    dims: []
   GlobalConstraint_type:
     description: >-
       the row's formula: `primary_energy`, `operational_limit`,
@@ -319,11 +325,11 @@ constraints:
     name: Kirchhoff-Voltage-Law
     scaling: cycle
     description: >-
-      the angle differences around each cycle of the period's basis sum to zero,
-      times 1e5 as the impedance weights are tiny
+      the angle differences around each cycle of the period's basis sum to
+      zero, scaled by `Cycle_scale`
     dims: [scenario, snapshot, cycle]
     where: at(Cycle_in_basis, by=snapshot_period[period])
-    expression: 1e5 * Cycle_angle_sum == 0
+    expression: Cycle_scale * Cycle_angle_sum == 0
   Bus_nodal_balance:
     name: Bus-nodal_balance
     description: what enters a bus equals what leaves it
