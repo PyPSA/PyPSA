@@ -1296,12 +1296,13 @@ class Network(
         else:
             bus_carrier = self.c.buses.static.carrier
 
+        sizes = np.bincount(labels.to_numpy(), minlength=n_components)
         for i in np.arange(n_components):
+            if skip_isolated_buses and sizes[i] == 1:
+                continue
+
             # index of first bus
             buses = labels.index[labels == i]
-
-            if skip_isolated_buses and (len(buses) == 1):
-                continue
 
             carrier = bus_carrier.at[buses[0]]
 

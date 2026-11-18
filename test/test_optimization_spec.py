@@ -20,8 +20,13 @@ from pypsa.optimization.spec._render import (
     renamer,
     render,
 )
-from pypsa.optimization.spec.build import SPEC
-from pypsa.optimization.spec.sources import _SOURCES, _providers, source
+from pypsa.optimization.spec.build import SPEC, spec
+from pypsa.optimization.spec.sources import (
+    _SOURCES,
+    NetworkSources,
+    _providers,
+    source,
+)
 
 
 def test_every_declared_trait_has_one_file():
@@ -134,10 +139,44 @@ def test_a_source_name_takes_one_derivation(monkeypatch):
 
 
 @pytest.mark.parametrize(
+    ("name", "error", "match"),
+    [
+        ("Store_e_nom_maxx", NotImplementedError, "Store has no attribute e_nom_maxx"),
+        ("Store_marginal_cost_storage", ValueError, "varies by snapshot"),
+    ],
+)
+def test_a_parameter_of_a_component_without_units_is_checked(
+    ac_dc_network, name, error, match
+):
+    n = ac_dc_network
+    assert n.c.stores.static.empty
+    s = mathspec.override(spec(), [{"parameters": {name: {"dims": ["store"]}}}])
+    with pytest.raises(error, match=match):
+        NetworkSources(n, s, n.snapshots, n.snapshots)[name]
+
+
+@pytest.mark.parametrize("runtime_verification", [False, True])
+def test_a_parameter_without_the_dim_of_its_units_is_refused(
+    ac_dc_network, runtime_verification
+):
+    n = ac_dc_network
+    s = mathspec.override(spec(), [{"parameters": {"Generator_weight": {"dims": []}}}])
+    sources = NetworkSources(n, s, n.snapshots, n.snapshots)
+    verification = pypsa.option_context(
+        "debug.runtime_verification", runtime_verification
+    )
+    with verification, pytest.raises(ValueError, match="are not declared"):
+        sources["Generator_weight"]
+
+
+@pytest.mark.parametrize(
     "page",
     [
         "index.md",
-        *(f"traits/{path.stem}.md" for path in (SPEC / "traits").iterdir()),
+        *(
+            f"traits/{path.name.removesuffix('.yaml')}.md"
+            for path in (SPEC / "traits").iterdir()
+        ),
         *(f"components/{c._unit_dim}.md" for c in formulated(pypsa.Network())),
     ],
 )

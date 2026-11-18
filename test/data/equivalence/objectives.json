@@ -4,6 +4,8 @@
     "ac_dc_meshed": 18441021.47772922,
     "ac_dc_meshed_operational_limit": 1739868.677448988,
     "ac_dc_meshed_stochastic": 22563101.77622393,
+    "ac_dc_meshed_snapshot_subset": 15571591.05864266,
+    "ac_dc_meshed_inactive_unit": 21040753.739382595,
     "storage_hvdc": 15881838.605836188,
     "storage_hvdc_operational_limit": 2390603.9272495275,
     "scigrid_de": 1038959.807342303,

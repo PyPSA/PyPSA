@@ -391,7 +391,7 @@ def _files(root: Traversable) -> tuple[list[Entry], dict[str, Groups]]:
 
 
 def _every(root: Traversable) -> list[Entry]:
-    system, groups = _files(root)
+    system, groups = _files(root)  # type: ignore[arg-type]
     return [*system, *(e for g in groups.values() for _, group in g for e in group)]
 
 
@@ -532,7 +532,7 @@ def pages() -> dict[str, str]:
 
     """
     ctx = _context()
-    system, groups = _files(SPEC)
+    system, groups = _files(SPEC)  # type: ignore[arg-type]
     components = formulated(pypsa.Network())
     examples: dict[str, list[Entry]] = {}
     for c in components:
