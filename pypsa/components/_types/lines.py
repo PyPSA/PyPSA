@@ -167,7 +167,7 @@ class Lines(Components):
         0.8
 
         """
-        n = self.n_save
+        n = self.n
         if not isinstance(n.snapshots, pd.DatetimeIndex):
             msg = (
                 "apply_seasonal_rating requires n.snapshots to be a "
@@ -263,14 +263,14 @@ class Lines(Components):
                 haversine_pts(
                     a=np.array(
                         [
-                            self.static.bus0.map(self.n_save.buses.x),
-                            self.static.bus0.map(self.n_save.buses.y),
+                            self.static.bus0.map(self.n.buses.x),
+                            self.static.bus0.map(self.n.buses.y),
                         ]
                     ).T,
                     b=np.array(
                         [
-                            self.static.bus1.map(self.n_save.buses.x),
-                            self.static.bus1.map(self.n_save.buses.y),
+                            self.static.bus1.map(self.n.buses.x),
+                            self.static.bus1.map(self.n.buses.y),
                         ]
                     ).T,
                 )

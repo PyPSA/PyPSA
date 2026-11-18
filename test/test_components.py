@@ -12,14 +12,28 @@ from pypsa.components.legacy import Component
 from pypsa.components.types import get as get_component_type
 
 
-def test_components_non_implemented():
-    """Test that the components module raises an ImportError if imported directly."""
+def test_components_init():
+    """Test that components require a network."""
     ct = get_component_type("Generator")
-    with pytest.raises(NotImplementedError):
-        Components(ctype=ct, names=["Generator"])
     n = Network()
-    with pytest.raises(NotImplementedError):
-        Components(ctype=ct, n=n)
+    c = Components(ctype=ct, n=n)
+    assert c.n is n
+    with pytest.raises(TypeError):
+        Components(ctype=ct)
+    with pytest.raises(TypeError):
+        Component(name="Generator")
+
+
+def test_n_save_deprecated():
+    n = Network()
+    with pytest.warns(DeprecationWarning, match="Use `c.n` instead"):
+        assert n.c.generators.n_save is n
+
+
+def test_attached_deprecated():
+    n = Network()
+    with pytest.warns(DeprecationWarning, match="always attached to a network"):
+        assert n.c.generators.attached is True
 
 
 @pytest.fixture

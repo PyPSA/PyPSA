@@ -50,11 +50,15 @@ def test_operational_limit_storage_hvdc(storage_hvdc_network):
 
     n.optimize()
 
+    c = n.c.storage_units
     soc_diff = (
-        n.c.storage_units.static.state_of_charge_initial.sum()
-        - n.c.storage_units.dynamic.state_of_charge.sum(axis=1).iloc[-1]
+        c.static.state_of_charge_initial.sum()
+        - c.dynamic.state_of_charge.sum(axis=1).iloc[-1]
     )
-    assert soc_diff.round(3) == limit
+    net_inflow = c._as_dynamic("inflow") - c.dynamic.spill
+    net_inflow = net_inflow.mul(n.snapshot_weightings.stores, axis=0).sum().sum()
+    assert net_inflow > 0
+    assert soc_diff + net_inflow == pytest.approx(limit)
 
 
 @pytest.mark.parametrize("assign", [True, False])

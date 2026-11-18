@@ -821,6 +821,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             `GlobalConstraint.scaling`.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
+            They extend and override `options.params.optimize.model_kwargs`.
 
         Returns
         -------
@@ -859,7 +860,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if meshed_thresholds is None:
                 meshed_thresholds = [meshed_threshold]
 
-        kwargs.setdefault("force_dim_names", True)
+        kwargs = {
+            "force_dim_names": True,
+            **options.params.optimize.model_kwargs,
+            **kwargs,
+        }
         window = SnapshotWindow.build(n, sns, options.optimization.model_snapshot_index)
         n._optimize_window = window
         sns = window.model_index
@@ -1435,14 +1440,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             # i.e. one has to iterate over the periods in order to get the correct angles.
 
             # Determine_network_topology is not necessarily called (only if KVL was assigned)
-            if n.c.sub_networks.static.empty:
+            has_passive_branches = any(
+                not n.c[c].static.empty for c in n.passive_branch_components
+            )
+            if n.c.sub_networks.static.empty and has_passive_branches:
                 n.determine_network_topology()
 
             # Calculate voltage angles (only needed for power flow)
-            if "obj" in n.c.sub_networks.static:
-                n.c.buses.dynamic.v_ang = pd.concat(
-                    [v_ang_for_(sub) for sub in n.c.sub_networks.static.obj], axis=1
-                ).reindex(columns=n.c.buses.static.index, fill_value=0.0)
+            v_ang = pd.DataFrame(
+                0.0, index=n.c.buses.dynamic.p.index, columns=n.c.buses.static.index
+            )
+            for sub in n.c.sub_networks.static.get("obj", []):
+                angles = v_ang_for_(sub)
+                v_ang[angles.columns] = angles
+            n.c.buses.dynamic.v_ang = v_ang
 
     def fix_optimal_capacities(self) -> None:
         """Fix capacities of extendable assets to optimized capacities.

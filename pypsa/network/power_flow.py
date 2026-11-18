@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 from numpy import ones, r_
 from numpy.linalg import norm
 from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, issparse
@@ -374,46 +375,29 @@ def sub_network_pf_singlebus(
     n.c.buses.dynamic.v_ang.loc[sns, sub_network.slack_bus] = 0.0
 
     if distribute_slack:
-        for bus, group in sub_network.c.generators.static.groupby("bus"):
-            if slack_weights in ["p_nom", "p_nom_opt"]:
-                if all(n.c.generators.static[slack_weights] == 0):
-                    msg = f"Invalid slack weights! Generator attribute {slack_weights} is always zero."
-                    raise ValueError(msg)
-                bus_generator_shares = (
-                    n.c.generators.static[slack_weights]
-                    .loc[group.index]
-                    .pipe(normed)
-                    .fillna(0)
-                )
-            elif slack_weights == "p_set":
-                generators_t_p_choice = n.get_switchable_as_dense(
-                    "Generator", slack_weights, sns
-                )
-                if generators_t_p_choice.isna().all().all():
-                    msg = (
-                        f"Invalid slack weights! Generator attribute {slack_weights}"
-                        f" is always NaN."
-                    )
-                    raise ValueError(msg)
-                if (generators_t_p_choice == 0).all().all():
-                    msg = (
-                        f"Invalid slack weights! Generator attribute {slack_weights}"
-                        f" is always zero."
-                    )
-                    raise ValueError(msg)
+        gens = sub_network.c.generators.static.index
+        if isinstance(slack_weights, pd.Series):
+            weights = slack_weights.reindex(gens)
+        elif slack_weights in ["p_nom", "p_nom_opt"]:
+            weights = n.c.generators.static.loc[gens, slack_weights]
+        elif slack_weights == "p_set":
+            weights = n.get_switchable_as_dense("Generator", "p_set", sns, gens)
+        else:
+            msg = f"Invalid slack weights {slack_weights!r}."
+            raise ValueError(msg)
+        if isinstance(weights, pd.Series):
+            weights = pd.DataFrame(weights.to_dict(), index=sns)
+        shares = weights.div(weights.sum(axis=1), axis=0).fillna(0)
 
-                bus_generator_shares = (
-                    generators_t_p_choice.loc[sns, group.index]
-                    .apply(normed, axis=1)
-                    .fillna(0)
-                )
-            else:
-                bus_generator_shares = slack_weights.pipe(normed).fillna(0)  # type: ignore
-            n.c.generators.dynamic.p.loc[sns, group.index] += (
-                bus_generator_shares.multiply(
-                    -n.c.buses.dynamic.p.loc[sns, bus], axis=0
-                )
-            )  # fmt: skip
+        imbalance = -n.c.buses.dynamic.p.loc[sns, sub_network.slack_bus]
+        unassigned = (shares.sum(axis=1) == 0) & (imbalance != 0)
+        if unassigned.any():
+            msg = (
+                f"Invalid slack weights! All slack weights at bus {sub_network.slack_bus} "
+                f"are zero for snapshots {unassigned.index[unassigned].tolist()}."
+            )
+            raise ValueError(msg)
+        n.c.generators.dynamic.p.loc[sns, gens] += shares.multiply(imbalance, axis=0)
     else:
         n.c.generators.dynamic.p.loc[sns, sub_network.slack_generator] -= (
             n.c.buses.dynamic.p.loc[sns, sub_network.slack_bus]
@@ -625,8 +609,17 @@ def apply_transformer_t_model(n: Network) -> None:
     n.c.transformers.static.loc[ts_b, "b_pu"] = imag(2 / za)
 
 
+@deprecated(
+    deprecated_in="1.5.0",
+    removed_in="2.0.0",
+    details="The function is unused and will be removed without replacement.",
+)
 def aggregate_multi_graph(sub_network: SubNetwork) -> None:
     """Aggregate branches between same buses.
+
+    !!! warning "Deprecated in <!-- md:badge-version v1.5.0 -->"
+
+        Will be removed in PyPSA 2.0 without replacement.
 
     Instead a single branch with aggregated properties (e.g. s_nom is
     summed, length is averaged) is created.
@@ -806,7 +799,9 @@ class NetworkPowerFlowMixin(_NetworkABC):
         if self.has_scenarios:
             buses = buses.xs(self.scenarios[0], level="scenario")
 
-        self.c.lines.static["v_nom"] = self.c.lines.static.bus0.map(buses.v_nom)
+        self.c.lines.static["v_nom"] = self.c.lines.static.bus0.map(buses.v_nom).astype(
+            float
+        )
         self.c.lines.static.loc[self.c.lines.static.carrier == "", "carrier"] = (
             self.c.lines.static.bus0.map(buses.carrier)
         )
@@ -848,9 +843,9 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         apply_transformer_t_model(self)
 
-        self.c.shunt_impedances.static["v_nom"] = self.c.shunt_impedances.static[
-            "bus"
-        ].map(buses.v_nom)
+        self.c.shunt_impedances.static["v_nom"] = (
+            self.c.shunt_impedances.static["bus"].map(buses.v_nom).astype(float)
+        )
         self.c.shunt_impedances.static["b_pu"] = (
             self.c.shunt_impedances.static.b * self.c.shunt_impedances.static.v_nom**2
         )

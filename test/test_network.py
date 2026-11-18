@@ -584,8 +584,10 @@ def test_multiport_assignment_defaults_single_add():
     n.add("Bus", "bus")
     n.add("Bus", "bus2")
     n.add("Link", "link", bus0="bus", bus1="bus2")
-    n.add("Link", "link2", bus0="bus", bus1="bus2", bus2="bus")
+    n.add("Link", "link2", bus0="bus", bus1="bus2", bus2="bus", efficiency2=0.3)
     assert n.c.links.static.loc["link", "bus2"] == ""
+    assert n.c.links.static.loc["link", "efficiency2"] == 1.0
+    assert n.c.links.static.loc["link2", "efficiency2"] == 0.3
 
 
 def test_multiport_assignment_defaults_multiple_add():
@@ -599,8 +601,10 @@ def test_multiport_assignment_defaults_multiple_add():
     n.add("Bus", "bus")
     n.add("Bus", "bus2")
     n.add("Link", ["link"], bus0="bus", bus1="bus2")
-    n.add("Link", ["link2"], bus0="bus", bus1="bus2", bus2="bus")
+    n.add("Link", ["link2"], bus0="bus", bus1="bus2", bus2="bus", efficiency2=0.3)
     assert n.c.links.static.loc["link", "bus2"] == ""
+    assert n.c.links.static.loc["link", "efficiency2"] == 1.0
+    assert n.c.links.static.loc["link2", "efficiency2"] == 0.3
 
 
 def test_331():

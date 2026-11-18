@@ -45,6 +45,7 @@ open source and actively maintained. Below is a list of some known models.
 - **[:flag_ar: PyPSA-AR](https://github.com/FTDT-PyPSA/PyPSA-AR)**: Reproducible model of the Argentine high-voltage power grid using PyPSA maintained by Fundación Torcuato Di Tella (FTDT).
 - **[:flag_ca: PyPSA-Canada](https://github.com/NRCan/pypsa-canada)**: used PyPSA for a workflow-based modeling framework for power system analysis in Canada maintained by Natural Resources Canada (NRCan).
 - **[:flag_cl: PyPSA-CL](https://github.com/paredes-vergara/PyPSA-CL)**: Capacity expansion model of the National Electric System used in the official Long-term Energy Planning process of Chile (PELP 2028-2032). Developed by the Planning and Climate Change Unit of the [Ministry of Energy of Chile](https://energia.gob.cl/pelp/repositorio) using entirely public data.
+- **[:flag_us: PyPSA-NorthAmerica](https://github.com/pypsa-meets-earth/pypsa-northamerica)**: Sector-coupled energy system model for the United States, developed as a soft fork of PyPSA-Earth and maintained by the PyPSA meets Earth community.
 
 ### Africa
 - **[:flag_za: PyPSA-RSA](https://github.com/MeridianEconomics/pypsa-rsa)**: South-African electricity model, maintained by [Meridian Economics](https://meridianeconomics.co.za/)

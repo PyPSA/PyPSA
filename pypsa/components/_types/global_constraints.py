@@ -144,7 +144,7 @@ class GlobalConstraints(Components):
                 raise ValueError(msg)
             zonal_ptdf = zonal_ptdf.to_frame().T
 
-        sns = self.n_save.snapshots
+        sns = self.n.snapshots
         if isinstance(zonal_ptdf.index, pd.MultiIndex):
             cnecs = zonal_ptdf.index.unique(-1)
             leading = zonal_ptdf.index.droplevel(-1).unique()

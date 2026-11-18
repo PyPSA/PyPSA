@@ -488,10 +488,16 @@ class _ExporterCSV(_Exporter):
 
         Needed to not have stale sheets for empty components.
         """
-        if fns := list(self.path.joinpath(list_name).glob("*.csv")):
+        fns = [
+            *self.path.glob(f"{list_name}.csv"),
+            *self.path.glob(f"{list_name}-*.csv"),
+        ]
+        if fns:
             for fn in fns:
                 fn.unlink()
-            logger.warning("Stale csv file(s) %s removed", ", ".join(fns))
+            logger.warning(
+                "Stale csv file(s) %s removed", ", ".join(fn.name for fn in fns)
+            )
 
     def remove_series(self, list_name: str, attr: str) -> None:
         """Remove dynamic components data.
@@ -540,16 +546,16 @@ class _ImporterExcel(_Importer):
             msg = f"Invalid path type. Expected str or Path, got {type(path)}."
             raise TypeError(msg)
 
-        path = Path(path)
-        if not path.is_file():
-            msg = f"Excel file {path} does not exist."
-            raise FileNotFoundError(msg)
         self.engine = engine
 
         reader = partial(pd.read_excel, sheet_name=None, engine=self.engine)
         if validators.url(str(path)):
             self.sheets = _retrieve_from_url(str(path), reader)
         else:
+            path = Path(path)
+            if not path.is_file():
+                msg = f"Excel file {path} does not exist."
+                raise FileNotFoundError(msg)
             self.sheets = reader(path)
         self.index: dict = {}
 
@@ -952,10 +958,15 @@ class _ExporterHDF5(_Exporter):
         """Exit the context manager."""
         super().__exit__(exc_type, exc_val, exc_tb)
 
+    def _put(
+        self, key: str, value: pd.DataFrame | pd.Series | pd.Index, **kwargs: Any
+    ) -> None:
+        self.ds.put(key, value, track_times=False, **kwargs)
+
     def save_attributes(self, attrs: dict) -> None:
         """Save generic network attributes."""
         name = attrs.pop("name")
-        self.ds.put(
+        self._put(
             "/network",
             pd.DataFrame(attrs, index=pd.Index([name], name="name")),
             format="table",
@@ -964,19 +975,19 @@ class _ExporterHDF5(_Exporter):
 
     def save_meta(self, meta: dict) -> None:
         """Save meta data (`n.meta`)."""
-        self.ds.put("/meta", pd.Series(json.dumps(meta)))
+        self._put("/meta", pd.Series(json.dumps(meta)))
 
     def save_crs(self, crs: dict) -> None:
         """Save CRS of shapes of network."""
-        self.ds.put("/crs", pd.Series(json.dumps(crs)))
+        self._put("/crs", pd.Series(json.dumps(crs)))
 
     def save_snapshots(self, snapshots: Sequence) -> None:
         """Save snapshots data."""
-        self.ds.put("/snapshots", snapshots, format="table", index=False)
+        self._put("/snapshots", snapshots, format="table", index=False)
 
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
         """Save investment periods data."""
-        self.ds.put(
+        self._put(
             "/investment_periods",
             investment_periods,
             format="table",
@@ -993,19 +1004,17 @@ class _ExporterHDF5(_Exporter):
         df = df.rename_axis(index="name")
         self.index[list_name] = df.index
         df = df.reset_index()
-        self.ds.put("/" + list_name, df, format="table", index=False)
+        self._put("/" + list_name, df, format="table", index=False)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save dynamic components data."""
         df = df.set_axis(self.index[list_name].get_indexer(df.columns), axis="columns")
-        self.ds.put("/" + list_name + "_t/" + attr, df, format="table", index=False)
+        self._put("/" + list_name + "_t/" + attr, df, format="table", index=False)
 
     def save_piecewise(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save piecewise component data."""
         df_stack = df.stack(df.columns.names, future_stack=True)
-        self.ds.put(
-            "/" + list_name + "_p/" + attr, df_stack, format="table", index=False
-        )
+        self._put("/" + list_name + "_p/" + attr, df_stack, format="table", index=False)
 
     def finish(self) -> None:
         """Postprocessing of exporting process."""
@@ -1284,8 +1293,8 @@ class _ExporterNetCDF(_Exporter):
 
         Runs post-processing, compression and saving to disk.
         """
-        # pandas>=3 infer_string strings aren't netCDF-writable. Cast to object and
-        # write with the option off to keep NaNs. https://github.com/pydata/xarray/issues/10301
+        # pandas>=3 infer_string strings aren't netCDF-writable, so cast to object.
+        # https://github.com/pydata/xarray/issues/10301
         for name in list(self.ds.variables):
             if isinstance(self.ds[name].dtype, pd.StringDtype):
                 self.ds[name] = self.ds[name].astype(object)
@@ -1295,7 +1304,7 @@ class _ExporterNetCDF(_Exporter):
             self.set_compression_encoding()
         if self.path is not None:
             _path = Path(self.path)
-            with _path.open("w"), pd.option_context("future.infer_string", False):
+            with _path.open("w"):
                 self.ds.to_netcdf(_path)
 
 
@@ -2012,6 +2021,8 @@ class NetworkIOMixin(_NetworkABC):
         )
 
         # Fill nan values with default values
+        str_cols = df.columns.intersection(attrs.index[attrs.type == "string"])
+        df = df.astype(dict.fromkeys(str_cols, object))
         df = df.fillna(attrs["default"].to_dict())
 
         defaults = {}
@@ -2061,6 +2072,11 @@ class NetworkIOMixin(_NetworkABC):
         # Concatenate to new dataframe
         if not old_static.empty:
             new_static = pd.concat((old_static, new_static), sort=False)
+            # The concat leaves NaN on the old rows for columns only the new rows carry
+            added_cols = new_static.columns.difference(old_static.columns)
+            fill = attrs["default"].reindex(added_cols).dropna()
+            if not fill.empty:
+                new_static = new_static.fillna(fill.to_dict())
 
         if cls_name == "Shape":
             new_static = gpd.GeoDataFrame(new_static, crs=self.crs)
@@ -2367,11 +2383,13 @@ class NetworkIOMixin(_NetworkABC):
             )
             raise ValueError(msg)
 
+        # Keep one curve per component: the new one only if overwrite is set
+        new_names = df.columns.unique("name")
+        old_names = existing.columns.unique("name")
         if overwrite:
-            # Drop existing entries for the new components
-            new_names = df.columns.unique("name")
-            keep = ~existing.columns.get_level_values("name").isin(new_names)
-            existing = existing.loc[:, keep]
+            existing = existing.drop(columns=new_names, level="name", errors="ignore")
+        else:
+            df = df.drop(columns=old_names, level="name", errors="ignore")
 
         # Align piecewise indices: union of existing and new
         all_piecewise = existing.index.union(df.index)
