@@ -483,25 +483,25 @@ class TestSegmentErrors:
             segment(n, 0)
 
     def test_segment_map_too_many_segments(self, simple_network):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         with pytest.raises(
             ValueError, match=r"cannot exceed number of snapshots \(168\)"
         ):
             simple_network.cluster.temporal.get_segment_map(169)
 
     def test_segment_map_requires_tsam_3(self, simple_network, monkeypatch):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         monkeypatch.setattr("pypsa.clustering.temporal.version", lambda _: "2.3.9")
         with pytest.raises(ImportError, match=r"tsam >= 3 is required.*2\.3\.9"):
             simple_network.cluster.temporal.get_segment_map(10)
 
     def test_segment_map_no_dynamic_data_with_periods(self, multiperiod_network):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         with pytest.raises(ValueError, match="No time-varying data"):
             multiperiod_network.cluster.temporal.get_segment_map(5)
 
     def test_segment_no_dynamic_data(self):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         n = pypsa.Network()
         n.set_snapshots(pd.date_range("2021-01-01", periods=24, freq="h"))
         n.add("Bus", "bus0")
@@ -513,7 +513,7 @@ class TestSegmentErrors:
 
 class TestSegmentFunctionality:
     def test_segment_basic(self, simple_network):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         n = simple_network
 
         result = segment(n, 10)
@@ -526,7 +526,7 @@ class TestSegmentFunctionality:
         )
 
     def test_segment_accessor(self, simple_network):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         n = simple_network
 
         m = n.cluster.temporal.segment(10)
@@ -535,7 +535,7 @@ class TestSegmentFunctionality:
         assert len(m.snapshots) == 10
 
     def test_segment_p_min_pu_not_above_p_max_pu(self, simple_network):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         n = simple_network
 
         rng = np.random.default_rng(0)
@@ -568,7 +568,7 @@ def _run_starts(mapping: pd.Series) -> np.ndarray:
 class TestSegmentMap:
     @pytest.mark.parametrize("num_segments", [1, 10, 168])
     def test_segment_map_runs(self, simple_network, num_segments):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         mapping = simple_network.cluster.temporal.get_segment_map(num_segments)
         starts = _run_starts(mapping)
 
@@ -581,7 +581,7 @@ class TestSegmentMap:
     def test_segment_map_within_periods(
         self, multiperiod_network, num_segments, varying
     ):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         n = multiperiod_network
         rng = np.random.default_rng(42)
         p_max_pu = rng.uniform(size=48) if varying else np.full(48, 0.5)
@@ -600,7 +600,7 @@ class TestSegmentMap:
     def test_segment_map_ignores_redundant_series(
         self, simple_network, p_max_pu, drop_duplicates
     ):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         n = simple_network
         expected = n.cluster.temporal.get_segment_map(
             20, drop_duplicates=drop_duplicates
@@ -646,7 +646,7 @@ class TestSnapshotMaps:
     @pytest.mark.parametrize("method", ["resample", "downsample", "segment"])
     def test_method_applies_map(self, network, method, request):
         if method == "segment":
-            pytest.importorskip("tsam")
+            pytest.importorskip("tsam", minversion="3")
         n = _with_varying_generator(request.getfixturevalue(network))
         t = n.cluster.temporal
         first = {attr: "first" for c in n.components for attr in c.dynamic}
@@ -718,7 +718,7 @@ class TestSnapshotMaps:
 
     @pytest.mark.parametrize("stride", [2, 3])
     def test_downsample_segmented_network_keeps_hours(self, simple_network, stride):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         m = segment(simple_network, 40).n
         result = downsample(m, stride)
 
@@ -763,7 +763,7 @@ class TestSnapshotMaps:
     )
     def test_solved_network_warning_points_at_caller(self, simple_network, method):
         if method == "segment":
-            pytest.importorskip("tsam")
+            pytest.importorskip("tsam", minversion="3")
         n = simple_network
         n.optimize(solver_name="highs")
         n.model.solver_model = None
@@ -795,7 +795,7 @@ class TestDeprecations:
     )
     def test_result_methods_warn_and_match_main_path(self, simple_network, method):
         if method == "get_segment_result":
-            pytest.importorskip("tsam")
+            pytest.importorskip("tsam", minversion="3")
         t = simple_network.cluster.temporal
         mapping, clustered, deprecated = {
             "get_resample_result": lambda: (
@@ -836,7 +836,7 @@ class TestDeprecations:
         ids=["segment", "module_segment", "get_segment_result"],
     )
     def test_solver_is_deprecated(self, simple_network, call):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         with warnings.catch_warnings(record=True) as record:
             warnings.simplefilter("always")
             call(simple_network)
@@ -869,7 +869,7 @@ class TestStochasticNotSupported:
             downsample(stochastic_network, 4)
 
     def test_segment_stochastic_raises(self, stochastic_network):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
 
         with pytest.raises(NotImplementedError, match="stochastic networks"):
             segment(stochastic_network, 10)
