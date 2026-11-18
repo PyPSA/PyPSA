@@ -20,7 +20,7 @@ PyPSA can optimise the following types of problems:
 
 6. **Modelling-to-Generate-Alternatives (MGA)** for near-optimal space exploration ([:material-notebook: Example](../../examples/mga.ipynb)).
 
-These problems build on each other, e.g., capacity expansion planning models include economic dispatch and linear optimal power flow constraints. Thereby, the dispatch of generation, conversion and storage technologies, as well as the capacities of generation, storage, conversion and transmission infrastructure are co-optimised. In any case, the objective is to minimize the total system cost for the snapshots selected.
+These problems build on each other, e.g., capacity expansion planning models include economic dispatch and linear optimal power flow constraints. Thereby, the dispatch of generation, conversion and storage technologies, as well as the capacities of generation, storage, conversion and transmission infrastructure are co-optimised. In any case, the objective is to minimize the total system cost for the snapshots selected. The [formulation](formulation/index.md) states all the math of `n.optimize()`.
 
 The kind of optimisation problem is determined by the parameters provided for the network components (e.g. whether components are extendable or committable). Depending on the data input, the optimisation is then formulated as a **linear program (LP)**, **quadratic program (QP)** or **mixed-integer linear program (MILP)**. Most variables are continuous, but unit commitment constraints and block-sized investments can be modelled with binary variables. Quadratic terms are added by quadratic marginal dispatch costs.
 
