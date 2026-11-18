@@ -424,12 +424,13 @@ def test_fixed_modular_committable_maintenance(component, p_attr):
             "modules bound is p_nom_max/p_nom_mod if extendable, else p_nom/p_nom_mod"
         )
         np.testing.assert_array_equal(
-            np.unique(le_maint.coeffs), [-modules, 1], err_msg=bound
+            np.unique(le_maint.to_polars()["coeffs"]), [-modules, 1], err_msg=bound
         )
         np.testing.assert_array_equal(
-            np.unique(lb.coeffs), [-modules, -1, 1], err_msg=bound
+            np.unique(lb.to_polars()["coeffs"]), [-modules, -1, 1], err_msg=bound
         )
-        np.testing.assert_array_equal(lb.rhs, -modules, err_msg=bound)
+        rhs = lb.rhs.where(lb.labels != -1, drop=True)
+        np.testing.assert_array_equal(rhs, -modules, err_msg=bound)
 
         c = n.c[component]
         in_maint = c.dynamic.maintenance["unit"].values > 0.5

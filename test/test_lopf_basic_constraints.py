@@ -751,9 +751,10 @@ def test_line_voltage_angle_constraint_names():
         n.optimize()
     upper = n.model.constraints["Line-v_ang-upper"]
     lower = n.model.constraints["Line-v_ang-lower"]
-    assert list(upper.coords["name"].values) == ["l01"]
-    assert list(lower.coords["name"].values) == ["l01"]
-    assert np.isclose(lower.rhs, -upper.rhs).all()
+    for con in (upper, lower):
+        built = con.labels.where(con.labels != -1, drop=True)
+        assert list(built.indexes["name"]) == ["l01"]
+    assert np.isclose(lower.rhs.sel(name="l01"), -upper.rhs.sel(name="l01")).all()
 
 
 def meshed_transformer_network(phase_shift=0.0, ps_min=0.0, ps_max=0.0):

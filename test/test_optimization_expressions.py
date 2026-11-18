@@ -369,10 +369,10 @@ class TestExpressionsWithPiecewise:
         assert isinstance(expr, LinearExpression)
         s = str(expr.sel(component="Generator", carrier="-"))
         for term in [
-            "0.6 Generator-p[0, gen1]",
-            "0.6 Generator-p[1, gen1]",
-            "1 Generator-marginal_cost_piecewise[0, gen0]",
-            "1 Generator-marginal_cost_piecewise[1, gen0]",
+            "0.6 Generator-p[gen1, 0]",
+            "0.6 Generator-p[gen1, 1]",
+            "1 Generator-marginal_cost_piecewise[gen0, 0]",
+            "1 Generator-marginal_cost_piecewise[gen0, 1]",
         ]:
             assert term in s
         assert "piecewise" not in str(expr.sel(component=["Link", "StorageUnit"]))
@@ -426,10 +426,10 @@ class TestExpressionsWithPiecewise:
         expr = n.optimize.expressions.energy_balance().unstack("group")
         s = str(expr.sel(component="Link", carrier="AC"))
         for term in [
-            "1 Link-p[0, link]",
-            "1 Link-p[1, link]",
-            "1 Link-p1_piecewise[0, link]",
-            "1 Link-p1_piecewise[1, link]",
+            "1 Link-p[link, 0]",
+            "1 Link-p[link, 1]",
+            "1 Link-p1_piecewise[link, 0]",
+            "1 Link-p1_piecewise[link, 1]",
         ]:
             assert term in s
         assert "piecewise" not in str(

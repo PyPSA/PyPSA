@@ -8,14 +8,14 @@ dimensions:
   snapshot: {index: t, set: '\mathcal{T}'}
   scenario: {index: s, set: '\mathcal{S}'}
   period: {index: a, set: '\mathcal{A}'}
-  generator: {index: i, set: '\mathcal{G}'}
-  load: {index: j, set: '\mathcal{D}'}
-  storage_unit: {index: v, set: '\mathcal{U}'}
-  store: {index: y, set: '\mathcal{E}'}
-  link: {index: k, set: '\mathcal{K}'}
-  line: {index: l, set: '\mathcal{L}'}
-  transformer: {index: q, set: '\mathcal{Q}'}
-  process: {index: m, set: '\mathcal{M}'}
+  Generator: {index: i, set: '\mathcal{G}'}
+  Load: {index: j, set: '\mathcal{D}'}
+  StorageUnit: {index: v, set: '\mathcal{U}'}
+  Store: {index: y, set: '\mathcal{E}'}
+  Link: {index: k, set: '\mathcal{K}'}
+  Line: {index: l, set: '\mathcal{L}'}
+  Transformer: {index: q, set: '\mathcal{Q}'}
+  Process: {index: m, set: '\mathcal{M}'}
   flow_based_domain: {index: z, set: '\mathcal{Z}'}
   breakpoint: {index: b, set: '\mathcal{B}'}
   carrier: {index: '\sigma', set: '\mathcal{C}'}
@@ -23,8 +23,8 @@ dimensions:
   outage: {index: '\zeta', set: '\mathcal{O}'}
   segment: {index: '\epsilon', set: '\mathcal{V}'}
   global_constraint: {index: '\gamma', set: '\mathcal{H}'}
-  link_port: {index: '\beta', set: '\mathcal{I}'}
-  process_port: {index: '\chi', set: '\mathcal{J}'}
+  Link_port: {index: '\beta', set: '\mathcal{I}'}
+  Process_port: {index: '\chi', set: '\mathcal{J}'}
 names:
   Generator_p: g
   Generator_p_nom_ext: G

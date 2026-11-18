@@ -113,6 +113,26 @@ def test_assign_duals_noname(ac_dc_network):
     assert dual_model_co2 == pytest.approx(dual_network_co2, rel=1e-8, abs=1e-10)
 
 
+def test_each_global_constraint_keeps_its_dual(ac_dc_network):
+    """An entry of one type lists every global constraint, the others masked."""
+    n = ac_dc_network
+    n.c.global_constraints.static.loc["co2_limit", "constant"] = 1e3
+    n.add(
+        "GlobalConstraint",
+        "wind_limit",
+        type="tech_capacity_expansion_limit",
+        carrier_attribute="wind",
+        sense="<=",
+        constant=1e9,
+    )
+    n.optimize()
+    co2 = n.model.constraints["GlobalConstraint-primary_energy-upper"]
+    mu = n.c.global_constraints.static.mu
+    assert mu["co2_limit"] == pytest.approx(float(co2.dual.sel(name="co2_limit")))
+    assert mu["co2_limit"] < 0
+    assert mu["wind_limit"] == pytest.approx(0)
+
+
 def test_assign_custom_variable(ac_dc_network):
     """Test that adding custom variables does not raise an error when optimizing."""
     n = ac_dc_network

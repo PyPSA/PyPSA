@@ -38,7 +38,6 @@ from pypsa.optimization.scaling import (
 from pypsa.optimization.spec._passive_network import (
     SecurityGroup,
     cycle_scaling,
-    flow_based_zones,
     security_groups,
 )
 from pypsa.optimization.spec._render import (
@@ -64,11 +63,11 @@ SPEC = files("pypsa.optimization.spec")
 
 
 @functools.cache
-def _unit_dims() -> set[str]:
-    """Return the spec's unit dims, one per component with a formulation."""
+def _unit_dims() -> tuple[str, ...]:
+    """Return the spec's unit dims, one per component with a formulation, which every entry lists first."""
     import pypsa  # noqa: PLC0415
 
-    return {c._unit_dim for c in formulated(pypsa.Network())}
+    return tuple(sorted(c._unit_dim for c in formulated(pypsa.Network())))
 
 
 @functools.cache
@@ -217,62 +216,10 @@ def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
     A constraint over buses or GlobalConstraint labels names them `name` too.
     The breakpoints of a curve take linopy's name, which marks an auxiliary entry.
     """
-    named = _unit_dims() | ({"bus", "global_constraint"} if constraint else set())
+    named = {*_unit_dims(), *(("bus", "global_constraint") if constraint else ())}
     found = [d for d in dims if d in named]
     renamed = {found[0]: "name"} if len(found) == 1 else {}
     return renamed | ({"breakpoint": BREAKPOINT_DIM} if "breakpoint" in dims else {})
-
-
-def _order(dims: tuple[str, ...], has_scenarios: bool) -> list[str]:
-    """PyPSA's dim order, the other dims after it in their own order.
-
-    An entry over snapshots leads with `snapshot` and `name`, or with
-    `scenario`, `name` and `snapshot` in a stochastic run; one without
-    snapshots leads with `name` and `scenario`.
-    """
-    if "snapshot" not in dims:
-        lead = ["name", "scenario"]
-    elif has_scenarios:
-        lead = ["scenario", "name", "snapshot"]
-    else:
-        lead = ["snapshot", "name"]
-    front = [d for d in lead if d in dims]
-    return front + [d for d in dims if d not in front]
-
-
-def _coords_in_order(ds: xr.Dataset) -> xr.Dataset:
-    """`ds` with its coords listed in the order of its dims, which linopy prints and derives from."""
-    dims = list(ds.labels.dims)
-    names = [d for d in dims if d in ds.coords]
-    names += [k for k in ds.coords if k not in names]
-    coords = xr.Coordinates(
-        {k: ds.coords[k].variable for k in names},
-        indexes={k: ds.xindexes[k] for k in names if k in ds.xindexes},
-    )
-    return ds.drop_vars(names).assign_coords(coords)
-
-
-def _renumbered(ds: xr.Dataset, order: list[str], mapping: np.ndarray) -> xr.Dataset:
-    """`ds` laid out in `order`, with fresh labels, trimmed to its built units.
-
-    PyPSA builds a variable or a constraint only for the units that have
-    one, so a unit whose every label is masked is dropped. linopy reads a
-    solution or a dual by reshaping one C-ordered label block, so the kept
-    labels are renumbered from the block's start; `mapping` records old to
-    new.
-    """
-    if "name" in ds.labels.dims and ds.sizes["name"]:
-        others = [d for d in ds.labels.dims if d != "name"]
-        ds = ds.isel(name=(ds.labels != -1).any(others).values)
-    ds = _coords_in_order(ds.transpose(*order, ...))
-    start = ds.attrs["label_range"][0]
-    fresh = start + np.arange(ds.labels.size).reshape(ds.labels.shape)
-    moved = ds.labels.values
-    live = moved != -1
-    mapping[moved[live]] = fresh[live]
-    ds["labels"] = ds.labels.copy(data=np.where(live, fresh, -1))
-    ds.attrs["label_range"] = (start, start + ds.labels.size)
-    return ds
 
 
 #: linopy's suffix of a piecewise row or column, where the spec's expansion names it otherwise.
@@ -282,7 +229,7 @@ SPLITS = {"{s}": "scenario", "{k}": "segment"}
 #: The placeholder suffix of the security rows, which PyPSA names per component and sub-network.
 SECURITY = "-for-{c}-outage-in-sub-network-{n}"
 #: The port dims a `{port}` placeholder in a PyPSA name splits along, with the unit dim of each part.
-PORTS = {"link_port": "link", "process_port": "process"}
+PORTS = {"Link_port": "Link", "Process_port": "Process"}
 
 
 Part = tuple[LinearExpression, xr.Dataset]
@@ -314,46 +261,25 @@ def _on_units[T: (xr.Dataset, LinearExpression)](
     return obj.sel({dim: ports}).rename({dim: unit}).assign_coords({unit: units})
 
 
-def _positions(da: xr.DataArray) -> xr.DataArray:
-    """Return the flat position of each cell of `da`."""
-    return da.copy(data=np.arange(da.size).reshape(da.shape))
-
-
-def _relaid(
-    con: Constraint, cells: xr.Dataset, variable_map: np.ndarray
-) -> LinearExpression:
-    """Return the lhs of `con` on the grid of `cells`, its columns renumbered by `variable_map`.
-
-    `cells.cell` holds the old flat position of each new cell. linopy
-    lays a sparse lhs out on its grid only by its terms' cells, so the
-    terms move cell by cell.
-    """
-    rows, columns, coeffs = con.lhs.to_coo()
-    moved = np.full(con.labels.size, -1)
-    moved[cells.cell.values.ravel()] = np.arange(cells.cell.size)
-    keep = moved[rows] != -1
-    dims = cells.labels.dims
-    lhs = LinearExpression.from_coo(
-        con.model,
-        {d: cells.indexes[d] for d in dims},
-        moved[rows[keep]],
-        variable_map[columns[keep]],
-        coeffs[keep],
-    )
-    aux = {k: v for k, v in cells.coords.items() if k not in dims}
-    return lhs.assign_coords(aux) if aux else lhs
-
-
 def _split_ports(m: Model, sources: NetworkSources) -> None:
     """Split each entry PyPSA names per port number into one entry per number, over the units.
 
-    The parts tile the label block of the entry, so `_relabel` renumbers
-    each within its own share.
+    linopy frames an entry in the name order of its dims, so the port dim
+    leads and the ports of one number, which the sources list together,
+    hold one run of the entry's label block: each part keeps its labels.
+
+    Raises:
+        ValueError: The port dim does not lead the entry.
+
     """
     for container in (m.variables, m.constraints):
         for key in [k for k in container if "{port}" in k]:
-            entry = container.data.pop(key)
+            entry = container[key]
             dim = next(d for d in PORTS if d in entry.labels.dims)
+            if entry.labels.dims[0] != dim:
+                msg = f"{key} must lead with {dim} to split by port, not {entry.labels.dims[0]}."
+                raise ValueError(msg)
+            container.remove(key)
             unit = PORTS[dim]
             ports = sources.ports(sources.units[unit])
             start = entry.attrs["label_range"][0]
@@ -365,13 +291,13 @@ def _split_ports(m: Model, sources: NetworkSources) -> None:
                     part = _on_units(entry.data, dim, selected, unit, units)
                     size = part.labels.size
                     part.attrs["label_range"] = (start, start + size)
-                    container.data[new] = Variable(part, m, new)
+                    container.add(Variable(part, m, new))
                 else:
                     cells = _on_units(_cells(entry), dim, selected, unit, units)
                     size = cells.labels.size
                     cells = cells.assign_attrs(label_range=(start, start + size))
                     lhs = _on_units(entry.lhs, dim, selected, unit, units)
-                    container.data[new] = _constraint(m, lhs, cells, new)
+                    container.add(_constraint(m, lhs, cells, new))
                 start += size
 
 
@@ -488,10 +414,11 @@ def _relabel(
     sources: NetworkSources,
     meshed: dict[str, pd.Index],
 ) -> None:
-    """Rename every dim of `m` as PyPSA names it and lay out its variables and constraints.
+    """Rename every dim of `m` as PyPSA names it, in linopy's order and with linopy's labels.
 
-    Entries without a single row are dropped, as PyPSA does not build them,
+    Entries without a single row are removed, as PyPSA does not build them,
     and the placeholder scenario of a network without scenarios is squeezed.
+    A unit without a row stays as a masked coordinate.
     """
     squeeze = not n.has_scenarios
     levels = (
@@ -503,61 +430,38 @@ def _relabel(
         and not isinstance(snapshots, pd.MultiIndex)
         else {}
     )
-    variable_map = np.arange(m._xCounter)
-    constraint_map = np.arange(m._cCounter)
 
-    def frame(ds: xr.Dataset, constraint: bool, mapping: np.ndarray) -> xr.Dataset:
-        ds = ds.rename(_pypsa_dims(tuple(ds.labels.dims), constraint))
-        if squeeze and "scenario" in ds.dims:
-            ds = ds.squeeze("scenario", drop=True)
-        if "snapshot" in ds.dims:
-            ds = ds.assign_coords({"snapshot": snapshots, **levels})
-        return _renumbered(ds, _order(ds.labels.dims, n.has_scenarios), mapping)
+    def frame[T: (Variable, LinearExpression, xr.Dataset)](
+        obj: T, dims: tuple[str, ...], renamed: dict[str, str]
+    ) -> T:
+        if renamed:
+            obj = obj.rename(renamed)
+        if squeeze and "scenario" in dims:
+            obj = obj.isel(scenario=0, drop=True)
+        if "snapshot" in dims:
+            obj = obj.assign_coords({"snapshot": snapshots, **levels})
+        return obj
 
-    variables = {}
-    for name, var in m.variables.items():
+    for name, var in list(m.variables.items()):
         if not (var.labels != -1).any():
+            m.variables.remove(name)
             continue
-        ds = var.data
-        if name == "FlowBased-net_position":
-            ds = ds.sel(bus=flow_based_zones(sources))
-        variables[name] = Variable(frame(ds, False, variable_map), m, name)
-
-    def remap(ds: xr.Dataset) -> xr.Dataset:
-        vars_ = ds.vars.values
-        ds["vars"] = ds.vars.copy(data=np.where(vars_ != -1, variable_map[vars_], -1))
-        return ds
+        dims = tuple(var.labels.dims)
+        m.variables.add(frame(var, dims, _pypsa_dims(dims, False)))
 
     constraints = {}
     for name, con in m.constraints.items():
         if not (con.labels != -1).any():
             continue
-        if con.lhs.is_sparse:
-            cells = _cells(con).assign(cell=_positions(con.labels))
-            cells = frame(cells, True, constraint_map).rename(DIMS.get(name, {}))
-            lhs = _relaid(con, cells, variable_map)
-            constraints[name] = _constraint(m, lhs, cells.drop_vars("cell"), name)
-            continue
-        ds = remap(frame(con.data, True, constraint_map)).rename(DIMS.get(name, {}))
-        constraints[name] = Constraint.from_dataset(ds, m, name)
-
+        dims = tuple(con.labels.dims)
+        renamed = _pypsa_dims(dims, True) | DIMS.get(name, {})
+        lhs = frame(con.lhs, dims, renamed)
+        constraints[name] = _constraint(m, lhs, frame(_cells(con), dims, renamed), name)
     constraints = _split(m, n, constraints, security_groups(sources), meshed)
-    m.variables.data.clear()
-    m.variables.data.update(variables)
-    m.constraints.data.clear()
-    m.constraints.data.update(constraints)
-    m.variables._label_position_index = None
-    m.constraints._label_position_index = None
-    objective = m.objective
-    expression = objective.expression
-    if expression.is_sparse:
-        columns, coeffs = expression.linear_terms()
-        rows = np.zeros(columns.size, dtype=int)
-        terms = LinearExpression.from_coo(m, {}, rows, variable_map[columns], coeffs)
-        remapped = terms + expression.const.item()
-    else:
-        remapped = type(expression)(remap(expression.data.copy()), m)
-    m.add_objective(remapped, overwrite=True, sense=objective.sense)
+    for name in list(m.constraints):
+        m.constraints.remove(name)
+    for con in constraints.values():
+        m.constraints.add(con)
 
 
 #: Columns PyPSA never scales: unit commitment, modules, maintenance and angles.
@@ -762,7 +666,14 @@ def build_model(
     sources = NetworkSources(n, s, network_index, model_index, **options)
     mode = (options.get("transmission_losses") or {}).get("mode")
     rename = _renamer(s, spec_names(linearized_unit_commitment), mode)
-    m = Model.from_spec(s, sources, expressions=False, rename=rename, **model_kwargs)
+    m = Model.from_spec(
+        s,
+        sources,
+        expressions=False,
+        rename=rename,
+        dim_order=_unit_dims(),
+        **model_kwargs,
+    )
     _split_ports(m, sources)
     _relabel(
         m,

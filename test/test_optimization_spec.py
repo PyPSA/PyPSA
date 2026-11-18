@@ -16,6 +16,7 @@ from pypsa.optimization.spec._render import (
     WORD,
     _load,
     _merge,
+    _snake,
     formulated,
     renamer,
     render,
@@ -40,7 +41,7 @@ def test_every_declared_trait_has_one_file():
     [
         ("StorageUnit", "COMPONENT_NOM_ext", "StorageUnit_p_nom_ext"),
         ("Store", "COMPONENT_LEVEL_initial", "Store_e_initial"),
-        ("Link", "COMPONENT_port_UNIT", "Link_port_link"),
+        ("Link", "COMPONENT_port_UNIT", "Link_port_Link"),
         ("Line", "COMPONENT-ext-NOM-lower", "Line-ext-s_nom-lower"),
         ("Store", "COMPONENT_has_unit_years", "Store_has_unit_years"),
         ("Generator", "snapshot_period", "snapshot_period"),
@@ -67,10 +68,10 @@ def test_a_trait_description_takes_the_names_of_the_component(tmp_path):
     )
     spec = render(tmp_path)[0]
     assert spec.parameters["Link_efficiency_x"].description == (
-        "the `efficiency` of a `link` port"
+        "the `efficiency` of a `Link` port"
     )
     assert spec.parameters["Process_rate_x"].description == (
-        "the `rate` of a `process` port"
+        "the `rate` of a `Process` port"
     )
 
 
@@ -150,7 +151,7 @@ def test_a_parameter_of_a_component_without_units_is_checked(
 ):
     n = ac_dc_network
     assert n.c.stores.static.empty
-    s = mathspec.override(spec(), [{"parameters": {name: {"dims": ["store"]}}}])
+    s = mathspec.override(spec(), [{"parameters": {name: {"dims": ["Store"]}}}])
     with pytest.raises(error, match=match):
         NetworkSources(n, s, n.snapshots, n.snapshots)[name]
 
@@ -177,7 +178,7 @@ def test_a_parameter_without_the_dim_of_its_units_is_refused(
             f"traits/{path.name.removesuffix('.yaml')}.md"
             for path in (SPEC / "traits").iterdir()
         ),
-        *(f"components/{c._unit_dim}.md" for c in formulated(pypsa.Network())),
+        *(f"components/{_snake(c.name)}.md" for c in formulated(pypsa.Network())),
     ],
 )
 def test_every_trait_and_component_gets_a_page_without_placeholders(page):
