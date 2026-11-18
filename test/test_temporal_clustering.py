@@ -679,6 +679,20 @@ class TestSnapshotMaps:
             result.n.generators_t.p_max_pu, kept.n.generators_t.p_max_pu.loc[snapshots]
         )
 
+    def test_drop_leap_day_aggregates_march_1_alone(self):
+        n = pypsa.Network()
+        n.set_snapshots(pd.date_range("2024-02-26", "2024-03-03 23:00", freq="h"))
+        n.add("Bus", "b")
+        n.add("Load", "l", bus="b", p_set=np.arange(168.0))
+        t = n.cluster.temporal
+        m = t.resample("D", drop_leap_day=True)
+        march_1 = pd.Timestamp("2024-03-01")
+
+        assert m.loads_t.p_set.loc[march_1, "l"] == 107.5
+        assert m.snapshot_weightings.loc[march_1, "objective"] == 48
+        with pytest.raises(TypeError, match="drop_leap_day"):
+            t.get_resample_map("D", drop_leap_day=True)
+
     @pytest.mark.parametrize("stride", [2, 3])
     def test_downsample_segmented_network_keeps_hours(self, simple_network, stride):
         pytest.importorskip("tsam")
