@@ -101,6 +101,7 @@ def _network_components_data_verification(n: Network) -> None:
                         f"has columns {list(missing_columns)} that are not in the static index. "
                         f"Static index: {list(c.static.index)}"
                     )
+                    raise UnexpectedError(msg)
 
 
 @_guard_error_handler
