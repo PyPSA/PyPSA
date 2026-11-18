@@ -250,11 +250,11 @@ def _cuts(s: NetworkSources, c: Components) -> tuple[xr.DataArray, xr.DataArray]
     atol = _secant_options(s)[0]
     factors = _secant_factors(s, c)
     pad = (0, len(segment) - len(factors) + 1)
-    a = segment.copy(data=np.pad(factors[:-1], pad))
-    b = segment.copy(data=np.pad(factors[1:], pad))
+    a = segment.copy(data=np.pad(factors[:-1], pad, constant_values=np.nan))
+    b = segment.copy(data=np.pad(factors[1:], pad, constant_values=np.nan))
     lossy = r > 0
     slope = 2 * (atol * r.where(lossy, 0)) ** 0.5 * (a + b)
-    offset = (-4 * atol * a * b).where(lossy, 0.0)
+    offset = (-4 * atol * a * b).where(lossy, 0 * a)
     return slope, offset
 
 
