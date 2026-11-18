@@ -10,7 +10,7 @@ import gc
 import logging
 from functools import reduce
 from itertools import product
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -239,9 +239,9 @@ def _tracked_limits(
     """Get the volume limits of a component to track across rolling horizon windows.
 
     Returns, for each limit not at its default, the component name, the limit
-    attribute, the original limit and the weighted energy per snapshot that
-    later windows can at most (`e_sum_min`) or must at least (`e_sum_max`)
-    contribute. Raises a `ValueError` if this energy is unbounded.
+    attribute, the original limit and the power per snapshot that later
+    windows can at most (`e_sum_min`) or must at least (`e_sum_max`) produce.
+    Raises a `ValueError` if the resulting energy is unbounded.
     """
     limits = [(a, s, d) for a, s, d in ENERGY_LIMITS if (c.static[a] != d).any()]
     if not limits:
@@ -257,8 +257,8 @@ def _tracked_limits(
         hint = "a single window"
     active = c.get_activity_mask(snapshots)
     w = weights.loc[snapshots]
-    lower = lower.where(active, 0.0).mul(w, axis=0)
-    upper = upper.where(active, 0.0).mul(w, axis=0)
+    lower = lower.where(active, 0.0)
+    upper = upper.where(active, 0.0)
     flags = [a for a in ("committable", "maintainable") if a in c.static]
     flexible = active & c.static[flags].any(axis=1)
     later = {
@@ -267,8 +267,8 @@ def _tracked_limits(
     }
     tracked = []
     for attr, sign, default in limits:
-        energy = later[sign]
-        unbounded = (c.static[attr] != default) & np.isinf(energy).any()
+        power = later[sign]
+        unbounded = (c.static[attr] != default) & np.isinf(power.mul(w, axis=0)).any()
         if unbounded.any():
             msg = (
                 f"{c.name} {list(unbounded.index[unbounded])} have a finite "
@@ -276,7 +276,7 @@ def _tracked_limits(
                 f"rolling horizon requires {hint}."
             )
             raise ValueError(msg)
-        tracked.append((c.name, attr, c.static[attr].copy(), energy))
+        tracked.append((c.name, attr, c.static[attr].copy(), power))
     return tracked
 
 
@@ -675,6 +675,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         horizon: int = 100,
         overlap: int = 0,
         consistency_check: bool = True,
+        method: Literal["rebuild", "restrict"] = "rebuild",
         **kwargs: Any,
     ) -> Network:
         """Optimizes the network in a rolling horizon fashion.
@@ -707,6 +708,22 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             Whether to run the consistency check once for the whole network
             before the first window. The windows themselves skip it. Defaults
             to True.
+        method : {"rebuild", "restrict"}
+            `"rebuild"` builds and solves a new model for every window.
+            `"restrict"` builds the model once for all `snapshots` and solves
+            windows cut from it with `linopy.Model.restrict`, fixing all
+            variables of earlier windows. It supports single-period models
+            without global constraints, cyclic storage or `cycles_max`, also
+            with committable components, integer variables and volume limits,
+            which are tracked as described above, except for assets with both
+            `e_sum_min` and `e_sum_max`. It raises if a linear window is not
+            optimal or a mixed-integer window has no solution. Extendable components
+            are supported: `*_nom_opt` is taken from the last window and
+            `n.objective` covers the whole horizon, including the capital costs
+            of the final capacities. Windows are solved without warm start.
+            Takes the additional arguments `log_fn` and `window_callback`, see
+            `pypsa.optimization.rolling_restrict.optimize_with_restricted_windows`.
+            Requires `linopy>=1.0.0`. Defaults to `"rebuild"`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`.
             Unless `io_api` or `problem_fn` is given, `io_api="direct"` is used
@@ -722,8 +739,24 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             msg = "overlap must be smaller than horizon"
             raise ValueError(msg)
 
+        if method not in ("rebuild", "restrict"):
+            msg = f"method must be 'rebuild' or 'restrict', got {method!r}"
+            raise ValueError(msg)
+
+        if method == "rebuild" and "window_callback" in kwargs:
+            msg = "window_callback is only supported with method='restrict'"
+            raise ValueError(msg)
+
         if consistency_check:
             n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
+
+        if method == "restrict":
+            from pypsa.optimization.rolling_restrict import (  # noqa: PLC0415
+                optimize_with_restricted_windows,
+            )
+
+            optimize_with_restricted_windows(n, snapshots, horizon, overlap, **kwargs)
+            return n
 
         stores = n.c.stores
         cycles_max = stores.static.cycles_max.copy()
@@ -768,7 +801,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 for name, attr, original, later in tracked:
                     c = n.c[name]
                     used = _energy(c, weights, done)
-                    c.static[attr] = original - used - later.loc[rest].sum()
+                    reserved = later.loc[rest].mul(weights.loc[rest], axis=0).sum()
+                    c.static[attr] = original - used - reserved
 
                 # count the cycles of previous windows against `cycles_max`
                 eh = n.snapshot_weightings.stores.loc[done]
