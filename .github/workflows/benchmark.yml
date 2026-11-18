@@ -5,12 +5,8 @@
 name: Benchmarks
 
 on:
-  push:
-    branches: [feat/mathspec-formulation]
   pull_request:
     branches: ["**"]
-  schedule:
-  - cron: "30 5 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -19,14 +15,9 @@ concurrency:
 
 jobs:
   build-model:
-    # Time `create_model` against master, see test/benchmarks/build_model.py.
-    # Nightly, on demand and on the spec feature branch also with linopy master and mathspec main.
-    name: Build benchmarks (${{ matrix.deps }})
+    # Time `create_model` against master, see test/benchmarks/build_model.py
+    name: Build benchmarks
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        deps: ${{ github.event_name == 'pull_request' && fromJSON('["pinned"]') || fromJSON('["pinned","upstream"]') }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
@@ -42,22 +33,15 @@ jobs:
         python -m pip install uv
         uv sync --all-extras --locked
 
-    - name: Override linopy with master and mathspec with main
-      if: matrix.deps == 'upstream'
-      run: >
-        uv pip install
-        "linopy @ git+https://github.com/PyPSA/linopy@master"
-        "mathspec @ git+https://github.com/energy-models/mathspec@main"
-
     - name: Measure the pull request
-      run: uv run --no-sync python test/benchmarks/build_model.py measure result.json
+      run: uv run python test/benchmarks/build_model.py measure result.json
 
     - name: Measure master
       run: |
         git worktree add --detach ../master origin/master
-        PYTHONPATH="$PWD/../master" uv run --no-sync python test/benchmarks/build_model.py measure reference.json
+        PYTHONPATH="$PWD/../master" uv run python test/benchmarks/build_model.py measure reference.json
 
     - name: Compare
       run: >
-        uv run --no-sync python test/benchmarks/build_model.py compare reference.json result.json
+        uv run python test/benchmarks/build_model.py compare reference.json result.json
         | tee -a "$GITHUB_STEP_SUMMARY"
