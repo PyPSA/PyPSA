@@ -19,37 +19,31 @@ shows both.
 
 !!! note "Process formulation"
 
-    Unless stated otherwise, all formulations shown for [`Link`][pypsa.components.Links] apply analogously to [`Process`][pypsa.components.Processes] by replacing $(f,\hat f,F,l)$ with $(r,\hat r,R,m)$ and `Link-*` with `Process-*` in the constraint names.
+    Unless stated otherwise, all formulations shown for [`Link`][pypsa.components.Links] apply analogously to [`Process`][pypsa.components.Processes] by replacing $(f,\hat f,F,k)$ with $(r,\hat r,R,m)$ and `Link-*` with `Process-*` in the constraint names.
 
 ## Start-Up and Shut-down
 
 For components marked as `committable=True`, new binary status variables
-$u_{*,t} \in \{0,1\}$ are introduced, which indicate whether the component is
-running (1) or not (0) in period $t$. This turns the model into a mixed-integer
-linear programme (MILP). The restrictions on the dispatch now enforce that the
-dispatch $g_{n,s,t}$, $f_{l,t}$ or $r_{m,t}$ is only non-zero if the component is running,
-i.e. $u_{*,t} = 1$:
+$u_{i,s,t}$ are introduced, which indicate whether the component is
+running (1) or not (0) in snapshot $t$. This turns the model into a mixed-integer
+linear programme (MILP):
+
+<!-- md:spec Generator_status -->
+
+The restrictions on the dispatch now enforce that the
+dispatch $g_{i,s,t}$, $f_{k,s,t}$ or $r_{m,s,t}$ is only non-zero if the component is running:
 
 === "Generator"
 
-    | Constraint | Name |
-    |-------------------|------------------|
-    | $g_{n,s,t} \geq u_{n,s,t} \cdot \underline{g}_{n,s,t} \cdot \hat{g}_{n,s}$ | `Generator-com-p-lower` |
-    | $g_{n,s,t} \leq u_{n,s,t} \cdot \bar{g}_{n,s,t} \cdot \hat{g}_{n,s}$ | `Generator-com-p-upper` |
+    <!-- md:spec-table Generator_com_p_lower Generator_com_p_upper -->
 
 === "Link"
 
-    | Constraint | Name |
-    |-------------------|------------------|
-    | $f_{l,t} \geq u_{l,t} \cdot \underline{f}_{l,t} \cdot \hat{f}_{l}$ | `Link-com-p-lower` |
-    | $f_{l,t} \leq u_{l,t} \cdot \bar{f}_{l,t} \cdot \hat{f}_{l}$ | `Link-com-p-upper` |
+    <!-- md:spec-table Link_com_p_lower Link_com_p_upper -->
 
 === "Process"
 
-    | Constraint | Name |
-    |-------------------|------------------|
-    | $r_{m,t} \geq u_{m,t} \cdot \underline{r}_{m,t} \cdot \hat{r}_{m}$ | `Process-com-p-lower` |
-    | $r_{m,t} \leq u_{m,t} \cdot \bar{r}_{m,t} \cdot \hat{r}_{m}$ | `Process-com-p-upper` |
+    <!-- md:spec-table Process_com_p_lower Process_com_p_upper -->
 
 !!! note | Combined with Capacity Expansion
 
@@ -60,147 +54,98 @@ Unit commitment can be combined with capacity expansion for co-optimized investm
 
 ///
 
-If the **minimum up time** $T_{\textrm{min_up}}$ is set, status switches are constrained to ensure
-that the component is running for at least $T_{\textrm{min_up}}$ snapshots after it has been started up:
+If the **minimum up time** `min_up_time` is set, a component stays up after a start-up. The sum of its start-ups over the last `min_up_time` snapshots, including the current one, may not exceed its status:
 
 === "Generator"
 
-    Constraint `Generator-com-up-time`:
-
-    $$\sum_{t'=t}^{t+T_\textrm{min_up}} u_{n,s,t'}\geq T_\textrm{min_up} (u_{n,s,t} - u_{n,s,t-1})$$
+    <!-- md:spec-table Generator_com_up_time -->
 
 === "Link"
 
-    Constraint `Link-com-up-time`:
+    <!-- md:spec-table Link_com_up_time -->
 
-    $$\sum_{t'=t}^{t+T_\textrm{min_up}} u_{l,t'}\geq T_\textrm{min_up} (u_{l,t} - u_{l,t-1})$$
+=== "Process"
 
-The component may have been up for some periods before the optimisation period (`n.optimize(snapshots=snapshots)`). Start-ups before the start of `snapshots` count towards the sum in the constraint, so a component that started up less than $T_{\textrm{min_up}}$ snapshots before `snapshots` is forced to remain up for the difference. If `snapshots` starts at the beginning of `n.snapshots` or no statuses have been computed before, the time before is reconstructed from the input attributes: the component was up for `up_time_before` snapshots, or, if `down_time_before` is positive, down for `down_time_before` snapshots (`down_time_before` takes precedence). If `snapshots` starts in the middle of `n.snapshots`, the statuses before `snapshots` are read from `n.c.generators.dynamic.status` as set by previous runs, and `up_time_before`/`down_time_before` apply to the time before `n.snapshots`. All snapshots before `snapshots` count as solved once `n.c.generators.dynamic.status` is set. Successive runs must therefore solve the snapshots in order, starting from `n.snapshots[0]`, as [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] does. The start-ups before `snapshots` are the positive differences of these statuses, which may be fractional with the [linearized unit commitment](#linearization).
+    <!-- md:spec-table Process_com_up_time -->
 
-At the end of `snapshots` the minimum up-time in the constraint is only enforced for the remaining snapshots, if the number of remaining snapshots is less than $T_{\textrm{min_up}}$.
+The component may have been up for some periods before the optimisation period (`n.optimize(snapshots=snapshots)`). Start-ups before the start of `snapshots` count towards this sum, so a component that started up less than `min_up_time` snapshots before `snapshots` is forced to remain up for the difference. If `snapshots` starts at the beginning of `n.snapshots` or no statuses have been computed before, the time before is reconstructed from the input attributes: the component was up for `up_time_before` snapshots, or, if `down_time_before` is positive, down for `down_time_before` snapshots (`down_time_before` takes precedence). If `snapshots` starts in the middle of `n.snapshots`, the statuses before `snapshots` are read from `n.c.generators.dynamic.status` as set by previous runs, and `up_time_before`/`down_time_before` apply to the time before `n.snapshots`. All snapshots before `snapshots` count as solved once `n.c.generators.dynamic.status` is set. Successive runs must therefore solve the snapshots in order, starting from `n.snapshots[0]`, as [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] does. The start-ups before `snapshots` are the positive differences of these statuses, which may be fractional with the [linearized unit commitment](#linearization).
 
-If the **minimum down time** $T_{\textrm{min_down}}$ is set, status switches are constrained to ensure that the component is not running for at least $T_{\textrm{min_down}}$ snapshots after it has been shut down:
+At the end of `snapshots` the sum covers fewer snapshots, if fewer than `min_up_time` snapshots remain.
+
+If the **minimum down time** `min_down_time` is set, a component stays down after a shut-down. The sum of its shut-downs over the last `min_down_time` snapshots, including the current one, may not exceed the part of its capacity that is off (one minus its status):
 
 === "Generator"
 
-    Constraint `Generator-com-down-time`:
-
-    $$\sum_{t'=t}^{t+T_\textrm{min_down}} (1-u_{n,s,t'})\geq T_\textrm{min_down} (u_{n,s,t-1} - u_{n,s,t})$$
+    <!-- md:spec-table Generator_com_down_time -->
 
 === "Link"
 
-    Constraint `Link-com-down-time`:
+    <!-- md:spec-table Link_com_down_time -->
 
-    $$\sum_{t'=t}^{t+T_\textrm{min_down}} (1-u_{l,t'})\geq T_\textrm{min_down} (u_{l,t-1} - u_{l,t})$$
+=== "Process"
 
-The component may have been down for some periods before the optimisation period. Shut-downs before the start of `snapshots` count towards the sum in the constraint in the same way as start-ups do for the minimum up-time.
+    <!-- md:spec-table Process_com_down_time -->
 
-Furthermore, two **state transition variables** for start-up ($su_{*,t} \in \{0,1\}$) and shut-down ($sd_{*,t} \in$ \{0,1\}) are introduced to associate them with start-up and shut-down cost terms in the objective function. Start-up and shut-down costs can be static or time series varying per snapshot. The constraints are set so that the start-up variable is only non-zero if the component has just started up, i.e. $u_{n,s,t} - u_{n,s,t-1} = 1$, and the shut-down variable is only non-zero if the component has just shut down, i.e. $u_{n,s,t-1} - u_{n,s,t} = 1$:
+The component may have been down for some periods before the optimisation period. Shut-downs before the start of `snapshots` count towards this sum in the same way as start-ups do for the minimum up-time.
+
+Furthermore, two **state transition variables** for start-up ($su$) and shut-down ($sd$) are introduced to associate them with start-up and shut-down cost terms in the objective function. Start-up and shut-down costs can be static or time series varying per snapshot. The constraints are set so that the start-up variable is only non-zero if the component has just started up, and the shut-down variable is only non-zero if the component has just shut down. The previous status is the status of the snapshot before, or the status carried in before the first snapshot:
 
 === "Generator"
 
-    | Constraint | Name |
-    |-------------------|------------------|
-    | $su_{n,s,t} \geq u_{n,s,t} - u_{n,s,t-1}$ | `Generator-com-transition-start-up` |
-    | $sd_{n,s,t} \geq u_{n,s,t-1} - u_{n,s,t}$ | `Generator-com-transition-shut-down` |
+    <!-- md:spec-table Generator_com_transition_start_up Generator_com_transition_shut_down -->
 
 === "Link"
 
-    | Constraint | Name |
-    |-------------------|------------------|
-    | $su_{l,t} \geq u_{l,t} - u_{l,t-1}$ | `Link-com-transition-start-up` |
-    | $sd_{l,t} \geq u_{l,t-1} - u_{l,t}$ | `Link-com-transition-shut-down` |
+    <!-- md:spec-table Link_com_transition_start_up Link_com_transition_shut_down -->
 
+=== "Process"
 
+    <!-- md:spec-table Process_com_transition_start_up Process_com_transition_shut_down -->
 
-??? note "Mapping of symbols to component attributes"
+??? note "Symbols"
 
     === "Generator"
 
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
-        | $u_{n,s,t}$       | `n.generators_t.status` | Decision variable |
-        | $su_{n,s,t}$      | `n.generators_t.start_up` | Decision variable |
-        | $sd_{n,s,t}$      | `n.generators_t.shut_down` | Decision variable |
-        | $\hat{g}_{n,s}$   | `n.generators.p_nom` | Parameter |
-        | $\underline{g}_{n,s,t}$ | `n.generators_t.p_min_pu` | Parameter |
-        | $\bar{g}_{n,s,t}$ | `n.generators_t.p_max_pu` | Parameter |
-        | $T_{\textrm{min_up}}$  | `n.generators.min_up_time` | Parameter |
-        | $T_{\textrm{min_down}}$| `n.generators.min_down_time`| Parameter |
-        | $T_{\textrm{up_time_before}}$ | `n.generators.up_time_before` | Parameter |
-        | $T_{\textrm{down_time_before}}$ | `n.generators.down_time_before` | Parameter |
+        <!-- md:spec-legend Generator_status Generator_start_up Generator_shut_down Generator_com_p_lower Generator_com_p_upper Generator_com_transition_start_up Generator_com_transition_shut_down Generator_com_up_time Generator_com_down_time Generator_min_up_time Generator_min_down_time Generator_up_time_brought_in Generator_down_time_brought_in -->
 
     === "Link"
 
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $f_{l,t}$         | `n.links_t.p`  | Decision variable |
-        | $u_{l,t}$         | `n.links_t.status`  | Decision variable |
-        | $su_{l,t}$        | `n.links_t.start_up`  | Decision variable |
-        | $sd_{l,t}$        | `n.links_t.shut_down`  | Decision variable |
-        | $\hat{f}_{l}$     | `n.links.p_nom`  | Parameter |
-        | $\underline{f}_{l,t}$| `n.links_t.p_min_pu`  | Parameter |
-        | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu`  | Parameter |
-        | $T_{\textrm{min_up}}$  | `n.links.min_up_time`  | Parameter |
-        | $T_{\textrm{min_down}}$| `n.links.min_down_time` | Parameter |
-        | $T_{\textrm{up_time_before}}$ | `n.links.up_time_before` | Parameter |
-        | $T_{\textrm{down_time_before}}$ | `n.links.down_time_before` | Parameter |
+        <!-- md:spec-legend Link_status Link_start_up Link_shut_down Link_com_p_lower Link_com_p_upper Link_com_transition_start_up Link_com_transition_shut_down Link_com_up_time Link_com_down_time Link_min_up_time Link_min_down_time Link_up_time_brought_in Link_down_time_brought_in -->
 
     === "Process"
 
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $r_{m,t}$         | `n.processes_t.p`  | Decision variable |
-        | $u_{m,t}$         | `n.processes_t.status`  | Decision variable |
-        | $su_{m,t}$        | `n.processes_t.start_up`  | Decision variable |
-        | $sd_{m,t}$        | `n.processes_t.shut_down`  | Decision variable |
-        | $\hat{r}_{m}$     | `n.processes.p_nom`  | Parameter |
-        | $\underline{r}_{m,t}$| `n.processes_t.p_min_pu`  | Parameter |
-        | $\bar{r}_{m,t}$   | `n.processes_t.p_max_pu`  | Parameter |
-        | $T_{\textrm{min_up}}$  | `n.processes.min_up_time`  | Parameter |
-        | $T_{\textrm{min_down}}$| `n.processes.min_down_time` | Parameter |
-        | $T_{\textrm{up_time_before}}$ | `n.processes.up_time_before` | Parameter |
-        | $T_{\textrm{down_time_before}}$ | `n.processes.down_time_before` | Parameter |
+        <!-- md:spec-legend Process_status Process_start_up Process_shut_down Process_com_p_lower Process_com_p_upper Process_com_transition_start_up Process_com_transition_shut_down -->
+
+    The results are stored in `n.{generators,links,processes}_t.{status,start_up,shut_down}`.
 
 ## Ramping
 
-Ramp rate limits can be defined for increasing output $ru_{n,s,t}$ and decreasing output $rd_{n,s,t}$. By default these are null and ignored. They must be provided per unit of the nominal capacity.
+Ramp rate limits can be defined for increasing output (`ramp_limit_up`) and decreasing output (`ramp_limit_down`). By default these are null and ignored. They must be provided per unit of the nominal capacity.
 
 !!! note
 
     When provided, ramping limits are also considered if they are not
     committable (`committable=False`), i.e. the component is not subject to start-up and shut-down constraints.
 
-A unified ramp constraint formulation is used for all component types (fixed, extendable, and committable). For committable components, additional ramp limits at start-up $rusu_{n,s}$ and shut-down $rdsd_{n,s}$ can be specified. The general form for $t \in \{1,\dots |T|-1\}$ is:
+A unified ramp constraint formulation is used for fixed, extendable, and committable components. For committable components, additional ramp limits at start-up (`ramp_limit_start_up`) and shut-down (`ramp_limit_shut_down`) can be specified. The change of dispatch from the previous snapshot is limited by an allowance:
 
 === "Generator"
 
-    | Constraint | Dual Variable | Name |
-    |-------------------|------------------|------------------|
-    | $(g_{n,s,t} - g_{n,s,t-1}) \geq \left[ -rd_{n,s,t} \cdot u_{n,s,t} -rdsd_{n,s}(u_{n,s,t-1} - u_{n,s,t})\right] \hat{g}_{n,s}$ | `n.generators_t.mu_ramp_limit_down` | `Generator-p-ramp_limit_down` |
-    | $(g_{n,s,t} - g_{n,s,t-1}) \leq \left[ru_{n,s,t} \cdot u_{n,s,t-1} + rusu_{n,s} (u_{n,s,t} - u_{n,s,t-1})\right] \hat{g}_{n,s}$ | `n.generators_t.mu_ramp_limit_up` | `Generator-p-ramp_limit_up` |
+    <!-- md:spec-table Generator_p_ramp_limit_up Generator_p_ramp_limit_down -->
 
 === "Link"
 
-    | Constraint | Dual Variable | Name |
-    |-------------------|------------------|------------------|
-    | $(f_{l,t} - f_{l,t-1}) \geq \left[ -rd_{l,t} \cdot u_{l,t} -rdsd_{l,t}(u_{l,t-1} - u_{l,t})\right] \hat{f}_{l}$ | `n.links_t.mu_ramp_limit_down` | `Link-p-ramp_limit_down` |
-    | $(f_{l,t} - f_{l,t-1}) \leq \left[ru_{l,t} \cdot u_{l,t-1} + rusu_{l} (u_{l,t} - u_{l,t-1})\right] \hat{f}_{l}$ | `n.links_t.mu_ramp_limit_up` | `Link-p-ramp_limit_up` |
+    <!-- md:spec-table Link_p_ramp_limit_up Link_p_ramp_limit_down -->
 
 === "Process"
 
-    | Constraint | Dual Variable | Name |
-    |-------------------|------------------|------------------|
-    | $(r_{m,t} - r_{m,t-1}) \geq \left[ -rd_{m,t} \cdot u_{m,t} -rdsd_{m,t}(u_{m,t-1} - u_{m,t})\right] \hat{r}_{m}$ | `n.processes_t.mu_ramp_limit_down` | `Process-p-ramp_limit_down` |
-    | $(r_{m,t} - r_{m,t-1}) \leq \left[ru_{m,t} \cdot u_{m,t-1} + rusu_{m} (u_{m,t} - u_{m,t-1})\right] \hat{r}_{m}$ | `n.processes_t.mu_ramp_limit_up` | `Process-p-ramp_limit_up` |
+    <!-- md:spec-table Process_p_ramp_limit_up Process_p_ramp_limit_down -->
 
-For non-committable components, $u_{*,t} = 1$ for all $t$, so the constraints simplify to:
+The allowance depends on the commitment. For non-committable components it is the ramp rate times the capacity, which is the capacity variable for extendable components:
 
-- $(g_{n,s,t} - g_{n,s,t-1}) \geq -rd_{n,s,t} \cdot \hat{g}_{n,s}$
-- $(g_{n,s,t} - g_{n,s,t-1}) \leq ru_{n,s,t} \cdot \hat{g}_{n,s}$
+<!-- md:spec Generator_ramp_up_allowance Generator_ramp_down_allowance -->
 
-For extendable components, $\hat{g}_{n,s}$ is replaced by the capacity variable $G_{n,s}$.
+Committable components that are also extendable use a [big-M formulation](capacity-limits.md#committable-and-extendable-components) instead.
 
 ### Initial Conditions
 
@@ -209,63 +154,27 @@ The ramp constraints require knowledge of the previous snapshot's dispatch. At t
 - **Rolling horizon optimization**: When `n.optimize(snapshots=...)` starts after the first snapshot in `n.snapshots` and previous runs have set the dispatch, the dispatch and the commitment status from the previous snapshot are used automatically. With the [linearized unit commitment](#linearization) the previous status may be fractional.
 - **First snapshot of `n.snapshots` or no previous run**: The `p_init` attribute specifies the initial dispatch level. For committable components, the initial status is determined by `up_time_before > 0` (or `down_time_before > 0`, which takes precedence) and the initial dispatch is zero if the component was off. If `p_init` is not set (NaN), no ramp constraint is applied at the first snapshot. Non-committable components are always on; `up_time_before` and `down_time_before` are ignored for them.
 
-??? note "Mapping of symbols to component attributes"
+??? note "Symbols"
 
     === "Generator"
 
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
-        | $G_{n,s}$         | `n.generators.p_nom_opt` | Decision variable |
-        | $u_{n,s,t}$       | `n.generators_t.status` | Decision variable |
-        | $\hat{g}_{n,s}$   | `n.generators.p_nom` | Parameter |
-        | $\underline{g}_{n,s,t}$ | `n.generators_t.p_min_pu` | Parameter |
-        | $\bar{g}_{n,s,t}$ | `n.generators_t.p_max_pu` | Parameter |
-        | $ru_{n,s,t}$ | `n.generators_t.ramp_limit_up` | Parameter |
-        | $rd_{n,s,t}$ | `n.generators_t.ramp_limit_down` | Parameter |
-        | $rusu_{n,s}$     | `n.generators.ramp_limit_start_up` | Parameter |
-        | $rdsd_{n,s}$     | `n.generators.ramp_limit_shut_down` | Parameter |
-        | $g_{n,s,0}$      | `n.generators.p_init` | Parameter (initial dispatch) |
+        <!-- md:spec-legend Generator_p_ramp_limit_up Generator_p_ramp_limit_down Generator_ramp_up_allowance Generator_ramp_down_allowance -->
 
     === "Link"
 
-
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $f_{l,t}$         | `n.links_t.p` | Decision variable |
-        | $F_{l}$           | `n.links.p_nom_opt` | Decision variable |
-        | $u_{l,t}$ | `n.links_t.status` | Decision variable |
-        | $\hat{f}_{l}$     | `n.links.p_nom` | Parameter |
-        | $\underline{f}_{l,t}$ | `n.links_t.p_min_pu` | Parameter |
-        | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu` | Parameter |
-        | $ru_{l,t}$ | `n.links_t.ramp_limit_up` | Parameter |
-        | $rd_{l,t}$ | `n.links_t.ramp_limit_down` | Parameter |
-        | $rusu_{l}$     | `n.links.ramp_limit_start_up` | Parameter |
-        | $rdsd_{l}$     | `n.links.ramp_limit_shut_down` | Parameter |
-        | $f_{l,0}$      | `n.links.p_init` | Parameter (initial dispatch) |
+        <!-- md:spec-legend Link_p_ramp_limit_up Link_p_ramp_limit_down Link_ramp_up_allowance Link_ramp_down_allowance -->
 
     === "Process"
 
+        <!-- md:spec-legend Process_p_ramp_limit_up Process_p_ramp_limit_down Process_ramp_up_allowance Process_ramp_down_allowance -->
 
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $r_{m,t}$         | `n.processes_t.p` | Decision variable |
-        | $R_{m}$           | `n.processes.p_nom_opt` | Decision variable |
-        | $u_{m,t}$ | `n.processes_t.status` | Decision variable |
-        | $\hat{r}_{m}$     | `n.processes.p_nom` | Parameter |
-        | $\underline{r}_{m,t}$ | `n.processes_t.p_min_pu` | Parameter |
-        | $\bar{r}_{m,t}$   | `n.processes_t.p_max_pu` | Parameter |
-        | $ru_{m,t}$ | `n.processes_t.ramp_limit_up` | Parameter |
-        | $rd_{m,t}$ | `n.processes_t.ramp_limit_down` | Parameter |
-        | $rusu_{m}$     | `n.processes.ramp_limit_start_up` | Parameter |
-        | $rdsd_{m}$     | `n.processes.ramp_limit_shut_down` | Parameter |
-        | $r_{m,0}$      | `n.processes.p_init` | Parameter (initial dispatch) |
+    The dual variables are stored in `n.{generators,links,processes}_t.mu_ramp_limit_up` and `mu_ramp_limit_down`.
 
 ## Linearization
 
-The implementation is based on Hua et al. (2017)[^2] and relaxes the binary unit commitment variables to continuous variables:
+The implementation is based on Hua et al. (2017)[^2] and relaxes the binary unit commitment variables $u$, $su$ and $sd$ to continuous variables between 0 and 1:
 
-$$u_{*,t},\quad su_{*,t},\quad sd_{*,t}\quad  \in [0,1]$$
+<!-- md:spec linearized Generator_status Generator_start_up Generator_shut_down -->
 
 This allows for partial commitment states (generators can be partially on/off), making the problem more computationally tractable while losing some accuracy. To enable this, use:
 
@@ -281,60 +190,29 @@ To tighten the relaxation, additional constraints are introduced that improve ca
 
 === "Generator"
 
-    Constraint `Generator-com-p-before`:
-
-    $$\begin{gather*}
-    g_{n,s,t-1} \leq rdsd_{n,s} \hat{g}_{n,s} \cdot u_{n,s,t-1} + (\bar{g}_{n,s,t} \hat{g}_{n,s} - rdsd_{n,s}  \hat{g}_{n,s}) \cdot (u_{n,s,t} - su_{n,s,t})
-    \end{gather*}$$
-
-    Constraint `Generator-com-p-current`:
-
-    $$\begin{gather*}
-    g_{n,s,t} \leq \bar{g}_{n,s,t} \hat{g}_{n,s} \cdot u_{n,s,t} - (\bar{g}_{n,s,t} \hat{g}_{n,s} - rusu_{n,s} \hat{g}_{n,s}) \cdot su_{n,s,t}
-    \end{gather*}$$
-
-    Constraint `Generator-com-partly-start-up`:
-
-    $$\begin{gather*}
-    g_{n,s,t} - g_{n,s,t-1} \leq (\underline{g}_{n,s,t} \hat{g}_{n,s} + ru_{n,s,t} \hat{g}_{n,s}) \cdot u_{n,s,t} - \underline{g}_{n,s,t} \hat{g}_{n,s} \cdot u_{n,s,t-1} \\
-    - (\underline{g}_{n,s,t} \hat{g}_{n,s} + ru_{n,s,t} \hat{g}_{n,s} - rusu_{n,s} \hat{g}_{n,s}) \cdot su_{n,s,t}
-    \end{gather*}$$
-
-    Constraint `Generator-com-partly-shut-down`:
-
-    $$\begin{gather*}
-    g_{n,s,t-1} - g_{n,s,t} \leq rdsd_{n,s} \hat{g}_{n,s} \cdot u_{n,s,t-1} - (rdsd_{n,s} \hat{g}_{n,s} - rd_{n,s,t} \hat{g}_{n,s}) \cdot u_{n,s,t} \\
-    - (\underline{g}_{n,s,t} \hat{g}_{n,s} + rd_{n,s,t} \hat{g}_{n,s} - rdsd_{n,s} \hat{g}_{n,s}) \cdot su_{n,s,t}
-    \end{gather*}$$
+    <!-- md:spec-table linearized Generator_com_p_before Generator_com_p_current Generator_com_partly_start_up Generator_com_partly_shut_down -->
 
 === "Link"
 
-    Constraint `Link-com-p-before`:
+    <!-- md:spec-table linearized Link_com_p_before Link_com_p_current Link_com_partly_start_up Link_com_partly_shut_down -->
 
-    $$\begin{gather*}
-    f_{l,t-1} \leq rdsd_{l} \hat{f}_{l} \cdot u_{l,t-1} + (\bar{f}_{l,t} \hat{f}_{l} - rdsd_{l}  \hat{f}_{l}) \cdot (u_{l,t} - su_{l,t})
-    \end{gather*}$$
+=== "Process"
 
-    Constraint `Link-com-p-current`:
+    <!-- md:spec-table linearized Process_com_p_before Process_com_p_current Process_com_partly_start_up Process_com_partly_shut_down -->
 
-    $$\begin{gather*}
-    f_{l,t} \leq \bar{f}_{l,t} \hat{f}_{l} \cdot u_{l,t} - (\bar{f}_{l,t} \hat{f}_{l} - rusu_{l} \hat{f}_{l}) \cdot su_{l,t}
-    \end{gather*}$$
+??? note "Symbols"
 
-    Constraint `Link-com-partly-start-up`:
+    === "Generator"
 
-    $$\begin{gather*}
-    f_{l,t} - f_{l,t-1} \leq (\underline{f}_{l,t} \hat{f}_{l} + ru_{l,t} \hat{f}_{l}) \cdot u_{l,t} - \underline{f}_{l,t} \hat{f}_{l} \cdot u_{l,t-1} \\
-    - (\underline{f}_{l,t} \hat{f}_{l} + ru_{l,t} \hat{f}_{l} - rusu_{l} \hat{f}_{l}) \cdot su_{l,t}
-    \end{gather*}$$
+        <!-- md:spec-legend linearized Generator_com_p_before Generator_com_p_current Generator_com_partly_start_up Generator_com_partly_shut_down -->
 
-    Constraint `Link-com-partly-shut-down`:
+    === "Link"
 
-    $$\begin{gather*}
-    f_{l,t-1} - f_{l,t} \leq rdsd_{l} \hat{f}_{l} \cdot u_{l,t-1} - (rdsd_{l} \hat{f}_{l} - rd_{l,t} \hat{f}_{l}) \cdot u_{l,t} \\
-    - (\underline{f}_{l,t} \hat{f}_{l} + rd_{l,t} \hat{f}_{l} - rdsd_{l} \hat{f}_{l}) \cdot su_{l,t}
-    \end{gather*}$$
+        <!-- md:spec-legend linearized Link_com_p_before Link_com_p_current Link_com_partly_start_up Link_com_partly_shut_down -->
 
+    === "Process"
+
+        <!-- md:spec-legend linearized Process_com_p_before Process_com_p_current Process_com_partly_start_up Process_com_partly_shut_down -->
 
 ## Examples
 

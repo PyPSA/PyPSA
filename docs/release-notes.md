@@ -32,6 +32,7 @@ SPDX-License-Identifier: CC-BY-4.0
     - **Behavior change**: A component without any active row gets no constraint, where it got a fully masked one before.
     - **Behavior change**: The model holds one constraint per type and sense of global constraint, indexed by `name`, as `GlobalConstraint-primary_energy-upper` with the suffix `-upper` (`<=`), `-lower` (`>=`) or `-fix` (`==`). Before, it held one constraint `GlobalConstraint-{name}` per global constraint.
     - **Behavior change**: Unsupported input is now refused with a `ValueError` that quotes the broken assumption, where some cases raised `NotImplementedError` before.
+    - The docs show the math of the spec in [Formulation (generated)](./user-guide/optimization/formulation/index.md), rendered from the YAML files at build time: one page per trait and per component, each entry with its math, its YAML source and a legend of its symbols. The user guide pages of the optimisation section embed these rendered entries instead of hand-written equations.
 - Add the argument `consistency_check` to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] to skip the consistency check before building the model.
 
 ### Enhancements

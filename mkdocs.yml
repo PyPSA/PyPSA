@@ -56,6 +56,7 @@ nav:
       - Sub-Network: user-guide/components/sub-networks.md
   - Optimization:
     - Overview: user-guide/optimization/overview.md
+    - Formulation (generated): user-guide/optimization/formulation/index.md
     - Formulations:
       - Objective: user-guide/optimization/objective.md
       - Energy Balance: user-guide/optimization/energy-balance.md
@@ -415,6 +416,7 @@ hooks:
 - docs/hooks/cleanup.py
 - docs/hooks/path_aliases.py
 - docs/hooks/notebook_timing.py
+- docs/hooks/spec_pages.py
 
 extra:
   social:

@@ -132,6 +132,19 @@ def ac_dc_meshed_stochastic() -> pypsa.Network:
     return n
 
 
+def ac_dc_meshed_snapshot_subset() -> pypsa.Network:
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize(n.snapshots[3:7])
+    return n
+
+
+def ac_dc_meshed_inactive_unit() -> pypsa.Network:
+    n = pypsa.examples.ac_dc_meshed()
+    n.c.generators.static.loc["Frankfurt Wind", "active"] = False
+    n.optimize()
+    return n
+
+
 def storage_hvdc() -> pypsa.Network:
     n = pypsa.examples.storage_hvdc()
     n.optimize()
@@ -433,6 +446,8 @@ CASES: dict[str, Callable[[], pypsa.Network]] = {
         ac_dc_meshed,
         ac_dc_meshed_operational_limit,
         ac_dc_meshed_stochastic,
+        ac_dc_meshed_snapshot_subset,
+        ac_dc_meshed_inactive_unit,
         storage_hvdc,
         storage_hvdc_operational_limit,
         scigrid_de,

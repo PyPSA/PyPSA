@@ -24,6 +24,8 @@ try:
 except ImportError:
     GRIFFE_AVAILABLE = False
 
+from pypsa.optimization.spec._docs import MARKERS, marker
+
 if TYPE_CHECKING:
     from mkdocs.config.defaults import MkDocsConfig
     from mkdocs.structure.files import File, Files
@@ -113,6 +115,8 @@ def _process_shortcodes(text: str, page: Page, files: Files):
                 if is_badge
                 else _link_api(args, page, files)
             )
+        elif type in MARKERS:
+            return _spec(match, page)
 
         # Otherwise, raise an error
         raise RuntimeError(f"Unknown shortcode: {type}")
@@ -150,13 +154,32 @@ def on_env(env, config: MkDocsConfig, files: Files):
 # -----------------------------------------------------------------------------
 
 
+def _spec(match: Match, page: Page) -> str:
+    """Return the spec entries a marker names, indented as the marker.
+
+    Raises:
+        ValueError: The marker shares its line with other text.
+
+    """
+    start = match.string.rfind("\n", 0, match.start()) + 1
+    end = match.string.find("\n", match.end())
+    indent = match.string[start : match.start()]
+    if indent.strip() or match.string[match.end() : end if end >= 0 else None].strip():
+        msg = f"The marker {match.group(0)!r} in {page.file.src_uri} must stand alone on its line."
+        raise ValueError(msg)
+    text = marker(match.group(1), match.group(2), page.file.src_uri)
+    return text.replace("\n", f"\n{indent}")
+
+
 def _resolve_path(path: str, page: Page, files: Files):
     """Resolve path of file relative to given page."""
     original_path = path
     path, anchor, *_ = f"{path}#".split("#")
     file = files.get_file_from_path(path)
     if file is None:
-        logging.warning("File not found: %s (referenced in %s)", path, page.file.src_uri)
+        logging.warning(
+            "File not found: %s (referenced in %s)", path, page.file.src_uri
+        )
         return original_path  # Return original path unchanged
     path = _resolve(file, page)
     return "#".join([path, anchor]) if anchor else path

@@ -28,6 +28,7 @@ from linopy.constraints import Constraint
 from linopy.expressions import LinearExpression
 from linopy.variables import Variable
 
+from pypsa.components.common import invariant
 from pypsa.optimization.common import get_bus_counts
 from pypsa.optimization.scaling import (
     KVL,
@@ -708,6 +709,13 @@ def _scale_rows(
                 )
 
 
+def _unscaled(n: Network, objective: float) -> bool:
+    """Return whether the objective factor, `Bus.scaling` and `GlobalConstraint.scaling` are all `1`."""
+    buses = invariant(n.c.buses.static.scaling)
+    limits = invariant(n.c.global_constraints.static.scaling)
+    return objective == 1 and bool((buses == 1).all() and (limits == 1).all())
+
+
 def _scale(
     m: Model,
     n: Network,
@@ -715,7 +723,12 @@ def _scale(
     rules: list[tuple[re.Pattern, str]],
     objective: float,
 ) -> None:
-    """Apply PyPSA's numerical scaling to the built model."""
+    """Apply PyPSA's numerical scaling to the built model.
+
+    A network whose factors are all `1` keeps linopy's default factors.
+    """
+    if _unscaled(n, objective):
+        return
     m.objective.scaling = objective
     if KVL in m.constraints:
         check_sub_networks(n)
