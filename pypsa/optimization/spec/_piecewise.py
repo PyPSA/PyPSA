@@ -49,14 +49,19 @@ def _cumulative(x: pd.DataFrame, y: pd.DataFrame) -> pd.DataFrame:
 
 
 def _grid(s: NetworkSources, name: str, frame: pd.DataFrame) -> xr.DataArray:
-    """Lay a (breakpoint, label) table out over the declared dims of `name`."""
-    dim = next(d for d in s.declared(name) if d != "breakpoint")
-    frame = frame.reindex(index=s.coords("breakpoint"), columns=s.coords(dim))
-    coords = {
-        "breakpoint": frame.index.to_numpy(),
-        dim: frame.columns.to_numpy(dtype=object),
-    }
-    return xr.DataArray(frame.to_numpy(dtype=float), coords, ("breakpoint", dim))
+    """Lay a (breakpoint, label) table out over the declared dims of `name`; a label over several dims is a tuple."""
+    others = [d for d in s.declared(name) if d != "breakpoint"]
+    coords = {d: s.coords(d) for d in [*others, "breakpoint"]}
+    keys = frame.columns if len(others) > 1 else [(k,) for k in frame.columns]
+    at = np.array(
+        [coords[d].get_indexer([k[i] for k in keys]) for i, d in enumerate(others)]
+    ).reshape(len(others), -1)
+    found = (at != -1).all(axis=0)
+    values = frame.reindex(index=coords["breakpoint"]).to_numpy(dtype=float).T
+    data = np.full([len(c) for c in coords.values()], np.nan)
+    data[tuple(at[:, found])] = values[found]
+    da = xr.DataArray(data, coords, tuple(coords))
+    return da.transpose(*s.declared(name))
 
 
 @source("breakpoint")
@@ -100,11 +105,9 @@ def _primary_curve(s: NetworkSources, name: str) -> xr.DataArray:
 def _port_curve(s: NetworkSources, name: str) -> xr.DataArray:
     """Read the `efficiency<k>` or `rate<k>` curves long by port: the flow, or the flow times the value there."""
     c = s.n.components[name.partition("_")[0]]
-    ports = s.ports(c)
     frames = [pd.DataFrame(index=pd.RangeIndex(0, name="breakpoint"))]
-    for k, group in ports.groupby("k"):
+    for k in s.ports(c)["port"].unique():
         x, y = _table(s, c, c._port_coefficient_attr(str(k)))
         frame = x if name.endswith("_p") else (x * y).fillna(0).where(x.notna())
-        labels = group.set_index(c._unit_dim)["port"]
-        frames.append(frame.rename(columns=labels))
+        frames.append(frame.set_axis([(u, k) for u in frame.columns], axis=1))
     return _grid(s, name, pd.concat(frames, axis=1))

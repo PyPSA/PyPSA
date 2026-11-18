@@ -733,7 +733,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 continue
             c = n.c[_c_name]
             rows = c._piecewise_attrs
-            pw_schema = rows[rows.aux_variable == attr].squeeze()
+            pw_schema = rows[(rows.aux_variable == attr) & ~rows.per_port].squeeze()
             if pw_schema.empty and attr.endswith("_piecewise"):
                 # We deal with these variables below when processing the `p` attr.
                 continue
@@ -768,9 +768,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                         eff = n.get_switchable_as_dense(c.name, eff_attr, sns)
                         port_df = -df * eff
                         if c.has_piecewise(eff_attr):
+                            pw = m.variables[c._piecewise_aux_var(eff_attr)]
                             df_piecewise = _from_xarray(
-                                m.variables[f"{_c_name}-{attr}{i}_piecewise"].solution,
-                                c,
+                                pw.solution.sel(port=int(i), drop=True), c
                             )
                             port_df.update(-df_piecewise)
                         _apply_delay_shift(

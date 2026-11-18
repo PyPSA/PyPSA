@@ -150,7 +150,7 @@ constraints:
     expression: COMPONENT_loss <= COMPONENT_loss_max
   COMPONENT_loss_tangents_forward:
     name:
-      tangents: COMPONENT-loss_tangents-{k}-1
+      tangents: COMPONENT-loss_tangents-pos
       secants: COMPONENT-loss_secants-pos
     description: the loss lies above each cut of the loss curve, for positive flow
     dims: [scenario, snapshot, UNIT, segment]
@@ -158,14 +158,14 @@ constraints:
     expression: COMPONENT_loss + COMPONENT_loss_slope * COMPONENT_s >= COMPONENT_loss_offset
   COMPONENT_loss_tangents_reverse:
     name:
-      tangents: COMPONENT-loss_tangents-{k}--1
+      tangents: COMPONENT-loss_tangents-neg
       secants: COMPONENT-loss_secants-neg
     description: the same cuts mirrored, for negative flow
     dims: [scenario, snapshot, UNIT, segment]
     where: COMPONENT_lossy
     expression: COMPONENT_loss - COMPONENT_loss_slope * COMPONENT_s >= COMPONENT_loss_offset
   COMPONENT_fix_s_lower_security:
-    name: COMPONENT-fix-s-lower-security-for-{c}-outage-in-sub-network-{n}
+    name: COMPONENT-fix-s-lower-security
     description: >-
       after any one outage, a fixed branch carries at least the negative of its
       rating; its flow includes its share of the outaged flow
@@ -175,7 +175,7 @@ constraints:
       COMPONENT_s_monitored + at(COMPONENT_BODF, by=snapshot_period[period]) * Outage_s >=
       -COMPONENT_s_max_pu * COMPONENT_NOM
   COMPONENT_fix_s_upper_security:
-    name: COMPONENT-fix-s-upper-security-for-{c}-outage-in-sub-network-{n}
+    name: COMPONENT-fix-s-upper-security
     description: >-
       after any one outage, a fixed branch carries at most its rating; its flow
       includes its share of the outaged flow
@@ -185,7 +185,7 @@ constraints:
       COMPONENT_s_monitored + at(COMPONENT_BODF, by=snapshot_period[period]) * Outage_s <=
       COMPONENT_s_max_pu * COMPONENT_NOM
   COMPONENT_ext_s_lower_security:
-    name: COMPONENT-ext-s-lower-security-for-{c}-outage-in-sub-network-{n}
+    name: COMPONENT-ext-s-lower-security
     description: >-
       after any one outage, an extendable branch carries at least the negative
       of its rating of the chosen build
@@ -195,7 +195,7 @@ constraints:
       COMPONENT_s_monitored + at(COMPONENT_BODF, by=snapshot_period[period]) * Outage_s >=
       -COMPONENT_s_max_pu * COMPONENT_NOM_ext
   COMPONENT_ext_s_upper_security:
-    name: COMPONENT-ext-s-upper-security-for-{c}-outage-in-sub-network-{n}
+    name: COMPONENT-ext-s-upper-security
     description: >-
       after any one outage, an extendable branch carries at most its rating of
       the chosen build

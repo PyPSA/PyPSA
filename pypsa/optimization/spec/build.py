@@ -35,11 +35,7 @@ from pypsa.optimization.scaling import (
     check_sub_networks,
     global_constraint_factors,
 )
-from pypsa.optimization.spec._passive_network import (
-    SecurityGroup,
-    cycle_scaling,
-    security_groups,
-)
+from pypsa.optimization.spec._passive_network import cycle_scaling
 from pypsa.optimization.spec._render import (
     Names,
     Scalings,
@@ -224,12 +220,6 @@ def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
 
 #: linopy's suffix of a piecewise row or column, where the spec's expansion names it otherwise.
 PIECEWISE_SUFFIX = {"order": "order_binary", "cost": "output_link"}
-#: The dim a `{x}` placeholder in a PyPSA name splits a constraint along.
-SPLITS = {"{s}": "scenario", "{k}": "segment"}
-#: The placeholder suffix of the security rows, which PyPSA names per component and sub-network.
-SECURITY = "-for-{c}-outage-in-sub-network-{n}"
-#: The port dims a `{port}` placeholder in a PyPSA name splits along, with the unit dim of each part.
-PORTS = {"Link_port": "Link", "Process_port": "Process"}
 
 
 Part = tuple[LinearExpression, xr.Dataset]
@@ -254,53 +244,6 @@ def _part(con: Constraint, indexers: dict[str, Any], drop: bool = False) -> Part
     return con.lhs.isel(indexers, drop=drop), _cells(con).isel(indexers, drop=drop)
 
 
-def _on_units[T: (xr.Dataset, LinearExpression)](
-    obj: T, dim: str, ports: np.ndarray, unit: str, units: np.ndarray
-) -> T:
-    """Return `obj` at the `ports` of `dim`, laid over the `units` they belong to."""
-    return obj.sel({dim: ports}).rename({dim: unit}).assign_coords({unit: units})
-
-
-def _split_ports(m: Model, sources: NetworkSources) -> None:
-    """Split each entry PyPSA names per port number into one entry per number, over the units.
-
-    linopy frames an entry in the name order of its dims, so the port dim
-    leads and the ports of one number, which the sources list together,
-    hold one run of the entry's label block: each part keeps its labels.
-
-    Raises:
-        ValueError: The port dim does not lead the entry.
-
-    """
-    for container in (m.variables, m.constraints):
-        for key in [k for k in container if "{port}" in k]:
-            entry = container[key]
-            dim = next(d for d in PORTS if d in entry.labels.dims)
-            if entry.labels.dims[0] != dim:
-                msg = f"{key} must lead with {dim} to split by port, not {entry.labels.dims[0]}."
-                raise ValueError(msg)
-            container.remove(key)
-            unit = PORTS[dim]
-            ports = sources.ports(sources.units[unit])
-            start = entry.attrs["label_range"][0]
-            for number, group in ports.groupby("k"):
-                selected = group["port"].to_numpy(dtype=object)
-                units = group[unit].to_numpy(dtype=object)
-                new = key.replace("{port}", str(number))
-                if isinstance(entry, Variable):
-                    part = _on_units(entry.data, dim, selected, unit, units)
-                    size = part.labels.size
-                    part.attrs["label_range"] = (start, start + size)
-                    container.add(Variable(part, m, new))
-                else:
-                    cells = _on_units(_cells(entry), dim, selected, unit, units)
-                    size = cells.labels.size
-                    cells = cells.assign_attrs(label_range=(start, start + size))
-                    lhs = _on_units(entry.lhs, dim, selected, unit, units)
-                    container.add(_constraint(m, lhs, cells, new))
-                start += size
-
-
 def _fresh(m: Model, lhs: LinearExpression, cells: xr.Dataset, name: str) -> Constraint:
     """Return the constraint of `lhs` and `cells` with a fresh label block at the end of the model's."""
     live = cells.labels.values != -1
@@ -312,40 +255,6 @@ def _fresh(m: Model, lhs: LinearExpression, cells: xr.Dataset, name: str) -> Con
     return _constraint(
         m, lhs, cells.assign_attrs(label_range=(start, start + size)), name
     )
-
-
-def _security_parts(
-    n: Network, name: str, con: Constraint, groups: list[SecurityGroup]
-) -> dict[str, Part]:
-    """Return the security rows of `con` split by sub-network, period and outaged component.
-
-    Each part holds the outages of one component in one sub-network as
-    `<component>-outage`, and the fixed or the extendable branches of that
-    sub-network, as PyPSA selects them.
-    """
-    component = name.split("-", 1)[0]
-    extendable = n.components[component].extendables
-    kind = name.split("-")[1] == "ext"
-    names, outages = con.indexes["name"], con.indexes["outage"]
-    parts = {}
-    for group in groups:
-        affected = group.branches[group.branches.get_level_values(0) == component]
-        affected = affected.get_level_values(1)
-        affected = affected[affected.isin(extendable) == kind]
-        for outaged in group.outages.unique(0):
-            labels = group.outages[group.outages.get_level_values(0) == outaged]
-            indexers = {
-                "snapshot": group.snapshots,
-                "outage": outages.get_indexer(labels.get_level_values(1)),
-                "name": names.get_indexer(names.intersection(affected, sort=False)),
-            }
-            lhs, cells = _part(con, indexers)
-            if not (cells.labels != -1).any():
-                continue
-            new = name.replace("{c}", outaged).replace("{n}", group.suffix)
-            renamed = {"outage": f"{outaged}-outage"}
-            parts[new] = (lhs.rename(renamed), cells.rename(renamed))
-    return parts
 
 
 def _meshed(n: Network, thresholds: Sequence[int] | None) -> dict[str, pd.Index]:
@@ -365,42 +274,18 @@ def _meshed(n: Network, thresholds: Sequence[int] | None) -> dict[str, pd.Index]
 
 
 def _split(
-    m: Model,
-    n: Network,
-    constraints: dict[str, Constraint],
-    groups: list[SecurityGroup],
-    meshed: dict[str, pd.Index],
+    m: Model, constraints: dict[str, Constraint], meshed: dict[str, pd.Index]
 ) -> dict[str, Constraint]:
-    """Split each constraint whose PyPSA name has a placeholder.
-
-    A `{s}` or `{k}` splits along its dim; the security rows split by
-    sub-network, period and outaged component; the nodal balance splits by
-    how meshed a bus is. Each part gets a fresh label block.
-    """
-    out = {}
-    for name, con in constraints.items():
-        if SECURITY in name:
-            for new, part in _security_parts(n, name, con, groups).items():
-                out[new] = _fresh(m, *part, new)
-            continue
-        names = con.indexes.get("name")
-        if name == "Bus-nodal_balance" and not names.equals(meshed[name]):
-            for new, buses in meshed.items():
-                kept = names.get_indexer(names.intersection(buses, sort=False))
-                lhs, cells = _part(con, {"name": kept})
-                if (cells.labels.values != -1).any():
-                    out[new] = _fresh(m, lhs, cells, new)
-            continue
-        placeholder = next((p for p in SPLITS if p in name), None)
-        if placeholder is None or SPLITS[placeholder] not in con.labels.dims:
-            out[name] = con
-            continue
-        dim = SPLITS[placeholder]
-        for position, label in enumerate(con.indexes[dim]):
-            lhs, cells = _part(con, {dim: position}, drop=True)
-            if not (cells.labels.values != -1).any():
-                continue
-            new = name.replace(placeholder, str(label))
+    """Split the nodal balance by how meshed a bus is, each part with a fresh label block."""
+    con = constraints.get("Bus-nodal_balance")
+    if con is None or con.indexes["name"].equals(meshed["Bus-nodal_balance"]):
+        return constraints
+    names = con.indexes["name"]
+    out = {k: v for k, v in constraints.items() if k != "Bus-nodal_balance"}
+    for new, buses in meshed.items():
+        kept = names.get_indexer(names.intersection(buses, sort=False))
+        lhs, cells = _part(con, {"name": kept})
+        if (cells.labels.values != -1).any():
             out[new] = _fresh(m, lhs, cells, new)
     return out
 
@@ -411,7 +296,6 @@ def _relabel(
     *,
     snapshots: pd.Index,
     network_index: pd.Index,
-    sources: NetworkSources,
     meshed: dict[str, pd.Index],
 ) -> None:
     """Rename every dim of `m` as PyPSA names it, in linopy's order and with linopy's labels.
@@ -457,7 +341,7 @@ def _relabel(
         renamed = _pypsa_dims(dims, True) | DIMS.get(name, {})
         lhs = frame(con.lhs, dims, renamed)
         constraints[name] = _constraint(m, lhs, frame(_cells(con), dims, renamed), name)
-    constraints = _split(m, n, constraints, security_groups(sources), meshed)
+    constraints = _split(m, constraints, meshed)
     for name in list(m.constraints):
         m.constraints.remove(name)
     for con in constraints.values():
@@ -487,8 +371,6 @@ WEIGHT_ROWS = {
 }
 #: linopy's rows of a cost curve that hold the cost besides those of its `cost` link.
 COST_ROWS = {s.removeprefix("_") for s in (PWL_CHORD_SUFFIX, PWL_OUTPUT_LINK_SUFFIX)}
-#: The placeholder of a PyPSA name, which a split replaces by a label.
-PLACEHOLDER = re.compile(r"\\\{\w+\\\}")
 
 
 def _scale_columns(m: Model, n: Network, objective: float) -> None:
@@ -513,20 +395,12 @@ def _scale_columns(m: Model, n: Network, objective: float) -> None:
             var.scaling = n.c[component]._scaling(var.labels.indexes["name"])
 
 
-def _rules(
-    scalings: Scalings, rename: Callable[[str], str]
-) -> list[tuple[re.Pattern, str]]:
-    """Return the scaling rule of each entry, matched by its PyPSA name or the names it splits into."""
-    rules = []
-    for key, rule in scalings.items():
-        name = re.escape(rename(key))
-        rules.append((re.compile(PLACEHOLDER.sub(".+", name)), rule))
-    return rules
+def _rules(scalings: Scalings, rename: Callable[[str], str]) -> dict[str, str]:
+    """Return the scaling rule of each entry by its PyPSA name."""
+    return {rename(key): rule for key, rule in scalings.items()}
 
 
-def _rule(
-    name: str, con: Constraint, n: Network, rules: list[tuple[re.Pattern, str]]
-) -> str:
+def _rule(name: str, con: Constraint, n: Network, rules: dict[str, str]) -> str:
     """Return the scaling rule of the constraint `name`: its `scaling:`, else one by its kind.
 
     A row of a piecewise curve that holds only its weights and binaries
@@ -534,9 +408,8 @@ def _rule(
     row over the units of a component on a bus takes `bus`, any other
     `none`.
     """
-    for pattern, rule in rules:
-        if pattern.fullmatch(name):
-            return rule
+    if name in rules:
+        return rules[name]
     curve, piecewise, kind = name.rpartition("_piecewise_")
     if piecewise and kind in WEIGHT_ROWS:
         return "none"
@@ -585,7 +458,7 @@ def _scale_rows(
     m: Model,
     n: Network,
     sources: NetworkSources,
-    rules: list[tuple[re.Pattern, str]],
+    rules: dict[str, str],
     objective: float,
 ) -> None:
     """Give every constraint the factor its scaling rule takes from the network data.
@@ -624,7 +497,7 @@ def _scale(
     m: Model,
     n: Network,
     sources: NetworkSources,
-    rules: list[tuple[re.Pattern, str]],
+    rules: dict[str, str],
     objective: float,
 ) -> None:
     """Apply PyPSA's numerical scaling to the built model.
@@ -667,13 +540,11 @@ def build_model(
     mode = (options.get("transmission_losses") or {}).get("mode")
     rename = _renamer(s, spec_names(linearized_unit_commitment), mode)
     m = Model.from_spec(s, sources, expressions=False, rename=rename, **model_kwargs)
-    _split_ports(m, sources)
     _relabel(
         m,
         n,
         snapshots=model_index,
         network_index=network_index,
-        sources=sources,
         meshed=_meshed(n, meshed_thresholds),
     )
     m.constraints.sanitize_zeros()

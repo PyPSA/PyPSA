@@ -7,7 +7,7 @@ parameters:
     description: >-
       what a port delivers at each breakpoint of its `efficiency` curve: `p`
       times `efficiency`, and zero where that is undefined
-    dims: [Link_port, breakpoint]
+    dims: [Link, port, breakpoint]
     missing: absent
 
 relations:
@@ -20,19 +20,19 @@ expressions:
   Link_injection:
     expression: >-
       -sum(Link_p, over=Link, by=Link_bus0[bus])
-      + sum(Link_port_arrival, over=Link_port, by=Link_port_bus[bus])
+      + sum(Link_port_arrival, over=[Link, port], by=Link_port_bus[bus])
 
 piecewise:
   Link_efficiency_incremental:
-    name: Link-p{port}_piecewise
+    name: Link-p_piecewise
     description: >-
       what a port delivers equals its `efficiency` curve at `p`, by segments
       filled in order; the status gates the curve of a committable link
     along: breakpoint
-    dims: [scenario, snapshot, Link_port]
-    where: Link_efficiency_curve AND at(Link_active, by=Link_port_Link[Link]) AND Link_efficiency_curve_p
+    dims: [scenario, snapshot, Link, port]
+    where: Link_efficiency_curve AND at(Link_active, by=Link_port_Link[owner]) AND Link_efficiency_curve_p
     method: incremental
-    activity: at(Link_status, by=Link_port_Link[Link])
+    activity: at(Link_status, by=Link_port_Link[owner])
     links:
-      p: ["at(Link_p, by=Link_port_Link[Link])", Link_efficiency_curve_p]
+      p: ["at(Link_p, by=Link_port_Link[owner])", Link_efficiency_curve_p]
       delivery: [Link_p_piecewise, Link_efficiency_curve_delivery]
