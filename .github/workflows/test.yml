@@ -9,7 +9,6 @@ on:
     branches:
     - master
     - release-branch-v*
-    - feat/mathspec-formulation
   pull_request:
     branches: ["**"]
   schedule:
@@ -167,11 +166,11 @@ jobs:
           python${{ matrix.python-version }},
           api-${{ matrix.api }}
 
-  test-upstream:
-    name: Test linopy master and mathspec main (${{ matrix.backend }})
+  test-linopy-master:
+    name: Test linopy master (${{ matrix.backend }})
     needs: [build]
-    # Only on the full suite (daily schedule, manual dispatch, releases) and the spec feature branch, not every PR/push
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/feat/mathspec-formulation' }}
+    # Only on the full suite (daily schedule, manual dispatch, releases), not every PR/push
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -201,16 +200,12 @@ jobs:
         uv sync --all-extras --no-install-project $UV_LOCK_ARG
         uv pip install "$(ls dist/*.whl)"
 
-    - name: Override linopy with master and mathspec with main
-      run: >
-        uv pip install
-        "linopy @ git+https://github.com/PyPSA/linopy@master"
-        "mathspec @ git+https://github.com/energy-models/mathspec@main"
+    - name: Override linopy with master
+      run: uv pip install "linopy @ git+https://github.com/pypsa/linopy@master"
 
-    - name: Report provenance
-      run: >
-        uv run --no-sync python -c
-        "import linopy, mathspec; print('linopy', linopy.__version__, linopy.__file__); print('mathspec', mathspec.__version__, mathspec.__file__)"
+    - name: Report linopy provenance
+      run: |
+        uv run --no-sync python -c "import linopy; print('linopy', linopy.__version__, 'from', linopy.__file__)"
 
     - name: Run unit tests
       run: uv run --no-sync pytest -n logical ${{ matrix.backend == 'sparse' && '--linopy-sparse' || '' }}
