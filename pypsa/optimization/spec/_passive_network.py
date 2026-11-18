@@ -11,7 +11,7 @@ factors of a security-constrained run and the flow-based domain.
 from __future__ import annotations
 
 from math import sqrt
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -298,27 +298,12 @@ def _outage_branch(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
     return pd.DataFrame({"outage": labels, c._unit_dim: labels}, dtype=object)
 
 
-class SecurityGroup(NamedTuple):
-    """The outages of one sub-network in one period, which PyPSA names apart."""
-
-    suffix: str
-    snapshots: np.ndarray
-    branches: pd.MultiIndex
-    outages: pd.MultiIndex
-
-
-def security_groups(s: NetworkSources) -> list[SecurityGroup]:
-    """Return the sub-network and period groups of the security rows, in PyPSA's order."""
-    return s.memo("bodf", lambda: _bodf(s))[1]
-
-
-def _bodf(s: NetworkSources) -> tuple[dict[int, pd.DataFrame], list[SecurityGroup]]:
-    """Each period's outage factors, branches by outages, of its sub-networks, and the groups they form."""
+def _bodf(s: NetworkSources) -> dict[int, pd.DataFrame]:
+    """Each period's outage factors, branches by outages, of its sub-networks."""
     n = s.n
     outages = _outages(s)
-    groups: list[SecurityGroup] = []
     if outages.empty:
-        return {period: pd.DataFrame() for period in s.periods}, groups
+        return {period: pd.DataFrame() for period in s.periods}
     topology = n.get_scenario(n.scenarios[0]) if n.has_scenarios else n
     factors = {}
     for period in s.periods:
@@ -331,23 +316,16 @@ def _bodf(s: NetworkSources) -> tuple[dict[int, pd.DataFrame], list[SecurityGrou
             outaged = branches.intersection(outages)
             if outaged.empty:
                 continue
-            suffix = (
-                f"{sub_network.name}-period-{period}"
-                if s.multi_invest
-                else sub_network.name
-            )
-            snapshots = np.flatnonzero(s.period_of == period)
-            groups.append(SecurityGroup(suffix, snapshots, branches, outaged))
             sub_network.calculate_BODF()
             frame = pd.DataFrame(sub_network.BODF, index=branches, columns=branches)
             frames.append(frame[outaged].droplevel(0, axis=1))
         factors[period] = pd.concat(frames) if frames else pd.DataFrame()
-    return factors, groups
+    return factors
 
 
 @source("COMPONENT_BODF")
 def _branch_bodf(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    return _over(s, c, s.memo("bodf", lambda: _bodf(s))[0], "outage")
+    return _over(s, c, s.memo("bodf", lambda: _bodf(s)), "outage")
 
 
 # -- flow-based market coupling ---------------------------------------------

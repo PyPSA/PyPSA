@@ -471,9 +471,9 @@ def test_feature_network_scaled_matches_unscaled(kwargs):
     assert (
         m.constraints["Generator-marginal_cost_piecewise_chord"].scaling == 1e-2
     ).all()
-    assert (m.variables["Link-p1_piecewise"].scaling == 1e-3).all()
+    assert (m.variables["Link-p_piecewise"].scaling == 1e-3).all()
     assert (m.variables["Generator-status"].scaling == 1).all()
-    assert (m.variables["Link-p1_piecewise_delta"].scaling == 1).all()
+    assert (m.variables["Link-p_piecewise_delta"].scaling == 1).all()
     status, _ = n.optimize.solve_model()
     assert status == "ok"
     assert n.objective == pytest.approx(ref.objective, rel=RTOL)
@@ -494,7 +494,7 @@ def test_cvar_takes_objective_scaling(stochastic_benchmark_network):
         for name in elements
         if name.startswith("CVaR")
     ]
-    assert len(cvar) == 3 + 1 + len(n.scenarios)
+    assert len(cvar) == 5
     assert all((element.scaling == 1e-3).all() for element in cvar)
     M = m.matrices
     col = np.flatnonzero(M.vlabels == m.variables["CVaR"].labels.item()).item()

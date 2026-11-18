@@ -480,18 +480,20 @@ class TestPiecewiseHelpers:
         assert not c.has_piecewise("capital_cost")
 
     @pytest.mark.parametrize(
-        ("comp", "attr", "expected"),
+        ("comp", "attr", "expected", "port"),
         [
-            ("Generator", "marginal_cost", "Generator-marginal_cost_piecewise"),
-            ("Process", "rate0", "Process-p0_piecewise"),
-            ("Process", "rate1", "Process-p1_piecewise"),
-            ("Link", "efficiency", "Link-p1_piecewise"),
-            ("Link", "efficiency2", "Link-p2_piecewise"),
+            ("Generator", "marginal_cost", "Generator-marginal_cost_piecewise", None),
+            ("Process", "rate0", "Process-p_piecewise", 0),
+            ("Process", "rate1", "Process-p_piecewise", 1),
+            ("Link", "efficiency", "Link-p_piecewise", 1),
+            ("Link", "efficiency2", "Link-p_piecewise", 2),
         ],
     )
-    def test_aux_var_is_schema_lookup(self, base_network, comp, attr, expected):
-        """`_piecewise_aux_var` resolves from the schema, independent of data."""
-        assert base_network.c[comp]._piecewise_aux_var(attr) == expected
+    def test_aux_var_is_schema_lookup(self, base_network, comp, attr, expected, port):
+        """`_piecewise_aux_var` and `_piecewise_port` resolve from the schema, independent of data."""
+        c = base_network.c[comp]
+        assert c._piecewise_aux_var(attr) == expected
+        assert c._piecewise_port(attr) == port
 
     def test_aux_var_raises_on_unknown_attr(self, base_network):
         """A non-piecewise attribute fails fast instead of returning None."""

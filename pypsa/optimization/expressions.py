@@ -110,11 +110,18 @@ def _restack_flat_groups(expr: Any) -> Any:
     return indexed.rename(group=keys[0]) if len(keys) == 1 else indexed
 
 
-def _built(m: ln.Model, name: str) -> Variable:
-    """Return the variable `name` of `m` at its units with a row; the model keeps the others masked."""
+def _built(m: ln.Model, name: str, port: int | None = None) -> Variable:
+    """Return the variable `name` of `m`, at `port` where given, at its units with a row; the model keeps the others masked."""
     var = m.variables[name]
+    if port is not None:
+        var = var.sel(port=port, drop=True)
     others = [d for d in var.labels.dims if d != "name"]
     return var.isel(name=(var.labels != -1).any(others).values)
+
+
+def _piecewise_aux(m: ln.Model, c: Any, attr: str) -> Variable:
+    """Return the auxiliary variable of the piecewise curve `attr` at its units with a row."""
+    return _built(m, c._piecewise_aux_var(attr), c._piecewise_port(attr))
 
 
 def _capacity_expression(
@@ -148,7 +155,7 @@ def _split_piecewise(
     """Split the names handled by the `attr` piecewise curve out of `expr`."""
     if not c.has_piecewise(attr):
         return expr, None
-    aux = _built(m, c._piecewise_aux_var(attr))
+    aux = _piecewise_aux(m, c, attr)
     return expr.drop_sel(name=aux.coords["name"]), aux
 
 
@@ -690,7 +697,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if isinstance(c, _Multiport) and c.has_piecewise(
                 y_attr := c._port_coefficient_attr(port)
             ):
-                pw = sign * _built(n.model, c._piecewise_aux_var(y_attr))
+                pw = sign * _piecewise_aux(n.model, c, y_attr)
                 names = pw.coords["name"].values
                 coeffs.loc[{"name": names}] = 0
                 pw_var = _direct_piecewise(c, y_attr, sign, pw, names, direction)

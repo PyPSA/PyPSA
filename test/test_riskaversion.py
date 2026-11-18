@@ -228,9 +228,9 @@ def test_cvar_constraints_cover_many_settings():
 
     # CVaR constraints created correctly
     assert "CVaR-def" in n.model.constraints
-    for s in n.scenarios:
-        key = f"CVaR-excess-{s}"
-        assert key in n.model.constraints
+    assert list(n.model.constraints["CVaR-excess"].indexes["scenario"]) == list(
+        n.scenarios
+    )
 
 
 def test_cvar_constraints_multiperiod_opt():
@@ -278,8 +278,9 @@ def test_cvar_constraints_multiperiod_opt():
 
     # CVaR constraints present
     assert "CVaR-def" in n.model.constraints
-    for s in n.scenarios:
-        assert f"CVaR-excess-{s}" in n.model.constraints
+    assert list(n.model.constraints["CVaR-excess"].indexes["scenario"]) == list(
+        n.scenarios
+    )
 
 
 def test_cvar_with_quadratic_opex_raises():
@@ -376,5 +377,6 @@ def test_cvar_with_zero_opex(toy_network):
 
     # Verify CVaR constraints exist
     assert "CVaR-def" in n.model.constraints
-    for s in n.scenarios:
-        assert f"CVaR-excess-{s}" in n.model.constraints
+    assert list(n.model.constraints["CVaR-excess"].indexes["scenario"]) == list(
+        n.scenarios
+    )

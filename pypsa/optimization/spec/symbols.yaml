@@ -23,8 +23,7 @@ dimensions:
   outage: {index: '\zeta', set: '\mathcal{O}'}
   segment: {index: '\epsilon', set: '\mathcal{V}'}
   global_constraint: {index: '\gamma', set: '\mathcal{H}'}
-  Link_port: {index: '\beta', set: '\mathcal{I}'}
-  Process_port: {index: '\chi', set: '\mathcal{J}'}
+  port: {index: '\beta', set: '\mathcal{I}'}
 names:
   Generator_p: g
   Generator_p_nom_ext: G

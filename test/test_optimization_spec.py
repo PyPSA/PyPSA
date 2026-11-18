@@ -170,6 +170,25 @@ def test_a_parameter_without_the_dim_of_its_units_is_refused(
         sources["Generator_weight"]
 
 
+def test_ports_of_links_and_processes_share_one_dim():
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", ["a", "b", "c"])
+    n.add("Generator", "g", bus="a", p_nom=100, marginal_cost=1)
+    n.add("Load", "l", bus="b", p_set=10)
+    curve = {0.0: 0.0, 1.0: 0.5}
+    n.add("Link", "link", bus0="a", bus1="b", bus2="c", p_nom=50, efficiency2=curve)
+    n.add("Process", "proc", bus0="a", bus1="b", rate0=-1, rate1=curve, p_nom=50)
+    m = n.optimize.create_model()
+    link, proc = (m.variables[f"{c}-p_piecewise"] for c in ("Link", "Process"))
+    assert list(link.indexes["port"]) == list(proc.indexes["port"]) == [0, 1, 2]
+    live = {
+        c: (v.labels != -1).any("snapshot").to_series()
+        for c, v in [("Link", link), ("Process", proc)]
+    }
+    assert live["Link"][live["Link"]].index.tolist() == [("link", 2)]
+    assert live["Process"][live["Process"]].index.tolist() == [("proc", 1)]
+
+
 @pytest.mark.parametrize(
     "page",
     [
