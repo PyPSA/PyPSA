@@ -173,7 +173,10 @@ def test_a_parameter_without_the_dim_of_its_units_is_refused(
     "page",
     [
         "index.md",
-        *(f"traits/{path.stem}.md" for path in (SPEC / "traits").iterdir()),
+        *(
+            f"traits/{path.name.removesuffix('.yaml')}.md"
+            for path in (SPEC / "traits").iterdir()
+        ),
         *(f"components/{c._unit_dim}.md" for c in formulated(pypsa.Network())),
     ],
 )
