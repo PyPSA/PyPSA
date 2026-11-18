@@ -692,12 +692,10 @@ class TestSnapshotMaps:
 
     @pytest.mark.parametrize("periods", [False, True])
     @pytest.mark.parametrize("offset", ["5h", "24h"])
-    @pytest.mark.parametrize("method", ["resample", "get_resample_map"])
-    def test_drop_leap_day_requires_march_1(self, periods, offset, method):
-        t = _leap_week_network(periods, hours=72).cluster.temporal
-        cluster = {"resample": t.resample, "get_resample_map": t.get_resample_map}
+    def test_drop_leap_day_requires_march_1(self, periods, offset):
+        t = _leap_week_network(periods, hours=72)
         with pytest.raises(ValueError, match="requires a snapshot on March 1"):
-            cluster[method](offset, drop_leap_day=True)
+            t.cluster.temporal.resample(offset, drop_leap_day=True)
 
     @pytest.mark.parametrize(
         ("cluster", "kept"),
@@ -756,25 +754,17 @@ class TestDeprecations:
             "get_downsample_result",
             "get_segment_result",
             "get_from_snapshot_map_result",
-            "get_resample_result_leap_day",
         ],
     )
     def test_result_methods_warn_and_match_main_path(self, simple_network, method):
         if method == "get_segment_result":
             pytest.importorskip("tsam")
-        leap = method.endswith("_leap_day")
-        n = _leap_week_network(False) if leap else simple_network
-        t = n.cluster.temporal
+        t = simple_network.cluster.temporal
         mapping, clustered, deprecated = {
             "get_resample_result": lambda: (
                 t.get_resample_map("3h"),
                 t.resample("3h"),
                 lambda: t.get_resample_result("3h"),
-            ),
-            "get_resample_result_leap_day": lambda: (
-                t.get_resample_map("24h", drop_leap_day=True),
-                t.resample("24h", drop_leap_day=True),
-                lambda: t.get_resample_result("24h", drop_leap_day=True),
             ),
             "get_downsample_result": lambda: (
                 t.get_downsample_map(4),
@@ -792,8 +782,7 @@ class TestDeprecations:
                 lambda: t.get_from_snapshot_map_result(t.get_downsample_map(4)),
             ),
         }[method]()
-        name = method.removesuffix("_leap_day")
-        with pytest.warns(DeprecationWarning, match=f"{name} is deprecated"):
+        with pytest.warns(DeprecationWarning, match=f"{method} is deprecated"):
             result = deprecated()
 
         assert isinstance(result, TemporalClustering)
@@ -804,11 +793,10 @@ class TestDeprecations:
         "call",
         [
             lambda n: n.cluster.temporal.segment(6, solver="highs"),
-            lambda n: n.cluster.temporal.get_segment_map(6, solver="highs"),
             lambda n: segment(n, 6, solver="highs"),
             lambda n: n.cluster.temporal.get_segment_result(6, solver="highs"),
         ],
-        ids=["segment", "get_segment_map", "module_segment", "get_segment_result"],
+        ids=["segment", "module_segment", "get_segment_result"],
     )
     def test_solver_is_deprecated(self, simple_network, call):
         pytest.importorskip("tsam")

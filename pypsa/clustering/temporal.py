@@ -65,8 +65,7 @@ def _warn_solver_deprecated(solver: str | None) -> None:
     """Warn that `solver` has no effect, if the caller passed it."""
     if solver is not None:
         warnings.warn(
-            "`solver` is deprecated as an argument to `segment` and "
-            "`get_segment_map`; it has no effect with tsam >= 3. "
+            "`solver` is deprecated as a segmentation argument; it has no effect with tsam >= 3. "
             "Deprecated in version 1.5.0. Will be removed in version 2.0.0.",
             DeprecationWarning,
             stacklevel=3,
@@ -414,12 +413,7 @@ class TemporalClusteringMixin:
             aggregation_rules=aggregation_rules,
         )
 
-    def get_resample_map(
-        self,
-        offset: str,
-        *,
-        drop_leap_day: bool = False,
-    ) -> pd.Series:
+    def get_resample_map(self, offset: str) -> pd.Series:
         """Map each snapshot to the label of its resampling bin.
 
         Bins are formed within each year, or within each investment period, and
@@ -451,8 +445,6 @@ class TemporalClusteringMixin:
         for rows in _row_groups(n, by_year=True):
             labels[rows] = _resample_labels(timesteps[rows], offset)
         labels = pd.DatetimeIndex(labels)
-        if drop_leap_day:
-            labels = _skip_leap_days(periods, labels)
         values = _snapshot_labels(periods, labels, n.has_periods)
         return pd.Series(values.to_flat_index(), index=n.snapshots)
 
@@ -600,10 +592,10 @@ class TemporalClusteringMixin:
             Use `get_segment_map()` and `from_snapshot_map()` instead.
 
         """
+        _warn_solver_deprecated(solver)
         return segment(
             self._n,
             num_segments,
-            solver=solver,
             exclude_attrs=exclude_attrs,
             aggregation_rules=aggregation_rules,
             drop_duplicates=drop_duplicates,
@@ -613,7 +605,6 @@ class TemporalClusteringMixin:
         self,
         num_segments: int,
         *,
-        solver: str | None = None,
         exclude_attrs: list[str] | None = None,
         drop_duplicates: bool = False,
     ) -> pd.Series:
@@ -626,8 +617,6 @@ class TemporalClusteringMixin:
         ----------
         num_segments : int
             Number of segments, in each investment period.
-        solver : str, optional
-            Deprecated. Has no effect.
         exclude_attrs : list, optional
             Attributes to exclude from clustering (default: ["e_min_pu"]).
         drop_duplicates : bool, default False
@@ -641,7 +630,6 @@ class TemporalClusteringMixin:
         """
         n = self._n
         _check_no_scenarios(n)
-        _warn_solver_deprecated(solver)
 
         if num_segments < 1:
             msg = f"num_segments must be >= 1, got {num_segments}"
