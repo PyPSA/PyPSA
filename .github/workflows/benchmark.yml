@@ -5,6 +5,8 @@
 name: Benchmarks
 
 on:
+  push:
+    branches: [feat/mathspec-formulation]
   pull_request:
     branches: ["**"]
   schedule:
@@ -18,7 +20,7 @@ concurrency:
 jobs:
   build-model:
     # Time `create_model` against master, see test/benchmarks/build_model.py.
-    # Nightly and on demand also with linopy master and mathspec main.
+    # Nightly, on demand and on the spec feature branch also with linopy master and mathspec main.
     name: Build benchmarks (${{ matrix.deps }})
     runs-on: ubuntu-latest
     strategy:
