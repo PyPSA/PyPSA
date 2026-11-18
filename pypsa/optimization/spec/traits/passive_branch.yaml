@@ -56,11 +56,13 @@ parameters:
     description: "the loss at full rating: `r_pu_eff * (s_max_pu * s_nom_max)**2`, with `s_nom` for a fixed branch"
     dims: [scenario, snapshot, UNIT]
   COMPONENT_loss_slope:
-    description: the slope of each cut below the quadratic loss curve, a tangent or a secant
+    description: the slope of each cut below the quadratic loss curve, a tangent or a secant. No value means no cut
     dims: [scenario, snapshot, UNIT, segment]
+    missing: absent
   COMPONENT_loss_offset:
-    description: where each cut meets the loss axis
+    description: where each cut meets the loss axis. No value means no cut
     dims: [scenario, snapshot, UNIT, segment]
+    missing: absent
 
 relations:
   snapshot_period: {key: snapshot, values: period}

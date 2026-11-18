@@ -105,3 +105,25 @@ def test_invalid_params_raise():
     n.c.lines.static["s_nom_max"] = np.inf
     with pytest.raises(ValueError, match="s_nom_max"):
         n.optimize(transmission_losses={"mode": "secants"})
+
+
+def test_secant_cuts_have_no_padded_rows():
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", ["a", "b"], v_nom=380)
+    n.add("Line", "l", bus0="a", bus1="b", x=10, r=30, s_nom=300)
+    n.add("Transformer", "t", bus0="a", bus1="b", x=0.1, r=0.003, s_nom=80)
+    n.add("Generator", "g", bus="a", p_nom=200, marginal_cost=1)
+    n.add("Load", "d", bus="b", p_set=100)
+    m = n.optimize.create_model(transmission_losses=True)
+    rows = {
+        k: int((c.labels >= 0).sum())
+        for k, c in m.constraints.items()
+        if "loss_secants" in k
+    }
+    assert rows == {
+        "Line-loss_secants-pos": 6,
+        "Line-loss_secants-neg": 6,
+        "Transformer-loss_secants-pos": 2,
+        "Transformer-loss_secants-neg": 2,
+    }
