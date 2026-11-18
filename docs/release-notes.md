@@ -43,6 +43,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix [`n.optimize.optimize_security_constrained()`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained] writing all security-constrained duals into `n.lines_t.mu_0`, where the upper and lower constraints overwrote each other and the columns were (affected branch, outage branch) pairs instead of branch names. The duals are no longer assigned to the network and stay available in `n.model.dual`. Also fix the runtime verification guard silently ignoring dynamic attributes whose columns are not in the static component index. See [#2159](https://github.com/PyPSA/PyPSA/issues/2159).
 - Re-exporting a network to an existing CSV folder now removes the files of components that no longer exist. Before, the stale files were kept and the removed components reappeared on import. (<!-- md:pr 2158 -->)
 - Fix importing networks from Excel files given as a URL, which raised a `FileNotFoundError`. (<!-- md:pr 2158 -->)
 - Fix ramp limits raising an error with linopy versions after 0.9.1 when optimizing only part of the snapshots of a network with investment periods, e.g. in [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon]. (<!-- md:pr 2079 -->)
