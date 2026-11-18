@@ -16,50 +16,56 @@ PyPSA implements a **two-stage stochastic programming framework** with scenario 
 
 ### Mathematical Formulation
 
-The stochastic optimization problem in PyPSA follows the standard two-stage risk-neutral stochastic programming formulation:
+!!! note "Background"
 
-$$
-\begin{align}
-\min_{x} \quad & c^T x + \sum_{s \in S} p_s Q(x, \xi_s) \\
-\text{s.t.} \quad & A x = b \\
-& x \geq 0
-\end{align}
-$$
+    The stochastic optimization problem in PyPSA follows the standard two-stage risk-neutral stochastic programming formulation:
 
-Where:
+    $$
+    \begin{align}
+    \min_{\mathbf{x}} \quad & \mathbf{c}^\top \mathbf{x} + \sum_{s \in \mathcal{S}} \pi_s Q(\mathbf{x}, \boldsymbol{\xi}_s) \\
+    \text{s.t.} \quad & \mathbf{A} \mathbf{x} = \mathbf{b} \\
+    & \mathbf{x} \geq 0
+    \end{align}
+    $$
 
-- $x$: First-stage (here-and-now) decision variables (e.g., investment decisions in component capacities)
-- $\xi_s$: Random parameter realizations in scenario $s$
-- $p_s$: Probability of scenario $s$ occurring
-- $Q(x, \xi_s)$: Second-stage recourse function for scenario $s$
-- $S$: Set of all scenarios
+    Where:
 
-The second-stage problem $Q(x, \xi_s)$ represents:
+    - $\mathbf{x}$: First-stage (here-and-now) decision variables (e.g., investment decisions in component capacities)
+    - $\boldsymbol{\xi}_s$: Random parameter realizations in scenario $s$
+    - $\pi_s$: Probability of scenario $s$ occurring
+    - $Q(\mathbf{x}, \boldsymbol{\xi}_s)$: Second-stage recourse function for scenario $s$
+    - $\mathcal{S}$: Set of all scenarios
 
-$$
-\begin{align}
-Q(x, \xi_s) = \min_{y_s} \quad & q_s^T y_s \\
-\text{s.t.} \quad & W y_s = h_s - T x \\
-& y_s \geq 0
-\end{align}
-$$
+    The second-stage problem $Q(\mathbf{x}, \boldsymbol{\xi}_s)$ represents:
 
-Where:
+    $$
+    \begin{align}
+    Q(\mathbf{x}, \boldsymbol{\xi}_s) = \min_{\mathbf{y}_s} \quad & \mathbf{q}_s^\top \mathbf{y}_s \\
+    \text{s.t.} \quad & \mathbf{W} \mathbf{y}_s = \mathbf{h}_s - \mathbf{T} \mathbf{x} \\
+    & \mathbf{y}_s \geq 0
+    \end{align}
+    $$
 
-- $y_s$: Second-stage (wait-and-see) decision variables for scenario $s$ (e.g., energy dispatch decisions)
-- $q_s$: Second-stage cost coefficients for scenario $s$
-- $W$: Recourse matrix (coefficient matrix for second-stage variables $y_s$)
-- $T$: Technology matrix (coefficient matrix for first-stage variables $x$ in second-stage constraints)
-- $h_s$: Right-hand-side vector for scenario $s$
+    Where:
 
-The second-stage constraints $W y_s = h_s - T x$ show how first-stage decisions $x$ affect the feasible region for second-stage variables $y_s$ in each scenario.
+    - $\mathbf{y}_s$: Second-stage (wait-and-see) decision variables for scenario $s$ (e.g., energy dispatch decisions)
+    - $\mathbf{q}_s$: Second-stage cost coefficients for scenario $s$
+    - $\mathbf{W}$: Recourse matrix (coefficient matrix for second-stage variables $\mathbf{y}_s$)
+    - $\mathbf{T}$: Technology matrix (coefficient matrix for first-stage variables $\mathbf{x}$ in second-stage constraints)
+    - $\mathbf{h}_s$: Right-hand-side vector for scenario $s$
+
+    The second-stage constraints $\mathbf{W} \mathbf{y}_s = \mathbf{h}_s - \mathbf{T} \mathbf{x}$ show how first-stage decisions $\mathbf{x}$ affect the feasible region for second-stage variables $\mathbf{y}_s$ in each scenario.
+
+In PyPSA, the first-stage cost $\mathbf{c}^\top \mathbf{x}$ is the sum of the capital expenditures and the second-stage cost $Q$ is the operational cost of each scenario (see [objective](objective.md)):
+
+<!-- md:spec total_cost -->
 
 The scenario tree in PyPSA splits into **here-and-now** investment decisions (t=0) and **wait-and-see** dispatch decisions (t=1):
 
 | Stage | Decision Type | Variables | Information | Examples |
 |-------|---------------|-----------|-------------|-----------|
-| **t=0** | **Here-and-now** | Investment decisions ($x$) - Common across scenarios | Uncertain parameters unknown, probability distribution known | Generator capacity, transmission expansion, storage capacity |
-| **t=1** | **Wait-and-see** | Dispatch decisions ($y_s$) - Scenario-specific | Uncertain parameters revealed, perfect information for scenario $s$ | Dispatch, storage operation, load shedding |
+| **t=0** | **Here-and-now** | Investment decisions ($\mathbf{x}$) - Common across scenarios | Uncertain parameters unknown, probability distribution known | Generator capacity, transmission expansion, storage capacity |
+| **t=1** | **Wait-and-see** | Dispatch decisions ($\mathbf{y}_s$) - Scenario-specific | Uncertain parameters revealed, perfect information for scenario $s$ | Dispatch, storage operation, load shedding |
 
 
 !!! note "Limitation: Investment and dispatch stages are fixed"
@@ -332,21 +338,25 @@ When working with stochastic optimization, it can be useful to quantify the valu
 
 **Expected Value of Perfect Information (EVPI)**:
 
-$$\text{EVPI} = \mathbb{E}[\text{WS}] - \text{SP}$$
+!!! note "Background"
+
+    $$\text{EVPI} = \mathbb{E}[\text{WS}] - \text{SP}$$
 
 The EVPI measures the maximum value of perfect information about uncertain parameters. It compares the expected cost of the wait-and-see (WS) solutions—where the decision maker knows which scenario will occur before making any decisions—against the stochastic programming (SP) solution. The EVPI represents an upper bound on what should be paid for improved forecasting or information gathering systems. By definition, EVPI is always non-negative, since perfect information cannot increase expected costs.
 
 **Expected Cost of Ignoring Uncertainty (ECIU) / Value of Stochastic Solution (VSS)**:
 
-$$\text{ECIU} = \text{EEV} - \text{SP}$$
+!!! note "Background"
+
+    $$\text{ECIU} = \text{EEV} - \text{SP}$$
 
 The ECIU quantifies the cost of ignoring uncertainty by comparing the expected cost of the expected value (EEV) solution—where decisions are made using mean parameter values—against the stochastic programming solution. This metric demonstrates the value of using stochastic optimization instead of deterministic optimization with expected parameter values. A higher ECIU suggests that stochastic modeling provides substantial improvements over deterministic approaches. The ECIU is always non-negative.
 
 The elements $\text{WS}$, $\text{SP}$ and $\text{EVPI}$ satisfy the following inequality chain:
 
-$$
-\text{WS} \leq \text{SP} \leq \text{EEV}
-$$
+!!! note "Background"
+
+    $$\text{WS} \leq \text{SP} \leq \text{EEV}$$
 
 For detailed treatment of these measures and their economic interpretation, see Birge and Louveaux (2011), Chapter 4.[^1]
 
@@ -359,11 +369,9 @@ PyPSA also supports risk-averse stochastic optimization using Conditional Value-
 
 ### Mathematical Formulation
 
-The risk-averse stochastic optimization extends the risk-neutral formulation by including CVaR in the objective:
+The risk-averse stochastic optimization extends the risk-neutral formulation by including CVaR in the objective, which weights the operational costs of the scenarios:
 
-$$
-\min_x \quad c^T x \;+\; (1-\omega)\sum_{s \in S} p_s Q(x,\xi_s) \;+\; \omega \,\mathrm{CVaR}_\alpha.
-$$
+<!-- md:spec risk_weighted_opex -->
 
 Where:
 
@@ -371,43 +379,43 @@ Where:
 
 - $\omega \in [0,1]$ is the tail weighting. It balances expected cost and tail cost by controlling how strongly the identified worst-case scenarios are weighted in a convex combination. The closed interval includes meaningful endpoints: $\omega=0$ corresponds to risk-neutral optimization, while $\omega=1$ corresponds to pure CVaR minimization.
 
-The CVaR at confidence level $\alpha$ is defined as the expected loss conditional on being in the worst $1-\alpha$ of outcomes:
+!!! note "Background"
 
-$$
-\mathrm{CVaR}_\alpha(Q) = \mathbb{E}[\,Q(x,\xi_s)\;|\;Q(x,\xi_s)\geq \,\textrm{VaR}_\alpha(Q)].
-$$
+    The CVaR at confidence level $\alpha$ is defined as the expected loss conditional on being in the worst $1-\alpha$ of outcomes:
 
-It can equivalently be written as an optimization problem, see Rockafellar & Uryasev (2002)[^2]:
+    $$
+    \mathit{CVaR}_\alpha(Q) = \mathbb{E}[\,Q(\mathbf{x},\boldsymbol{\xi}_s)\;|\;Q(\mathbf{x},\boldsymbol{\xi}_s)\geq \,\mathit{VaR}_\alpha(Q)].
+    $$
 
-$$
-\mathrm{CVaR}_\alpha(Q) = \min_{\theta \in \mathbb{R}} \Big[ \theta + \frac{1}{1-\alpha} \sum_{s \in S} p_s \max\{Q(x,\xi_s)-\theta,0\} \Big].
-$$
+    It can equivalently be written as an optimization problem, see Rockafellar & Uryasev (2002)[^2]:
+
+    $$
+    \mathit{CVaR}_\alpha(Q) = \min_{\mathit{VaR} \in \mathbb{R}} \Big[ \mathit{VaR} + \frac{1}{1-\alpha} \sum_{s \in \mathcal{S}} \pi_s \max\{Q(\mathbf{x},\boldsymbol{\xi}_s)-\mathit{VaR},0\} \Big].
+    $$
 
 To embed CVaR in a linear program, some auxiliary variables and constraints are introduced to enforce the definition:
 
 Variables:
 
-- $\theta$ (free): the Value-at-Risk cutoff at level $\alpha$.
-- $\mathrm{CVaR}_\alpha$ (free): the CVaR at level $\alpha$.
-- $a_s \geq 0$: excess loss of scenario $s$ above $\theta$.
+- $\mathit{VaR}$ (free): the Value-at-Risk cutoff at level $\alpha$.
+- $\mathit{CVaR}$ (free): the CVaR at level $\alpha$.
+- $\mathit{CVaR}^{\mathrm{a}}_s \geq 0$: excess loss of scenario $s$ above $\mathit{VaR}$.
 
 Constraints:
 
-$$
-a_s \ge Q(x,\xi_s) - \theta \quad \forall s \in S,
-$$
+<!-- md:spec CVaR_excess CVaR_def -->
 
-$$
-	\theta + \frac{1}{1-\alpha} \sum_{s \in S} p_s a_s \;\le\; \mathrm{CVaR}_\alpha.
-$$
-
-At the optimal solution, the auxiliary variable $\theta$ takes the role of the $\alpha$-quantile of scenario costs, i.e. the Value-at-Risk at level $\alpha$. Scenarios with costs above $\theta$ have $a_s > 0$ and thus contribute to the tail. The CVaR variable then represents the expected cost conditional on being in this worst $1-\alpha$ fraction of scenarios. In this way, the optimization automatically identifies which scenarios belong to the tail and penalizes them in the objective.
+At the optimal solution, the auxiliary variable $\mathit{VaR}$ takes the role of the $\alpha$-quantile of scenario costs, i.e. the Value-at-Risk at level $\alpha$. Scenarios with costs above $\mathit{VaR}$ have $\mathit{CVaR}^{\mathrm{a}}_s > 0$ and thus contribute to the tail. The CVaR variable then represents the expected cost conditional on being in this worst $1-\alpha$ fraction of scenarios. In this way, the optimization automatically identifies which scenarios belong to the tail and penalizes them in the objective.
 
 !!! note "Robust-like optimization"
-    A robust "optimize against the worst scenario" setting is approximated by choosing $\omega=1$ and setting $\alpha = 1 - p(\text{worst scenario})$, so that the tail includes only the worst case.
+    A robust "optimize against the worst scenario" setting is approximated by choosing $\omega=1$ and setting $\alpha = 1 - \pi_{\text{worst scenario}}$, so that the tail includes only the worst case.
 
 !!! note "Auxiliary variables"
     The auxiliary variables are not written back to component tables; they are internal to the optimization model.
+
+??? note "Symbols"
+
+    <!-- md:spec-legend total_cost risk_weighted_opex CVaR_excess CVaR_def -->
 
 !!! warning "Limitations"
     CVaR is not available with quadratic marginal costs, since the resulting quadratic constraints are not supported by `linopy`.
@@ -462,25 +470,31 @@ Economic interpretation: CVaR penalizes costly tail operations (worst-scenario O
 
 The insurance premium measures the increase in expected total system costs relative to the risk-neutral solution.
 
-$$
-\mathrm{Premium}(\alpha, \omega) = \big( c^T x + \sum_{s \in S} p_s Q(x,\xi_s) \big)_{(\alpha,\omega)} - \big( c^T x + \sum_{s \in S} p_s Q(x,\xi_s) \big)_{(\omega=0)}
-$$
+!!! note "Background"
+
+    $$
+    \mathrm{Premium}(\alpha, \omega) = \big( \mathbf{c}^\top \mathbf{x} + \sum_{s \in \mathcal{S}} \pi_s Q(\mathbf{x},\boldsymbol{\xi}_s) \big)_{(\alpha,\omega)} - \big( \mathbf{c}^\top \mathbf{x} + \sum_{s \in \mathcal{S}} \pi_s Q(\mathbf{x},\boldsymbol{\xi}_s) \big)_{(\omega=0)}
+    $$
 
 In other words, $\mathrm{Premium}(\alpha, \omega)$ is the additional expected cost of applying a hedging strategy (or of choosing a more robust portfolio/policy) compared to a baseline.
 
 The tail risk reduction measures the decrease in CVaR at confidence level $\alpha$.
 
-$$
-\Delta \,\mathrm{CVaR}_{\alpha} = \mathrm{CVaR}_{\alpha} \big(Q(x,\xi_s)\big)_{(\omega=0)} - \mathrm{CVaR}_{\alpha} \big(Q(x,\xi_s)\big)_{(\alpha,\omega)}
-$$
+!!! note "Background"
 
-In other words, $\Delta \,\mathrm{CVaR}_{\alpha}$ the amount of tail risk that is reduced thanks to the hedging strategy.
+    $$
+    \Delta \,\mathit{CVaR}_{\alpha} = \mathit{CVaR}_{\alpha} \big(Q(\mathbf{x},\boldsymbol{\xi}_s)\big)_{(\omega=0)} - \mathit{CVaR}_{\alpha} \big(Q(\mathbf{x},\boldsymbol{\xi}_s)\big)_{(\alpha,\omega)}
+    $$
+
+In other words, $\Delta \,\mathit{CVaR}_{\alpha}$ is the amount of tail risk that is reduced thanks to the hedging strategy.
 
 A useful combined indicator is the risk-hedging cost, which measures the additional expected cost per unit of tail risk avoided:
 
-$$
-	\mathrm{RHC}(\alpha, \omega) = \frac{\text{Premium}(\alpha, \omega)}{\Delta \,\mathrm{CVaR}_\alpha}
-$$
+!!! note "Background"
+
+    $$
+    \mathrm{RHC}(\alpha, \omega) = \frac{\text{Premium}(\alpha, \omega)}{\Delta \,\mathit{CVaR}_\alpha}
+    $$
 
 For the volcano example with `alpha=0.8, omega=0.5`, we can calculate the insurance premium:
 

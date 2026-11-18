@@ -2,12 +2,18 @@
 #
 # SPDX-License-Identifier: MIT
 
+import re
+from pathlib import Path
+
 import mathspec
 import pytest
+import yaml
 
 import pypsa
+from pypsa.optimization.spec._docs import marker, pages
 from pypsa.optimization.spec._render import (
     PLACEHOLDERS,
+    WORD,
     _load,
     _merge,
     formulated,
@@ -161,3 +167,86 @@ def test_a_parameter_without_the_dim_of_its_units_is_refused(
     )
     with verification, pytest.raises(ValueError, match="are not declared"):
         sources["Generator_weight"]
+
+
+@pytest.mark.parametrize(
+    "page",
+    [
+        "index.md",
+        *(f"traits/{path.stem}.md" for path in (SPEC / "traits").iterdir()),
+        *(f"components/{c._unit_dim}.md" for c in formulated(pypsa.Network())),
+    ],
+)
+def test_every_trait_and_component_gets_a_page_without_placeholders(page):
+    assert not PLACEHOLDERS & set(WORD.findall(pages()[page]))
+
+
+def test_the_symbol_table_gives_each_dimension_its_own_index():
+    table = yaml.safe_load((SPEC / "symbols.yaml").read_text())
+    indices = [entry["index"] for entry in table["dimensions"].values()]
+    assert len(indices) == len(set(indices))
+    assert not set(indices) & set(table["names"].values())
+
+
+GUIDE = Path(__file__).parents[1] / "docs" / "user-guide" / "optimization"
+BACKGROUND = '!!! note "Background"'
+MARKER = re.compile(r"<!-- md:(spec[\w-]*)(.*?) -->")
+
+
+def _loose_math(text: str) -> list[str]:
+    """Return the lines with display math outside a `Background` note."""
+    loose: list[str] = []
+    depth: int | None = None
+    for line in text.splitlines():
+        indent = len(line) - len(line.lstrip())
+        if line.strip() and depth is not None and indent <= depth:
+            depth = None
+        if depth is None and line.strip() == BACKGROUND:
+            depth = indent
+        elif depth is None and "$$" in line:
+            loose.append(line.strip())
+    return loose
+
+
+@pytest.mark.parametrize("page", sorted(p.name for p in GUIDE.glob("*.md")))
+def test_a_guide_page_states_the_model_math_only_through_the_spec(page):
+    text = (GUIDE / page).read_text()
+    assert not _loose_math(text)
+    for kind, args in MARKER.findall(text):
+        assert marker(kind, args, f"user-guide/optimization/{page}")
+
+
+@pytest.mark.parametrize(
+    ("kind", "args"),
+    [
+        ("spec", " Generator_nonexistent"),
+        ("spec-legend", ""),
+        ("spec-tabel", " Generator_p"),
+    ],
+)
+def test_a_marker_naming_no_entry_fails(kind, args):
+    with pytest.raises(ValueError, match="spec has no|No marker"):
+        marker(kind, args, "user-guide/optimization/index.md")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "$$x$$",
+        '!!! note "Background"\n\n    $$x$$\n\n$$y$$',
+        '=== "A"\n\n    !!! note "Other"\n\n        $$x$$',
+    ],
+)
+def test_display_math_outside_a_background_note_is_loose(text):
+    assert _loose_math(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '!!! note "Background"\n\n    $$x$$',
+        '=== "A"\n\n    !!! note "Background"\n\n        $$x$$\n\n        text\n\n    after',
+    ],
+)
+def test_display_math_inside_a_background_note_is_not_loose(text):
+    assert not _loose_math(text)
