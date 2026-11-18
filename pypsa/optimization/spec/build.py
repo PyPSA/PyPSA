@@ -59,11 +59,11 @@ SPEC = files("pypsa.optimization.spec")
 
 
 @functools.cache
-def _unit_dims() -> set[str]:
-    """Return the spec's unit dims, one per component with a formulation."""
+def _unit_dims() -> tuple[str, ...]:
+    """Return the spec's unit dims, one per component with a formulation, which every entry lists first."""
     import pypsa  # noqa: PLC0415
 
-    return {c._unit_dim for c in formulated(pypsa.Network())}
+    return tuple(sorted(c._unit_dim for c in formulated(pypsa.Network())))
 
 
 @functools.cache
@@ -212,7 +212,7 @@ def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
     A constraint over buses or GlobalConstraint labels names them `name` too.
     The breakpoints of a curve take linopy's name, which marks an auxiliary entry.
     """
-    named = _unit_dims() | ({"bus", "global_constraint"} if constraint else set())
+    named = {*_unit_dims(), *(("bus", "global_constraint") if constraint else ())}
     found = [d for d in dims if d in named]
     renamed = {found[0]: "name"} if len(found) == 1 else {}
     return renamed | ({"breakpoint": BREAKPOINT_DIM} if "breakpoint" in dims else {})
@@ -539,7 +539,14 @@ def build_model(
     sources = NetworkSources(n, s, network_index, model_index, **options)
     mode = (options.get("transmission_losses") or {}).get("mode")
     rename = _renamer(s, spec_names(linearized_unit_commitment), mode)
-    m = Model.from_spec(s, sources, expressions=False, rename=rename, **model_kwargs)
+    m = Model.from_spec(
+        s,
+        sources,
+        expressions=False,
+        rename=rename,
+        dim_order=_unit_dims(),
+        **model_kwargs,
+    )
     _relabel(
         m,
         n,
