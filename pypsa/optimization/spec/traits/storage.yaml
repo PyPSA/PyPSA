@@ -39,7 +39,7 @@ parameters:
     description: share of the stored energy taken out that reaches the bus
     dims: [scenario, snapshot, UNIT]
   COMPONENT_retention:
-    description: share of the stored energy kept over a snapshot, from `standing_loss` and the snapshot's hours
+    description: share of the stored energy kept over a snapshot, `1 - standing_loss` to the power of the snapshot's store weighting
     dims: [scenario, snapshot, UNIT]
   COMPONENT_inflow:
     description: energy flowing in per hour, such as a river into a reservoir
