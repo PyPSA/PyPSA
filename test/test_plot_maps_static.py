@@ -12,10 +12,13 @@ import pytest
 
 from pypsa.plot.maps.common import _is_cartopy_available
 from pypsa.plot.maps.static import (
+    add_legend_arrows,
     add_legend_circles,
     add_legend_lines,
     add_legend_patches,
     add_legend_semicircles,
+    get_legend_representatives,
+    scaled_legend_label,
 )
 from pypsa.statistics import get_transmission_branches, groupers
 
@@ -322,6 +325,57 @@ def test_plot_legend_semicircles_geomap(ac_dc_network):
     add_legend_semicircles(ax, [1, 0.5], ["reference A", "reference B"])
 
     plt.close()
+
+
+def test_plot_legend_arrows(ac_dc_network):
+    fig, ax = plt.subplots()
+    ac_dc_network.plot.map(ax=ax, geomap=False)
+
+    legend = add_legend_arrows(ax, [2, 1], ["2 GW", "1 GW"], colors="k")
+    fig.canvas.draw()
+
+    assert [t.get_text() for t in legend.get_texts()] == ["2 GW", "1 GW"]
+
+
+@pytest.mark.parametrize(
+    ("labels", "colors", "match"),
+    [
+        (["2 GW"], None, "same length"),
+        (["2 GW", "1 GW"], ["r", "g", "b"], "single value"),
+    ],
+)
+def test_plot_legend_arrows_invalid(labels, colors, match):
+    fig, ax = plt.subplots()
+    with pytest.raises(ValueError, match=match):
+        add_legend_arrows(ax, [2, 1], labels, colors=colors)
+
+
+@pytest.mark.parametrize(
+    ("value", "unit", "expected"),
+    [
+        (5e6, "MWh", "5 TWh"),
+        (0.5, "MWh", "500 kWh"),
+        (2e3, "kW", "2 MW"),
+        (-5e6, "MWh", "-5 TWh"),
+        (3e7, "t", "30 Mt"),
+    ],
+)
+def test_scaled_legend_label(value, unit, expected):
+    assert scaled_legend_label(value, unit) == expected
+
+
+def test_get_legend_representatives():
+    index = pd.MultiIndex.from_tuples([("a", "x"), ("a", "y"), ("b", "x")])
+    series = pd.Series([3e6, 3e6, 1e6], index=index)
+
+    assert get_legend_representatives(series) == [
+        (2000000, "2 TWh"),
+        (600000, "600 GWh"),
+    ]
+    assert get_legend_representatives(
+        series, group_on_first_level=True, base_unit="MW"
+    ) == [(4000000, "4 TW"), (1000000, "1 TW")]
+    assert get_legend_representatives(pd.Series(dtype=float)) == []
 
 
 def test_plot_alias_for_plot_map(ac_dc_network):

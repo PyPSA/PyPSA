@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 from numpy import ones, r_
 from numpy.linalg import norm
 from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, issparse
@@ -608,8 +609,17 @@ def apply_transformer_t_model(n: Network) -> None:
     n.c.transformers.static.loc[ts_b, "b_pu"] = imag(2 / za)
 
 
+@deprecated(
+    deprecated_in="1.5.0",
+    removed_in="2.0.0",
+    details="The function is unused and will be removed without replacement.",
+)
 def aggregate_multi_graph(sub_network: SubNetwork) -> None:
     """Aggregate branches between same buses.
+
+    !!! warning "Deprecated in <!-- md:badge-version v1.5.0 -->"
+
+        Will be removed in PyPSA 2.0 without replacement.
 
     Instead a single branch with aggregated properties (e.g. s_nom is
     summed, length is averaged) is created.

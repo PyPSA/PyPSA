@@ -31,6 +31,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
+- Deprecation: [`n.plot.iplot()`][pypsa.plot.accessor.PlotAccessor.iplot] is deprecated and will be removed in PyPSA 2.0. Use [`n.plot.explore()`][pypsa.plot.accessor.PlotAccessor.explore] instead. The interactive statistics plots `n.statistics.*.iplot()` are not affected. (<!-- md:pr 2158 -->)
+- Deprecation: `pypsa.network.power_flow.aggregate_multi_graph` is deprecated and will be removed in PyPSA 2.0 without replacement. (<!-- md:pr 2158 -->)
 - Deprecation: `c.n_save` and `c.attached` of [`Components`][pypsa.Components] are deprecated and will be removed in PyPSA 2.0. Components are attached to a network, use `c.n`. (<!-- md:pr 2106 -->)
 - Deprecation: `api.legacy_string_dtype`, `api.new_components_api` and `params.optimize.include_objective_constant` are renamed to `future.string_dtype`, `future.components_api` and `future.exclude_objective_constant` (first and last inverted), joined by the new `future.inds_order`. Unset flags emit a `PyPSA2Warning` where the 2.0 behaviour applies, except `future.components_api`, which stays silent. `PYPSA_FUTURE=true` opts in to all 2.0 behaviour at once. See <!-- md:guide options.md -->. (<!-- md:pr 2163 -->)
 
@@ -42,6 +44,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Re-exporting a network to an existing CSV folder now removes the files of components that no longer exist. Before, the stale files were kept and the removed components reappeared on import. (<!-- md:pr 2158 -->)
+- Fix importing networks from Excel files given as a URL, which raised a `FileNotFoundError`. (<!-- md:pr 2158 -->)
 - Fix ramp limits raising an error with linopy versions after 0.9.1 when optimizing only part of the snapshots of a network with investment periods, e.g. in [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon]. (<!-- md:pr 2079 -->)
 - Re-adding an existing component with piecewise data via `n.add()` without `overwrite=True` no longer appends a second curve to it. (<!-- md:pr 2153 -->)
 - Fix [`n.pf(distribute_slack=True)`][pypsa.Network.pf] on single-bus sub-networks with `slack_weights` `"p_nom"`, `"p_nom_opt"` or custom weights. (<!-- md:pr 2152 -->)
