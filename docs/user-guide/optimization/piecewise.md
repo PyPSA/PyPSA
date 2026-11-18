@@ -51,6 +51,7 @@ As of writing, this could be in the form of:
 
 Each formulation will create a piecewise auxiliary decision variable of the form `<component>-<aux_variable>` in the optimisation problem (see the table [above](#defining-piecewise-data) for all possible `component` and `aux_variable` combinations).
 For instance, a piecewise capital cost constraint applied to a generator will yield the variable `Generator-capital_cost_piecewise`, accessible at `n.model.variables["Generator-capital_cost_piecewise"]`.
+A curve marked `per_port`, as `efficiency2` of a Link, shares one variable with the other ports of its component over the dimension `port`, e.g. `n.model.variables["Link-p_piecewise"].sel(port=2)`.
 
 Depending on the formulation used, [linopy](https://linopy.readthedocs.io) will also create additional auxiliary variables and constraints.
 For instance, the incremental (delta) formulation will lead to the auxiliary variables `<component>-<aux_variable>_delta` and `<component>-<aux_variable>_binary` and the constraints:
