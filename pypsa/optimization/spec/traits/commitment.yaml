@@ -294,6 +294,15 @@ conditions:
     condition: >-
       COMPONENT_committable AND COMPONENT_NOM_extendable AND NOT (COMPONENT_NOM_mod > 0)
       AND COMPONENT_active
+  COMPONENT_com_fix:
+    description: a committed unit with a fixed build that is not modular
+    condition: COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND NOT (COMPONENT_NOM_mod > 0)
+  COMPONENT_com_mod:
+    description: a committed unit that is modular. Its status counts the modules on
+    condition: COMPONENT_committed AND COMPONENT_NOM_mod > 0
+  COMPONENT_com_ext_mod:
+    description: a committed unit that is modular and has an extendable build
+    condition: COMPONENT_committed AND COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0
   COMPONENT_ramps_from_previous:
     description: >-
       a snapshot whose ramp row has a previous power: any but the first of its
@@ -365,25 +374,25 @@ constraints:
     name: COMPONENT-com-p-lower
     description: a committed unit runs at least at its minimum while on
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND NOT (COMPONENT_NOM_mod > 0)
+    where: COMPONENT_com_fix
     expression: COMPONENT_p >= COMPONENT_p_min_pu * COMPONENT_NOM * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
   COMPONENT_com_p_upper:
     name: COMPONENT-com-p-upper
     description: a committed unit runs at most at its maximum while on, and not at all while off
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND NOT (COMPONENT_NOM_mod > 0)
+    where: COMPONENT_com_fix
     expression: COMPONENT_p <= COMPONENT_p_max_pu * COMPONENT_NOM * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
   COMPONENT_com_mod_p_lower:
     name: COMPONENT-com-mod-p-lower
     description: a committed modular unit runs at least at the minimum of its modules on
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_committed AND COMPONENT_NOM_mod > 0
+    where: COMPONENT_com_mod
     expression: COMPONENT_p >= COMPONENT_p_min_pu * COMPONENT_NOM_mod * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
   COMPONENT_com_mod_p_upper:
     name: COMPONENT-com-mod-p-upper
     description: a committed modular unit runs at most at the maximum of its modules on
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_committed AND COMPONENT_NOM_mod > 0
+    where: COMPONENT_com_mod
     expression: COMPONENT_p <= COMPONENT_p_max_pu * COMPONENT_NOM_mod * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
   COMPONENT_com_ext_p_upper_cap:
     name: COMPONENT-com-ext-p-upper-cap
@@ -417,42 +426,42 @@ constraints:
     scaling: none
     description: the status is at most the modules installed
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_committed AND NOT (COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0)
+    where: COMPONENT_committed AND NOT COMPONENT_com_ext_mod
     expression: COMPONENT_status <= COMPONENT_modules_installed
   COMPONENT_start_up_p_fixed_upper:
     name: COMPONENT-start_up-p-fixed-upper
     scaling: none
     description: the starts are at most the modules installed
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_committed AND NOT (COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0)
+    where: COMPONENT_committed AND NOT COMPONENT_com_ext_mod
     expression: COMPONENT_start_up <= COMPONENT_modules_installed
   COMPONENT_shut_down_p_fixed_upper:
     name: COMPONENT-shut_down-p-fixed-upper
     scaling: none
     description: the stops are at most the modules installed
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_committed AND NOT (COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0)
+    where: COMPONENT_committed AND NOT COMPONENT_com_ext_mod
     expression: COMPONENT_shut_down <= COMPONENT_modules_installed
   COMPONENT_status_NOM_variable_upper:
     name: COMPONENT-status-NOM-variable-upper
     scaling: none
     description: the status is at most the modules built
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_committed AND COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0
+    where: COMPONENT_com_ext_mod
     expression: COMPONENT_status <= COMPONENT_n_mod
   COMPONENT_start_up_NOM_variable_upper:
     name: COMPONENT-start_up-NOM-variable-upper
     scaling: none
     description: the starts are at most the modules built
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_committed AND COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0
+    where: COMPONENT_com_ext_mod
     expression: COMPONENT_start_up <= COMPONENT_n_mod
   COMPONENT_shut_down_NOM_variable_upper:
     name: COMPONENT-shut_down-NOM-variable-upper
     scaling: none
     description: the stops are at most the modules built
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_committed AND COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0
+    where: COMPONENT_com_ext_mod
     expression: COMPONENT_shut_down <= COMPONENT_n_mod
   COMPONENT_com_transition_start_up:
     name: COMPONENT-com-transition-start-up

@@ -16,7 +16,8 @@ given:
     COMPONENT_NOM_ext: {dims: [UNIT]}
     COMPONENT_status: {dims: [scenario, snapshot, UNIT]}
   conditions:
-    COMPONENT_committed: {dims: [snapshot, UNIT]}
+    COMPONENT_com_fix: {dims: [snapshot, UNIT]}
+    COMPONENT_com_mod: {dims: [snapshot, UNIT]}
 
 dimensions:
   scenario: {}
@@ -88,9 +89,7 @@ variables:
     name: COMPONENT-maintenance_status
     description: the status while in maintenance, zero otherwise
     dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT (COMPONENT_NOM_extendable AND
-      NOT (COMPONENT_NOM_mod > 0))
+    where: COMPONENT_maintainable AND (COMPONENT_com_fix OR COMPONENT_com_mod)
     missing: 0
     bounds:
       lower: 0
@@ -175,48 +174,42 @@ constraints:
     scaling: none
     description: the status in maintenance is at most the status
     dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND
-      NOT (COMPONENT_NOM_mod > 0)
+    where: COMPONENT_maintainable AND COMPONENT_com_fix
     expression: COMPONENT_maintenance_status <= COMPONENT_status
   COMPONENT_maint_status_le_maint:
     name: COMPONENT-maint-status-le-maint
     scaling: none
     description: out of maintenance, the status in maintenance is zero
     dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND
-      NOT (COMPONENT_NOM_mod > 0)
+    where: COMPONENT_maintainable AND COMPONENT_com_fix
     expression: COMPONENT_maintenance_status <= COMPONENT_maintenance
   COMPONENT_maint_status_lb:
     name: COMPONENT-maint-status-lb
     scaling: none
     description: on and in maintenance, the status in maintenance is one
     dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND
-      NOT (COMPONENT_NOM_mod > 0)
+    where: COMPONENT_maintainable AND COMPONENT_com_fix
     expression: COMPONENT_maintenance_status >= COMPONENT_status + COMPONENT_maintenance - 1
   COMPONENT_maint_modstatus_le_status:
     name: COMPONENT-maint-modstatus-le-status
     scaling: none
     description: the modules on in maintenance are at most the modules on
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_NOM_mod > 0
+    where: COMPONENT_maintainable AND COMPONENT_com_mod
     expression: COMPONENT_maintenance_status <= COMPONENT_status
   COMPONENT_maint_modstatus_le_maint:
     name: COMPONENT-maint-modstatus-le-maint
     scaling: none
     description: out of maintenance, no module is on in maintenance
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_NOM_mod > 0
+    where: COMPONENT_maintainable AND COMPONENT_com_mod
     expression: COMPONENT_maintenance_status <= COMPONENT_maintenance_modules * COMPONENT_maintenance
   COMPONENT_maint_modstatus_lb:
     name: COMPONENT-maint-modstatus-lb
     scaling: none
     description: in maintenance, every module on is on in maintenance
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_NOM_mod > 0
+    where: COMPONENT_maintainable AND COMPONENT_com_mod
     expression: >-
       COMPONENT_maintenance_status >= COMPONENT_status - COMPONENT_maintenance_modules * (1 -
       COMPONENT_maintenance)
