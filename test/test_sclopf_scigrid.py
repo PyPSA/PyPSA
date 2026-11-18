@@ -89,6 +89,13 @@ def test_optimize_security_constrained(scipy_network):
     ]
     assert len(security_constraints) == 4, "Should have four security constraint duals"
 
+    # Security-constrained duals must not be squeezed into a per-line
+    # attribute: their (affected, outage) columns are not line names and
+    # the upper/lower constraints would overwrite each other (see #2159).
+    assert "mu_0" not in n.c.lines.dynamic, (
+        "Security-constrained duals must not be assigned to mu_0"
+    )
+
 
 def test_optimize_security_constrained_multiindex_branch_outages():
     """See https://github.com/PyPSA/PyPSA/issues/1631."""
