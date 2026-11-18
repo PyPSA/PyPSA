@@ -43,6 +43,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix carrier growth limits (`max_growth`) being written on the wrong rows in multi-period optimisation when the limited carriers belong to different component types: the second carrier's capacity was merged into the first carrier's row and its own limit never applied, silently distorting capacity planning. The right-hand side now also keeps the `Carrier` dimension on pandas 3.1. See [#2148](https://github.com/PyPSA/PyPSA/issues/2148).
 - Re-exporting a network to an existing CSV folder now removes the files of components that no longer exist. Before, the stale files were kept and the removed components reappeared on import. (<!-- md:pr 2158 -->)
 - Fix importing networks from Excel files given as a URL, which raised a `FileNotFoundError`. (<!-- md:pr 2158 -->)
 - Fix ramp limits raising an error with linopy versions after 0.9.1 when optimizing only part of the snapshots of a network with investment periods, e.g. in [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon]. (<!-- md:pr 2079 -->)
