@@ -16,6 +16,7 @@ from pypsa.optimization.spec._render import (
     WORD,
     _load,
     _merge,
+    _snake,
     formulated,
     renamer,
     render,
@@ -196,7 +197,7 @@ def test_ports_of_links_and_processes_share_one_dim():
             f"traits/{path.name.removesuffix('.yaml')}.md"
             for path in (SPEC / "traits").iterdir()
         ),
-        *(f"components/{c._unit_dim}.md" for c in formulated(pypsa.Network())),
+        *(f"components/{_snake(c.name)}.md" for c in formulated(pypsa.Network())),
     ],
 )
 def test_every_trait_and_component_gets_a_page_without_placeholders(page):

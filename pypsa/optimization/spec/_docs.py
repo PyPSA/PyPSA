@@ -32,6 +32,7 @@ import pypsa
 from pypsa.optimization.spec._render import (
     _load,
     _renamed,
+    _snake,
     formulated,
     renamer,
     symbols,
@@ -134,7 +135,7 @@ def _entries(path: Traversable, rename: Callable[[str], str], page: str) -> list
 
 
 def _page_of(c: Components) -> str:
-    return f"components/{c._unit_dim}.md"
+    return f"components/{_snake(c.name)}.md"
 
 
 def _read(node: Any) -> Iterator[str]:
@@ -339,13 +340,13 @@ def _component(c: Components, groups: Groups, ctx: _Context) -> str:
     page = _page_of(c)
     intro = (
         f"Everything `n.optimize()` states for the `{c.name}` component: the traits "
-        f"it declares, renamed for it, and its own file `components/{c._unit_dim}.yaml`."
+        f"it declares, renamed for it, and its own file `components/{_snake(c.name)}.yaml`."
     )
     linked = [
         (f"Trait [{t}]({_link(page, f'traits/{t}.md')})", group)
         for t, group in groups[:-1]
     ]
-    own = (f"Component file `components/{c._unit_dim}.yaml`", groups[-1][1])
+    own = (f"Component file `components/{_snake(c.name)}.yaml`", groups[-1][1])
     return _render(page, c.name, intro, [*linked, own], ctx)
 
 
@@ -381,7 +382,7 @@ def _files(root: Traversable) -> tuple[list[Entry], dict[str, Groups]]:
             (
                 "",
                 _entries(
-                    root / f"components/{c._unit_dim}.yaml", renamer(c), _page_of(c)
+                    root / f"components/{_snake(c.name)}.yaml", renamer(c), _page_of(c)
                 ),
             ),
         ]
