@@ -1270,6 +1270,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 unassigned_constraints.append(constraint_name)
                 continue
 
+            # Security-constrained duals are indexed by (affected branch,
+            # outage branch) pairs, so they cannot be mapped to a per-branch
+            # attribute: the upper/lower constraints would overwrite each
+            # other in `mu_0`. They stay available in `n.model.dual`.
+            if "-security-for-" in constraint_name:
+                unassigned_constraints.append(constraint_name)
+                continue
+
             # Add placeholder for custom constraints, marked as GlobalConstraint.
             # Constraints with a `name` dim are already per row, e.g. `ram`.
             # TODO This should go to an actual custom constraint

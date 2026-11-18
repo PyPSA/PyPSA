@@ -77,6 +77,12 @@ def _drop_scenario_weight(n):
             "not a DataFrame",
         ),
         (
+            lambda n: n.c.generators.dynamic.update(
+                bogus=pd.DataFrame({"no_such_generator": [1.0]}, index=n.snapshots)
+            ),
+            "not in the static index",
+        ),
+        (
             lambda n: setattr(n, "_snapshots_data", n._snapshots_data.iloc[:0]),
             "must not be empty",
         ),
