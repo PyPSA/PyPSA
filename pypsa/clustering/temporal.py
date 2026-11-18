@@ -423,8 +423,6 @@ class TemporalClusteringMixin:
         ----------
         offset : str
             Pandas offset string (e.g., "3h", "6h", "24h").
-        drop_leap_day : bool, default False
-            Map the snapshots of Feb 29 bins to the first Mar 1 bin.
 
         Returns
         -------
