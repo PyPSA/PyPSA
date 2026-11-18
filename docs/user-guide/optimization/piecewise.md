@@ -16,6 +16,7 @@ Common non-linear relationships found in energy systems include:
 !!! info "See Also"
 
     - [:material-notebook: PyPSA piecewise example](../../examples/piecewise-constraints.ipynb)
+    - [Formulation of the marginal cost curves](formulation/traits/marginal_cost.md)
     - [Linopy piecewise documentation](https://linopy.readthedocs.io/en/latest/piecewise-linear-constraints.html)
 
 ## Defining piecewise data

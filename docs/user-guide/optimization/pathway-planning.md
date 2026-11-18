@@ -43,12 +43,12 @@ of years (e.g. `[2030, 2040, 2050]`).
 
 Investment periods weightings are stored in `n.investment_period_weightings`, a
 `pandas.DataFrame` indexed by `n.investment_periods` with two columns for
-objective ($v_a^o$, for social discounting of costs) and years ($v_a^y$, for
+objective ($W^{\mathrm{o}}_a$, for social discounting of costs) and years ($W^{\mathrm{y}}_a$, for
 emission budgets).
 
 The general approach for modelling multiple investment periods is to add
 components for each investment period $a$, in which their capacity should be
-extendable (i.e. the investment variables $G_{s,a}$ are extended by index $a$).
+extendable (i.e. each generator $i$ with its capacity $G_i$ belongs to one investment period).
 For example, optimising wind capacities from 2030 to 2050 in 10-year steps
 requires a separate generator for each investment period (e.g. `wind-2030`,
 `wind-2040`, `wind-2050`), each with the corresponding build year and lifetime.
@@ -63,22 +63,22 @@ small modular nuclear reactors (SMR) only from 2040 onwards.
 
 ## Objective
 
-!!! info
+With multiple investment periods $a$, the objective weighs the cost of each
+period with the period weighting $W^{\mathrm{o}}_a$. The investment cost of an
+asset counts in every period in which the asset is active, by its `build_year`
+and `lifetime`. Its capital weight is the sum of $W^{\mathrm{o}}_a$ over these
+periods:
 
-    For illustration purposes, the following outline of the optimisation problem with multiple investment periods
-    is reduced to the case of a single bus, only generators, and only marginal operational costs.
-    The generalisation to multiple nodes, other asset types and cost functions works analogously.
+<!-- md:spec Generator_capex -->
 
-With multiple investment periods, the objective function is expressed by
+The build cost uses the *annualised* investment costs (**Type II**).
+Operational costs weigh each snapshot with $w^{\mathrm{o}}_t$ times the
+weighting of its period:
 
-$$\underset{G_s,g_{s,a,t}}{\min} \quad \sum_{a \in A} v_a^o \left[\sum_{s | b_s \leq a<b_s+L_s} \left(c_{s,a}
-G_{s,a} + \sum_{t\in T_a} w_t^o o_{s,a,t} g_{s,a,t}\right)\right]$$
+<!-- md:spec Generator_opex -->
 
-Where $a \in A$ represents the investment periods, $T_a$ the set of snapshots in
-investment period $a$, and $v_a^o$ the objective weighting of the investment
-period, $b_s$ is the build year of component $s$ with lifetime $L_s$, $c_{s,a}$
-the *annualised* investment costs (**Type II**), $o_{s,a,t}$ the operational costs
-and $w_t^o$ the snapshot objective weightings.
+The other components follow the same pattern. See [Objective](objective.md) for
+all terms of the total cost.
 
 !!! warning
 
@@ -90,58 +90,43 @@ and $w_t^o$ the snapshot objective weightings.
 
     Extendable components with build years **before** the first investment period are considered as **non-extendable** components, i.e. taking whatever capacity is given for `{p,e,s}_nom`.
 
-??? note "Mapping of symbols to component attributes"
+??? note "Symbols"
 
-    | Symbol | Attribute | Type |
-    |--------|-----------|------|
-    | $G_{s,a}$  | `n.generators.p_nom_opt` | Decision variable |
-    | $g_{s,a,t}$ | `n.generators_t.p` | Decision variable |
-    | $a\in A$    | `n.investment_periods` | Parameter |
-    | $c_{s,a}$ | `n.generators.capital_cost` | Parameter |
-    | $o_{s,a,t}$ | `n.generators_t.marginal_cost` | Parameter |
-    | $w_t^o$ | `n.snapshot_weightings.objective` | Parameter
-    | $v_a^o$ | `n.investment_period_weightings.objective` | Parameter |
-    | $b_s$  | `n.generators.build_year` | Parameter |
-    | $L_s$  | `n.generators.lifetime` | Parameter |
+    <!-- md:spec-legend Generator_capex Generator_opex -->
+
+    The investment periods are `n.investment_periods`, and $W^{\mathrm{o}}_a$ is `n.investment_period_weightings.objective`.
 
 ## Constraints
 
 ### Dispatch of Active Components
 
-The dispatch variables for inactive components are set to zero. For instance, for a generator $g_{s,a,t}$ with build year $b_s$ and lifetime $L_s$, the dispatch variable is set to zero for all investment periods $a$ where $a < b_s$ (not yet built) or $a \geq b_s + L_s$ (retired):
+A component is active in investment period $a$ if `build_year` $\le a <$
+`build_year` + `lifetime`. Dispatch variables exist only for snapshots in which
+the component is active, so an inactive component does not dispatch:
 
-$$g_{s,a,t} = 0 \quad \forall a|a<b_s \lor a \geq b_s + L_s,\; t \in T_a$$
+<!-- md:spec Generator_p -->
 
-where $T_a$ the set of snapshots in investment period $a$. In the example above, the `wind-2030` generator build int 2030 cannot contribute to electricity generation in 2025.
+In the example above, the `wind-2030` generator built in 2030 cannot contribute to electricity generation in 2025.
 
 ### Emission Budgets
 
-Global constraints can now be defined as a budget over all investment periods, e.g. for CO~2~ emissions:
+Global constraints can be defined as a budget over all investment periods, e.g.
+for CO~2~ emissions. The energy of each snapshot counts with the snapshot
+weighting $w^{\mathrm{g}}_t$ times the years $W^{\mathrm{y}}_a$ of its period:
 
-$$\begin{gather*}\sum_a v_a^y \left[\sum_{n,s,t\in T_a}  w_t^g \cdot \eta_{n,s,a,t}^{-1} \cdot g_{n,s,a,t}\cdot \rho_s + \sum_{n,s}\left(e_{n,s,a,\textrm{initial}} - e_{n,s,a,t=|T_a|-1}\right) \cdot \rho_s\right.\\
-\left. + \sum_{n,s}\left(soc_{n,s,a,\textrm{initial}} - soc_{n,s,a,t=|T_a|-1}\right) \cdot \rho_s \right] \leq  \Gamma  \quad \leftrightarrow  \quad \mu\end{gather*}$$
+<!-- md:spec GlobalConstraint_primary_energy_ub GlobalConstraint_energy_weight -->
 
-where $v_a^y$ denotes the elapsed time in years for the investment period $a$.
+They can also be defined as a limit for each investment period, e.g. for CO~2~
+emissions. Then the global constraint names an `investment_period`, and only
+the snapshots of that period count (`GlobalConstraint_counts_snapshot`).
+See [Primary Energy](../optimization/global-constraints.md#primary-energy) for the terms of
+generators and storage.
 
-They can also be defined as a limit for each investment period, e.g. for CO~2~ emissions:
+??? note "Symbols"
 
-$$\begin{gather*}\sum_{n,s,t\in T_a}  w_t^g \cdot \eta_{n,s,a,t}^{-1} \cdot g_{n,s,a,t}\cdot \rho_s + \sum_{n,s}\left(e_{n,s,a,\textrm{initial}} - e_{n,s,a,t=|T_a|-1}\right) \cdot \rho_s\\
- + \sum_{n,s}\left(soc_{n,s,a,\textrm{initial}} - soc_{n,s,a,t=|T_a|-1}\right) \cdot \rho_s \leq  \Gamma  \quad \leftrightarrow  \quad \mu_a\end{gather*}$$
+    <!-- md:spec-legend GlobalConstraint_primary_energy_ub GlobalConstraint_energy_weight -->
 
-??? note "Mapping of symbols to component attributes"
-
-    | Symbol | Attribute | Type |
-    |--------|-----------|------|
-    | $g_{n,s,a,t}$  | `n.generators_t.p` | Decision variable |
-    | $e_{n,s,a,t}$  | `n.stores_t.e` | Decision variable |
-    | $soc_{n,s,a,t}$  | `n.storage_units_t.state_of_charge` | Decision variable |
-    | $\eta_{n,s,a,t}$  | `n.generators_t.efficiency` | Parameter |
-    | $e_{n,s,a,\textrm{initial}}$  | `n.stores.e_initial` | Parameter |
-    | $soc_{n,s,a,\textrm{initial}}$  | `n.storage_units.state_of_charge_initial` | Parameter |
-    | $\rho_s$  | `n.carriers.co2_emissions` | Parameter |
-    | $w_t^g$  | `n.snapshot_weightings.generators` | Parameter |
-    | $v_a^y$  | `n.investment_period_weightings.years` | Parameter |
-    | $\Gamma$  | `n.global_constraints.constant` | Parameter |
+    The dual variable $\mu$ of the constraint is stored in `n.global_constraints.mu`.
 
 ### Expansion Limits
 
