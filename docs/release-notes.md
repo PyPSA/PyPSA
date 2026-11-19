@@ -43,7 +43,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- Fix the line rating `s_nom` of [`n.import_from_pandapower_net()`][pypsa.Network.import_from_pandapower_net] with `extra_line_data=True`. It is now the three-phase rating `sqrt(3) * u * max_i_ka * df * parallel` that pandapower's `loading_percent` refers to. Before, the factor `sqrt(3)` was missing and `df` and `parallel` were not applied, so imported lines came in at a fraction of their rating. (<!-- md:pr 2162 -->)
+- Fix the line rating `s_nom` of [`n.import_from_pandapower_net()`][pypsa.Network.import_from_pandapower_net] with `extra_line_data=True`. It is now the three-phase rating `sqrt(3) * u * max_i_ka * df * parallel` that pandapower's `loading_percent` refers to. Before, the factor `sqrt(3)` was missing and `df` and `parallel` were not applied, so imported lines came in at a fraction of their rating. (<!-- md:pr 2179 -->)
 - Re-exporting a network to an existing CSV folder now removes the files of components that no longer exist. Before, the stale files were kept and the removed components reappeared on import. (<!-- md:pr 2158 -->)
 - Fix importing networks from Excel files given as a URL, which raised a `FileNotFoundError`. (<!-- md:pr 2158 -->)
 - Fix ramp limits raising an error with linopy versions after 0.9.1 when optimizing only part of the snapshots of a network with investment periods, e.g. in [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon]. (<!-- md:pr 2079 -->)
