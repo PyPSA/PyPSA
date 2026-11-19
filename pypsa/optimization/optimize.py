@@ -321,7 +321,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         linearized_unit_commitment : bool, default False
             Whether to optimise using the linearised unit commitment formulation or not.
         model_kwargs : dict, optional
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Keyword arguments used by `linopy.Model`, such as `solver_dir`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         extra_functionality : callable
@@ -360,8 +360,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             a scale from the network (e.g. peak load). Otherwise this numeric bound
             is used when no component-specific limit (p_nom_max) is available.
         meshed_thresholds : Sequence[int] | None, default: None
-            Thresholds for splitting buses into nodal-balance constraint groups by
-            bus connectivity count. Defaults to ``[30, 100, 400]``.
+            Deprecated and without effect. The model is built sparse, so one
+            nodal balance holds every bus without padding its rows.
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
             Each operator is interpreted as ``y operator f(x)``. One option
@@ -506,8 +506,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             a scale from the network (e.g. peak load). Otherwise this numeric bound
             is used when no component-specific limit (p_nom_max) is available.
         meshed_thresholds : Sequence[int] | None, default: None
-            Thresholds for splitting buses into nodal-balance constraint groups by
-            bus connectivity count. Defaults to ``[30, 100, 400]``.
+            Deprecated and without effect. The model is built sparse, so one
+            nodal balance holds every bus without padding its rows.
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
             Each operator is interpreted as ``y operator f(x)``. One option
@@ -526,8 +526,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Passive branches, as (component, name), whose outage the flows must
             survive. Set by `optimize_security_constrained`.
         **kwargs:
-            Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
+            Keyword arguments used by `linopy.Model()`, such as `solver_dir`.
             They extend and override `options.params.optimize.model_kwargs`.
+            The model is built sparse unless `sparse=False` is given.
 
         Returns
         -------
@@ -555,19 +556,19 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             include_objective_constant
         )
 
-        if "meshed_threshold" in kwargs:
-            meshed_threshold = kwargs.pop("meshed_threshold")
+        if meshed_thresholds is not None or "meshed_threshold" in kwargs:
+            kwargs.pop("meshed_threshold", None)
             warnings.warn(
-                "`meshed_threshold` is deprecated and will be removed in PyPSA 2.0. "
-                "Use `meshed_thresholds=[meshed_threshold]` instead.",
+                "`meshed_thresholds` and `meshed_threshold` have no effect and will "
+                "be removed in PyPSA 2.0. The model is built sparse, so the nodal "
+                "balance is no longer split by how meshed a bus is.",
                 FutureWarning,
                 stacklevel=2,
             )
-            if meshed_thresholds is None:
-                meshed_thresholds = [meshed_threshold]
 
         kwargs = {
             "force_dim_names": True,
+            "sparse": True,
             **options.params.optimize.model_kwargs,
             **kwargs,
         }
@@ -585,7 +586,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             committable_big_m=committable_big_m,
             cycle_basis_method=cycle_basis_method,
             branch_outages=branch_outages,
-            meshed_thresholds=meshed_thresholds,
             piecewise_options=piecewise_opts,
             objective_scaling=objective_scaling,
         )

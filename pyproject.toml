@@ -141,6 +141,7 @@ filterwarnings = [
     "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
     "ignore:In a future version of xarray the default value for join will change:FutureWarning",
     "ignore::linopy.constants.EvolvingAPIWarning",
+    "default::linopy.constants.PerformanceWarning",
 
     # Ignore pandas<3.0.3 usage of the deprecated `locs` attribute of matplotlib>=3.11
     "ignore:The locs attribute was deprecated:DeprecationWarning",

@@ -514,14 +514,6 @@ def test_net_position_with_internal_line():
     assert np_c["C"] == pytest.approx(n.c.buses.dynamic["p"].iloc[0]["C"] - 100)
 
 
-def test_meshed_thresholds_split():
-    n = triangle()
-    n.add("Load", "load A2", bus="A", p_set=0)
-    n.optimize(meshed_thresholds=[2])
-    assert "Bus-meshed-2-nodal_balance" in n.model.constraints
-    np.testing.assert_allclose(net_position(n).iloc[0], [2000, -1000, -1000])
-
-
 def test_no_domain_unchanged():
     # Without a domain and without lines, every zone supplies its own load.
     n = triangle(domain=False)

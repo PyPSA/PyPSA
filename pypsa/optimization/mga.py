@@ -344,7 +344,7 @@ class OptimizationAbstractMGAMixin:
         slack : float
             Cost slack for budget constraint. Defaults to 0.05.
         model_kwargs : dict, optional
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Keyword arguments used by `linopy.Model`, such as `solver_dir`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         objective_scaling : float, default 1.0
@@ -503,7 +503,7 @@ class OptimizationAbstractMGAMixin:
         slack : float
             Cost slack for budget constraint. Defaults to 0.05.
         model_kwargs : dict, optional
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Keyword arguments used by `linopy.Model`, such as `solver_dir`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         objective_scaling : float, default 1.0
@@ -676,7 +676,7 @@ class OptimizationAbstractMGAMixin:
         slack : float
             Cost slack for budget constraint. Defaults to 0.05.
         model_kwargs : dict, optional
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Keyword arguments used by `linopy.Model`, such as `solver_dir`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         max_parallel : int

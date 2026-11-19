@@ -29,7 +29,6 @@ from linopy.expressions import LinearExpression
 from linopy.variables import Variable
 
 from pypsa.components.common import invariant
-from pypsa.optimization.common import get_bus_counts
 from pypsa.optimization.scaling import (
     KVL,
     check_sub_networks,
@@ -222,9 +221,6 @@ def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
 PIECEWISE_SUFFIX = {"order": "order_binary", "cost": "output_link"}
 
 
-Part = tuple[LinearExpression, xr.Dataset]
-
-
 def _cells(con: Constraint) -> xr.Dataset:
     """Return the fields of `con` on its grid, without the terms, which `con.data` densifies."""
     fields = {"sign": con.sign, "rhs": con.rhs, "labels": con.labels}
@@ -239,64 +235,12 @@ def _constraint(
     return Constraint(lhs, model=m, name=name, attrs=cells.attrs, **fields)
 
 
-def _part(con: Constraint, indexers: dict[str, Any], drop: bool = False) -> Part:
-    """Return the lhs and the fields of `con` at the positions `indexers`."""
-    return con.lhs.isel(indexers, drop=drop), _cells(con).isel(indexers, drop=drop)
-
-
-def _fresh(m: Model, lhs: LinearExpression, cells: xr.Dataset, name: str) -> Constraint:
-    """Return the constraint of `lhs` and `cells` with a fresh label block at the end of the model's."""
-    live = cells.labels.values != -1
-    start = m._cCounter
-    size = cells.labels.size
-    fresh = start + np.arange(size).reshape(cells.labels.shape)
-    cells = cells.assign(labels=cells.labels.copy(data=np.where(live, fresh, -1)))
-    m._cCounter += size
-    return _constraint(
-        m, lhs, cells.assign_attrs(label_range=(start, start + size)), name
-    )
-
-
-def _meshed(n: Network, thresholds: Sequence[int] | None) -> dict[str, pd.Index]:
-    """PyPSA's split of the nodal balance by how many components a bus has attached."""
-    counts = get_bus_counts(n).reindex(n.c.buses.names, fill_value=0)
-    bounds: list[float] = [
-        0,
-        *sorted(set(thresholds if thresholds is not None else [30, 100, 400])),
-    ]
-    bounds.append(np.inf)
-    return {
-        f"Bus-meshed-{low}-nodal_balance" if low else "Bus-nodal_balance": counts.index[
-            (counts > low) & (counts <= high)
-        ]
-        for low, high in zip(bounds, bounds[1:], strict=False)
-    }
-
-
-def _split(
-    m: Model, constraints: dict[str, Constraint], meshed: dict[str, pd.Index]
-) -> dict[str, Constraint]:
-    """Split the nodal balance by how meshed a bus is, each part with a fresh label block."""
-    con = constraints.get("Bus-nodal_balance")
-    if con is None or con.indexes["name"].equals(meshed["Bus-nodal_balance"]):
-        return constraints
-    names = con.indexes["name"]
-    out = {k: v for k, v in constraints.items() if k != "Bus-nodal_balance"}
-    for new, buses in meshed.items():
-        kept = names.get_indexer(names.intersection(buses, sort=False))
-        lhs, cells = _part(con, {"name": kept})
-        if (cells.labels.values != -1).any():
-            out[new] = _fresh(m, lhs, cells, new)
-    return out
-
-
 def _relabel(
     m: Model,
     n: Network,
     *,
     snapshots: pd.Index,
     network_index: pd.Index,
-    meshed: dict[str, pd.Index],
 ) -> None:
     """Rename every dim of `m` as PyPSA names it, in linopy's order and with linopy's labels.
 
@@ -341,7 +285,6 @@ def _relabel(
         renamed = _pypsa_dims(dims, True) | DIMS.get(name, {})
         lhs = frame(con.lhs, dims, renamed)
         constraints[name] = _constraint(m, lhs, frame(_cells(con), dims, renamed), name)
-    constraints = _split(m, constraints, meshed)
     for name in list(m.constraints):
         m.constraints.remove(name)
     for con in constraints.values():
@@ -520,7 +463,6 @@ def build_model(
     *,
     linearized_unit_commitment: bool = False,
     model_kwargs: dict | None = None,
-    meshed_thresholds: Sequence[int] | None = None,
     piecewise_options: Sequence[Any] = (),
     objective_scaling: float = 1.0,
     **options: Any,
@@ -547,13 +489,7 @@ def build_model(
         dim_order=_unit_dims(),
         **model_kwargs,
     )
-    _relabel(
-        m,
-        n,
-        snapshots=model_index,
-        network_index=network_index,
-        meshed=_meshed(n, meshed_thresholds),
-    )
+    _relabel(m, n, snapshots=model_index, network_index=network_index)
     m.constraints.sanitize_zeros()
     rules = _rules(spec_scalings(linearized_unit_commitment), rename)
     _scale(m, n, sources, rules, objective_scaling)

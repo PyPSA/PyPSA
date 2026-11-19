@@ -7,7 +7,6 @@ import warnings
 from pathlib import Path
 
 import geopandas as gpd
-import linopy
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,7 +14,6 @@ import pytest
 from shapely.geometry import Polygon
 
 import pypsa
-from pypsa._linopy_compat import V1_ONLY
 from pypsa.constants import DEFAULT_EPSG
 
 
@@ -76,10 +74,10 @@ def pytest_addoption(parser):
         help="Activate the new components API (options.api.new_components_api)",
     )
     parser.addoption(
-        "--linopy-sparse",
+        "--linopy-dense",
         action="store_true",
         default=False,
-        help="Build optimization models on linopy's sparse backend",
+        help="Build optimization models on linopy's dense backend",
     )
     parser.addoption(
         "--test-docs",
@@ -105,13 +103,8 @@ def pytest_configure(config):
     """Configure pytest session with custom options."""
     if config.getoption("--new-components-api"):
         pypsa.options.api.new_components_api = True
-    if config.getoption("--linopy-sparse"):
-        if not V1_ONLY:
-            linopy.options.set_value(semantics="v1")
-        pypsa.options.params.optimize.model_kwargs = {"sparse": True}
-        config.addinivalue_line(
-            "filterwarnings", "default::linopy.constants.PerformanceWarning"
-        )
+    if config.getoption("--linopy-dense"):
+        pypsa.options.params.optimize.model_kwargs = {"sparse": False}
 
 
 def pytest_collection_modifyitems(config, items):

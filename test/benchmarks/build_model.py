@@ -30,12 +30,6 @@ from typing import Any
 import pypsa
 
 REPEATS = 5
-SPARSE = {
-    "ac_dc_meshed": False,
-    "scigrid_de": False,
-    "model_energy": False,
-    "carbon_management": True,
-}
 BUDGET = {
     "ac_dc_meshed": 3.7,
     "scigrid_de": 2.45,
@@ -45,13 +39,12 @@ BUDGET = {
 
 
 def build_times(network: str) -> dict[str, float]:
-    """Return the cold and the warm build time of an example network."""
-    model_kwargs = {"sparse": True} if SPARSE[network] else {}
+    """Return the cold and the warm build time of an example network on its default backend."""
     n = getattr(pypsa.examples, network)()
     times = []
     for _ in range(REPEATS + 1):
         start = perf_counter()
-        n.optimize.create_model(**model_kwargs)
+        n.optimize.create_model()
         times.append(perf_counter() - start)
     return {"cold": times[0], "warm": min(times[1:])}
 
@@ -59,7 +52,7 @@ def build_times(network: str) -> dict[str, float]:
 def measure(path: str) -> None:
     """Time every network in a process of its own and store the result."""
     results: dict[str, Any] = {"source": str(Path(pypsa.__file__).parent)}
-    for network in SPARSE:
+    for network in BUDGET:
         command = [sys.executable, __file__, "build_times", network]
         run = subprocess.run(command, check=True, capture_output=True, text=True)
         results[network] = json.loads(run.stdout.splitlines()[-1])
@@ -72,11 +65,10 @@ def compare(reference_path: str, result_path: str) -> None:
     result = json.loads(Path(result_path).read_text())
     if reference["source"] == result["source"]:
         sys.exit(f"Reference and result both measure {result['source']}")
-    print("| network | backend | build | reference [s] | result [s] | ratio | budget |")
-    print("|---|---|---|---:|---:|---:|---:|")
+    print("| network | build | reference [s] | result [s] | ratio | budget |")
+    print("|---|---|---:|---:|---:|---:|")
     exceeded = []
-    for network, sparse in SPARSE.items():
-        backend = "sparse" if sparse else "dense"
+    for network in BUDGET:
         for build in ("cold", "warm"):
             before, after = reference[network][build], result[network][build]
             ratio = after / before
@@ -84,7 +76,7 @@ def compare(reference_path: str, result_path: str) -> None:
             if build == "warm" and ratio > BUDGET[network]:
                 exceeded.append(network)
             print(
-                f"| `{network}` | {backend} | {build} | {before:.2f} | {after:.2f} "
+                f"| `{network}` | {build} | {before:.2f} | {after:.2f} "
                 f"| {ratio:.2f} | {budget} |"
             )
     if exceeded:

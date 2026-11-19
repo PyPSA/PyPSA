@@ -514,7 +514,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             security constraints are added per investment period and sub-network,
             using the topology and active branches of that period.
         model_kwargs : dict, optional
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Keyword arguments used by `linopy.Model`, such as `solver_dir`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         objective_scaling : float, default 1.0
