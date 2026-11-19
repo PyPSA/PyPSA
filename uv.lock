@@ -2109,8 +2109,8 @@ wheels = [
 
 [[package]]
 name = "linopy"
-version = "0.10.0.post1.dev99+gac3eaf7a8"
-source = { git = "https://github.com/PyPSA/linopy.git?rev=ac3eaf7a84a2d5f6d4bf9fa08a475c81a2bf15ff#ac3eaf7a84a2d5f6d4bf9fa08a475c81a2bf15ff" }
+version = "0.10.0.post1.dev102+ga85e7b111"
+source = { git = "https://github.com/PyPSA/linopy.git?rev=a85e7b111bbf2b4336759d6caea769b25b9d04bc#a85e7b111bbf2b4336759d6caea769b25b9d04bc" }
 dependencies = [
     { name = "bottleneck" },
     { name = "numpy" },
@@ -3336,7 +3336,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -4061,7 +4061,7 @@ requires-dist = [
     { name = "gurobipy", marker = "extra == 'gurobipy'" },
     { name = "highspy" },
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.1.1" },
-    { name = "linopy", git = "https://github.com/PyPSA/linopy.git?rev=ac3eaf7a84a2d5f6d4bf9fa08a475c81a2bf15ff" },
+    { name = "linopy", git = "https://github.com/PyPSA/linopy.git?rev=a85e7b111bbf2b4336759d6caea769b25b9d04bc" },
     { name = "mathspec", git = "https://github.com/energy-models/mathspec.git?rev=cc531151128e63af592628b697dd44ab93a1795a" },
     { name = "matplotlib" },
     { name = "mkdocs-autolinks-plugin", marker = "extra == 'docs'" },
