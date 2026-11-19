@@ -744,11 +744,11 @@ def test_max_growth_constraint_per_carrier_rows():
         assert con.rhs.sel(Carrier="solar", periods=2030).item() == 100.0
 
         n.optimize(**kwargs)
-        assert n.generators.p_nom_opt["pv"] == pytest.approx(43)
+        assert n.c.generators.static.p_nom_opt["pv"] == pytest.approx(43)
         cheap_opt = (
-            n.generators.p_nom_opt["cheap"]
+            n.c.generators.static.p_nom_opt["cheap"]
             if second == "generator"
-            else n.links.p_nom_opt["cheap"]
+            else n.c.links.static.p_nom_opt["cheap"]
         )
         assert cheap_opt == pytest.approx(7)
 
