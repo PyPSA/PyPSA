@@ -98,7 +98,7 @@ def test_optimize_link_only_network_skips_topology():
         ),
         pytest.param(
             "ac_dc_stochastic",
-            "Generator-ext-p_nom-lower",
+            "GlobalConstraint-primary_energy-upper",
             ("name", "scenario"),
             id="stochastic-static",
         ),

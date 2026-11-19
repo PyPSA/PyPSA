@@ -5,8 +5,8 @@
 given:
   parameters:
     COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
-    COMPONENT_NOM_max: {dims: [scenario, UNIT]}
-    COMPONENT_NOM_min: {dims: [scenario, UNIT]}
+    COMPONENT_NOM_max: {dims: [UNIT]}
+    COMPONENT_NOM_min: {dims: [UNIT]}
     COMPONENT_NOM_mod: {dims: [UNIT]}
     COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
     COMPONENT_committable: {dims: [UNIT], dtype: bool}

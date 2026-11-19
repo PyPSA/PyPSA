@@ -70,6 +70,10 @@ def _any_nonzero(da: xr.DataArray, names: pd.Index, sns: pd.Index) -> bool:
 def _check_invariants(n: Network) -> None:
     """Raise if data PyPSA reads as one value per asset differs across scenarios."""
     invariant(n.components.lines.static.carrier)
+    for c in n.components:
+        for col in ("p_nom_set", "s_nom_set", "e_nom_set"):
+            if col in c.static:
+                invariant(c.static[col])
     for c in n.components[["Link", "Process"]]:
         for port in c._output_ports:
             suffix = c._port_suffix(port)

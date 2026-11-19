@@ -12,11 +12,13 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ## Upper and Lower Bounds
 
-If the nominal capacity of a component is also the subject of optimisation (e.g. with decision variable $G_{i}$ for generators), limits on the installable capacity may also be introduced (e.g. $\underline{G}_{i,s}$ and $\bar{G}_{i,s}$). The [trait `extendable`](formulation/traits/extendable.md) states them:
+If the nominal capacity of a component is also the subject of optimisation (e.g. with decision variable $G_{i}$ for generators), limits on the installable capacity may also be introduced (e.g. $\underline{G}_{i}$ and $\bar{G}_{i}$). The [trait `extendable`](formulation/traits/extendable.md) states them:
 
 <!-- md:spec-table Generator_ext_p_nom_lower Generator_ext_p_nom_upper Link_ext_p_nom_lower Link_ext_p_nom_upper Process_ext_p_nom_lower Process_ext_p_nom_upper Line_ext_s_nom_lower Line_ext_s_nom_upper Transformer_ext_s_nom_lower Transformer_ext_s_nom_upper Store_ext_e_nom_lower Store_ext_e_nom_upper StorageUnit_ext_p_nom_lower StorageUnit_ext_p_nom_upper -->
 
-The dual variables of the lower and upper bounds are stored in `mu_lower` and `mu_upper` of the component (e.g. `n.generators.mu_upper`).
+The dual variables of the lower and upper bounds are only stored in `n.model`, e.g. `n.model.constraints["Generator-ext-p_nom-upper"].dual`.
+
+In a [stochastic network](stochastic.md), all scenarios share the built capacity. The bounds may differ by scenario, but only the tightest applies: the largest `p_nom_min` and the smallest `p_nom_max` over the scenarios. A fixed capacity `p_nom_set` must be the same in all scenarios.
 
 ## Committable and Extendable Components
 
@@ -180,7 +182,7 @@ The following table summarizes which unit commitment features are compatible wit
 
 ## Fixed Capacity
 
-Additionally, the nominal capacity can be fixed to a certain value $\tilde{G}_{i,s}$ for generators, $\tilde{F}_{k,s}$ for links, $\tilde{R}_{m,s}$ for processes, $\tilde{P}_{l,s}$ for lines and transformers, $\tilde{E}_{s,y}$ for stores, and $\tilde{H}_{s,v}$ for storage units. In this case, the nominal capacity is given by:
+Additionally, the nominal capacity can be fixed to a certain value $\tilde{G}_{i}$ for generators, $\tilde{F}_{k}$ for links, $\tilde{R}_{m}$ for processes, $\tilde{P}_{l}$ for lines and transformers, $\tilde{E}_{y}$ for stores, and $\tilde{H}_{v}$ for storage units. In this case, the nominal capacity is given by:
 
 <!-- md:spec-table Generator_p_nom_set Link_p_nom_set Process_p_nom_set Line_s_nom_set Transformer_s_nom_set Store_e_nom_set StorageUnit_p_nom_set -->
 

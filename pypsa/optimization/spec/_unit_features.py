@@ -84,10 +84,3 @@ def _maintenance_start_blocked(
 def _maintenance_duration(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     duration = s.da(c, "maintenance_duration").astype(float)
     return duration.where(s[f"{c.name}_maintainable"])
-
-
-@source("COMPONENT_NOM_max")
-def _nom_max(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    """Return the build cap, absent where no scenario extends the unit."""
-    extendable = s.da(c, c._operational_attrs["nom_extendable"]).astype(bool)
-    return s.attribute(c, name).where(extendable.any("scenario"))

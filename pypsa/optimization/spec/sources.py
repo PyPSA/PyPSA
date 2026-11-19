@@ -674,6 +674,19 @@ def _nom_mod(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return da.where(da > 0)
 
 
+@source("COMPONENT_NOM_min", "COMPONENT_NOM_max")
+def _nom_bound(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
+    """Return the tightest bound of the scenarios on the build they share.
+
+    The cap is absent where no scenario extends the unit.
+    """
+    bound = s.da(c, s.attr(c, name))
+    if name.endswith("_min"):
+        return bound.max("scenario")
+    extendable = s.da(c, c._operational_attrs["nom_extendable"]).astype(bool)
+    return bound.min("scenario").where(extendable.any("scenario"))
+
+
 @source("COMPONENT_NOM_set", "COMPONENT_s_set")
 def _optional(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the attribute, NaN where the component has none."""

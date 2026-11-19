@@ -163,7 +163,7 @@ def test_model_creation(stochastic_benchmark_network):
 
     Constraints:
     - Operational constraints include (scenario, component, snapshot) dimensions
-    - Investment constraints include (component, scenario) dimensions
+    - Investment constraints include the component dimension only
     """
     n = stochastic_benchmark_network
     n.optimize.create_model()
@@ -183,12 +183,10 @@ def test_model_creation(stochastic_benchmark_network):
 
     # Test operational constraints have scenario dimension
 
-    # Generator-ext-p_nom-lower constraint should have (name, scenario) dimensions
-    assert {
-        d
-        for d in n.model.constraints["Generator-ext-p_nom-lower"].sizes.keys()
-        if d != "_term"
-    } == {"name", "scenario"}
+    assert set(n.model.constraints["Generator-ext-p_nom-lower"].sizes) == {
+        "name",
+        "_term",
+    }
 
     # Generator-ext-p-lower constraint should have (scenario, name, snapshot) dimensions
     assert {
@@ -1912,7 +1910,8 @@ def test_scenario_indexed_model_matches_deterministic(add, kwargs, method):
 
     assert n_stoch.objective == pytest.approx(n.objective)
     for name, con in n.model.constraints.items():
-        assert n_stoch.model.constraints[name].ncons == 2 * con.ncons
+        stoch = n_stoch.model.constraints[name]
+        assert stoch.ncons == (2 if "scenario" in stoch.dims else 1) * con.ncons
 
     for name in ["capex", "opex", "optimal_capacity", "supply"]:
         stat = methodcaller(name, drop_zero=False)
@@ -1922,6 +1921,34 @@ def test_scenario_indexed_model_matches_deterministic(add, kwargs, method):
             pd.testing.assert_series_equal(
                 result.xs(scenario, level="scenario"), expected, atol=1e-6
             )
+
+
+@pytest.mark.parametrize("scenarios", [True, False])
+@pytest.mark.parametrize(
+    ("attr", "values", "capital_cost", "constraint"),
+    [
+        ("p_nom_min", {"s1": 2, "s2": 4}, 1000, "Generator-ext-p_nom-lower"),
+        ("p_nom_max", {"s1": 9, "s2": 6}, 1, "Generator-ext-p_nom-upper"),
+    ],
+)
+def test_capacity_bound_binds_shared_build(
+    scenarios, attr, values, capital_cost, constraint, caplog
+):
+    n = _two_bus_network()
+    n.add("Generator", "ext", bus="b", p_nom_extendable=True, capital_cost=capital_cost)
+    if scenarios:
+        n.set_scenarios(dict.fromkeys(values, 0.5))
+        for scenario, value in values.items():
+            n.c.generators.static.loc[(scenario, "ext"), attr] = value
+    else:
+        n.c.generators.static.loc["ext", attr] = values["s2"]
+
+    n.optimize()
+
+    p_nom_opt = n.c.generators.static.p_nom_opt.filter(like="ext")
+    assert p_nom_opt.to_numpy() == pytest.approx(values["s2"])
+    assert set(n.model.constraints[constraint].sizes) == {"name", "_term"}
+    assert "Constant RHS" not in caplog.text
 
 
 @pytest.mark.parametrize("scenarios", [True, False])
@@ -2051,6 +2078,7 @@ def test_get_switchable_inds_selects_names_in_all_scenarios():
             "delay",
             1,
         ),
+        (_add_nom_set, "Generator", "ext", "p_nom_set", 5),
     ],
 )
 def test_varying_invariant_attribute_fails_model_build(
