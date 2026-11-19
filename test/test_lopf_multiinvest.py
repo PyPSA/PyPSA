@@ -674,6 +674,85 @@ def test_max_growth_constraint_excludes_retired_asset():
     assert int(labels["new"]) in vars_in(2030)
 
 
+def test_max_growth_constraint_per_carrier_rows():
+    """Regression test for #2148: growth limits must be written on the
+    limited carrier's own rows, also when limited carriers sit on different
+    component types (e.g. Generator vs Link)."""
+    for second in ["generator", "link"]:
+        n = pypsa.Network()
+        n.set_snapshots(pd.MultiIndex.from_product([[2030, 2040], [0]]))
+        n.investment_periods = [2030, 2040]
+
+        n.add("Carrier", "gas")
+        n.add("Carrier", "solar", max_growth=100.0)
+        n.add("Carrier", "cheap", max_growth=7.0)
+
+        n.add("Bus", "home")
+        n.add("Load", "demand", bus="home", p_set=50.0)
+        n.add(
+            "Generator",
+            "gas",
+            bus="home",
+            carrier="gas",
+            p_nom=50.0,
+            marginal_cost=100.0,
+        )
+        n.add(
+            "Generator",
+            "pv",
+            bus="home",
+            carrier="solar",
+            p_nom_extendable=True,
+            capital_cost=10.0,
+            build_year=2030,
+            lifetime=50,
+        )
+        if second == "generator":
+            n.add(
+                "Generator",
+                "cheap",
+                bus="home",
+                carrier="cheap",
+                p_nom_extendable=True,
+                capital_cost=1.0,
+                build_year=2030,
+                lifetime=50,
+            )
+        else:
+            n.add("Bus", "abroad")
+            n.add("Generator", "supply", bus="abroad", carrier="gas", p_nom=50.0)
+            n.add(
+                "Link",
+                "cheap",
+                bus0="abroad",
+                bus1="home",
+                carrier="cheap",
+                p_nom_extendable=True,
+                capital_cost=1.0,
+                build_year=2030,
+                lifetime=50,
+            )
+
+        n.optimize.create_model(multi_investment_periods=True)
+        con = n.model.constraints["Carrier-growth_limit"]
+        # one row per limited carrier, right-hand side on the right row
+        assert set(con.coords["Carrier"].values) == {"solar", "cheap"}
+        # no stray dimension (pandas 3.1 used to broadcast the rhs into a
+        # third "name" dimension)
+        assert set(con.dims) == {"Carrier", "periods", "_term"}
+        assert con.rhs.sel(Carrier="cheap", periods=2030).item() == 7.0
+        assert con.rhs.sel(Carrier="solar", periods=2030).item() == 100.0
+
+        n.optimize(**kwargs)
+        assert n.c.generators.static.p_nom_opt["pv"] == pytest.approx(43)
+        cheap_opt = (
+            n.c.generators.static.p_nom_opt["cheap"]
+            if second == "generator"
+            else n.c.links.static.p_nom_opt["cheap"]
+        )
+        assert cheap_opt == pytest.approx(7)
+
+
 def test_store_primary_energy_and_operational_limit_constraint_without_per_period():
     """Test that Store with primary energy constraint raises NotImplementedError without e_initial_per_period."""
 

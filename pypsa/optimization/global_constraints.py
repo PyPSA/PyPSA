@@ -379,8 +379,10 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         max_relative_growth = n.c.carriers.static["max_relative_growth"]
 
     carrier_i = max_growth[max_growth != float("inf")].index.rename("Carrier")
-    max_absolute_growth = DataArray(max_growth.loc[carrier_i])
-    max_relative_growth = DataArray(max_relative_growth.loc[carrier_i]).clip(min=0)
+    max_absolute_growth = DataArray(max_growth.loc[carrier_i].rename_axis("Carrier"))
+    max_relative_growth = DataArray(
+        max_relative_growth.loc[carrier_i].rename_axis("Carrier")
+    ).clip(min=0)
 
     if carrier_i.empty:
         return
@@ -424,7 +426,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
     if not lhs_list:
         return
 
-    lhs = merge(lhs_list)
+    lhs = merge(lhs_list, join="outer")
     rhs = max_absolute_growth.reindex(lhs.indexes)
     grouped = pd.concat(factors).groupby(level=0)
     row_factor = np.sqrt(grouped.min() * grouped.max()).rename_axis("Carrier")
