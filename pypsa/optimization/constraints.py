@@ -1290,7 +1290,7 @@ def _iter_balance_coeffs(
     for port in c._output_ports:
         suffix = c._port_suffix(port)
         coeff = (
-            c.da[c._port_coefficient_attr(port)].where(c.da.active).sel(snapshot=sns)
+            c.da[c._port_coefficient_attr(port)].where(c.da.active, 0).sel(snapshot=sns)
         )
         if not active.empty:
             yield (f"bus{port}", coeff.sel(name=active), active, suffix)

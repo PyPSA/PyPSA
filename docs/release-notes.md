@@ -43,6 +43,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix building multi-period models with [`n.optimize(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.__call__] when a link is inactive in some investment periods, which raised a `ValueError` about NaN constants with the stricter arithmetic of upcoming linopy releases. (<!-- md:pr XXXX -->)
 - Re-exporting a network to an existing CSV folder now removes the files of components that no longer exist. Before, the stale files were kept and the removed components reappeared on import. (<!-- md:pr 2158 -->)
 - Fix importing networks from Excel files given as a URL, which raised a `FileNotFoundError`. (<!-- md:pr 2158 -->)
 - Fix ramp limits raising an error with linopy versions after 0.9.1 when optimizing only part of the snapshots of a network with investment periods, e.g. in [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon]. (<!-- md:pr 2079 -->)

@@ -10,7 +10,7 @@ from pandas import IndexSlice as idx
 
 import pypsa
 from pypsa import option_context
-from pypsa._linopy_compat import linopy_uses_v1
+from pypsa._linopy_compat import linopy_uses_v1, v1_semantics
 from pypsa.optimization.window import tuple_snapshot_index
 
 kwargs = {"multi_investment_periods": True}
@@ -186,6 +186,35 @@ def test_tiny_with_build_year():
     status, _ = n.optimize(**kwargs)
     assert status == "ok"
     assert n.c.generators.static.p_nom_opt.item() == 100
+
+
+def test_link_inactive_in_some_periods_v1():
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([[2030, 2040], [0, 1]])
+    n.investment_periods = [2030, 2040]
+    n.add("Bus", ["gas", "elec"])
+    n.add("Generator", "gas supply", bus="gas", p_nom=100, marginal_cost=10)
+    n.add("Load", "demand", bus="elec", p_set=10)
+    for name, build_year in [("plant", 2030), ("plant new", 2040)]:
+        n.add(
+            "Link",
+            name,
+            bus0="gas",
+            bus1="elec",
+            efficiency=0.5,
+            p_nom=50,
+            build_year=build_year,
+            lifetime=10,
+        )
+    with v1_semantics():
+        status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+    almost_equal(n.objective, 800)
+    p0 = n.c.links.dynamic.p0
+    equal(p0.loc[2030, "plant"], [20, 20])
+    equal(p0.loc[2030, "plant new"], [0, 0])
+    equal(p0.loc[2040, "plant"], [0, 0])
+    equal(p0.loc[2040, "plant new"], [20, 20])
 
 
 def test_tiny_infeasible():
