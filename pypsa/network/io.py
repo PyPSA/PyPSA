@@ -2775,7 +2775,14 @@ class NetworkIOMixin(_NetworkABC):
             b = b * 2 * math.pi * f
 
             u = net.bus.vn_kv.loc[net.line.from_bus].values
-            s_nom = u * net.line.max_i_ka.values
+            # three-phase thermal rating in MVA, as pandapower's loading_percent uses it
+            s_nom = (
+                np.sqrt(3)
+                * u
+                * net.line.max_i_ka.values
+                * net.line.df.values
+                * net.line.parallel.values
+            )
 
             d["Line"] = pd.DataFrame(
                 {
