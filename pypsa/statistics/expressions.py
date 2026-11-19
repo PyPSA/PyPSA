@@ -384,6 +384,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         "capacity_factor",
         "revenue",
         "market_value",
+        "lcoe",
         "prices",
     ]
 
@@ -2858,6 +2859,134 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / operational unit"
+        return df
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    def lcoe(  # noqa: D417
+        self,
+        components: str | Sequence[str] | None = None,
+        groupby_method: Callable | str = "sum",
+        aggregate_across_components: bool = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+    ) -> pd.DataFrame:
+        r"""Calculate the **levelised cost of energy (LCOE)** of components.
+
+        $$
+        \text{LCOE} = \frac{\text{capex} + \text{fom} + \text{opex}
+        + \text{inputs bought} - \text{by-products sold}}{\text{energy supplied}}
+        $$
+
+        The denominator is the energy the component supplies to buses of
+        `bus_carrier` (all buses if None). Energy bought or sold at its other ports
+        is valued at the marginal prices of the connected buses. This gives, for
+        instance, the levelised cost of hydrogen of an electrolyser with
+        `bus_carrier="hydrogen"`, or of heat from a CHP crediting its electricity
+        sales with `bus_carrier="heat"`.
+
+        The gap to the price the component captures at the same ports is its profit
+        per unit supplied. In equilibrium, an extendable component at an interior
+        optimum makes no profit, so its LCOE equals the price it captures, i.e. the
+        market value of a generator
+        ([Brown and Reichenberg, 2021](https://doi.org/10.1016/j.eneco.2021.105354)).
+
+        !!! note
+
+            - `capital_cost` is annualised, so the result is a levelised cost only
+              if the snapshot weightings add up to one year.
+            - With investment periods, the result is the levelised cost in each
+              period, without the discounting of
+              `n.investment_period_weightings.objective`.
+            - Where one component sets the prices of two of its outputs, these prices
+              are not unique and neither is the split of its cost between them.
+
+        Parameters
+        ----------
+        components : str | Sequence[str] | None, default=None
+            Components to include in the calculation. If None, includes all one-port
+            and branch components. Available components are 'Generator', 'StorageUnit',
+            'Store', 'Load', 'Line', 'Transformer' and'Link'.
+        groupby_method : Callable | str, default="sum"
+            Function to aggregate groups when using the groupby parameter.
+            Any pandas aggregation function can be used.
+        aggregate_across_components : bool, default=False
+            Whether to aggregate across components. If there are different components
+            which would be grouped together due to the same index, this is avoided.
+        groupby : str | Sequence[str] | Callable, default="carrier"
+            How to group components:
+            - `False`: No grouping, return all components individually
+            - string or list of strings: Group by column names from [c.static][pypsa.Components]
+            - callable: Function that takes network and component name as arguments
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
+        bus_carrier : str | Sequence[str] | None, default=None
+            Carrier of the buses over which the cost is levelised. Components which
+            supply no energy to those buses are returned as NaN.
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `https://go.pypsa.org/options-params` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `https://go.pypsa.org/options-params` for more information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `https://go.pypsa.org/options-params` for more information.
+
+        Returns
+        -------
+        pd.DataFrame
+            Levelised cost of energy of the components in the network.
+
+        See Also
+        --------
+        [pypsa.statistics.StatisticsAccessor.revenue][] :
+            The revenue at all ports, which net of the system cost is the profit.
+        [pypsa.statistics.StatisticsAccessor.system_cost][] :
+            The asset costs entering the numerator.
+
+        Examples
+        --------
+        >>> n.statistics.lcoe()
+        component  carrier
+        Generator  gas         72.90095
+                   wind       589.81355
+        Line       AC         630.99134
+        Link       DC         454.34852
+        Load       load             NaN
+        dtype: float64
+
+        """
+        shared = {
+            "components": components,
+            "groupby_method": groupby_method,
+            "aggregate_across_components": aggregate_across_components,
+            "groupby": groupby,
+            "carrier": carrier,
+            "nice_names": nice_names,
+            "drop_zero": False,
+            "round": None,
+        }
+        supplied = self.supply(bus_carrier=bus_carrier, **shared)
+        captured = self.revenue(direction="output", bus_carrier=bus_carrier, **shared)
+        other_revenue = self.revenue(**shared).sub(captured, fill_value=0)
+        cost = self.system_cost(**shared)
+        if self._n.has_investment_periods:
+            weights = self._n.investment_period_weightings.objective
+            cost = cost.div(weights, level="period")
+        cost = cost.sub(other_revenue, fill_value=0)
+        df = cost.reindex(supplied.index, fill_value=0) / supplied.where(supplied != 0)
+
+        df = self._apply_option_kwargs(
+            df, drop_zero=drop_zero, round=round, nice_names=nice_names
+        )
+        df.attrs["name"] = "LCOE"
+        df.attrs["unit"] = "currency / MWh"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
