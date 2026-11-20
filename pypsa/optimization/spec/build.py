@@ -221,18 +221,20 @@ def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
 PIECEWISE_SUFFIX = {"order": "order_binary", "cost": "output_link"}
 
 
-def _cells(con: Constraint) -> xr.Dataset:
-    """Return the fields of `con` on its grid, without the terms, which `con.data` densifies."""
-    fields = {"sign": con.sign, "rhs": con.rhs, "labels": con.labels}
-    return xr.Dataset(fields | {"scaling": con.scaling}, attrs=dict(con.attrs))
+#: The fields of a constraint besides its terms, as the build sets them.
+FIELDS = ("sign", "rhs", "labels", "scaling")
 
 
 def _constraint(
-    m: Model, lhs: LinearExpression, cells: xr.Dataset, name: str
+    m: Model, lhs: LinearExpression, con: Constraint, at: tuple[int | slice, ...]
 ) -> Constraint:
-    """Return the constraint of `lhs` and the fields in `cells`, on the store of `lhs`."""
-    fields = {str(k): v for k, v in cells.data_vars.items()}
-    return Constraint(lhs, model=m, name=name, attrs=cells.attrs, **fields)
+    """Return `con` on `lhs`, a relabelling of its lhs, each field cut at `at` and laid on the grid of `lhs`."""
+    like = lhs.const
+    fields = {
+        k: like.copy(deep=False, data=getattr(con, k).values[at]).rename(k)
+        for k in FIELDS
+    }
+    return Constraint(lhs, model=m, name=con.name, attrs=dict(con.attrs), **fields)
 
 
 def _relabel(
@@ -259,7 +261,7 @@ def _relabel(
         else {}
     )
 
-    def frame[T: (Variable, LinearExpression, xr.Dataset)](
+    def frame[T: (LinearExpression, xr.Dataset)](
         obj: T, dims: tuple[str, ...], renamed: dict[str, str]
     ) -> T:
         if renamed:
@@ -271,20 +273,22 @@ def _relabel(
         return obj
 
     for name, var in list(m.variables.items()):
-        if not (var.labels != -1).any():
+        if not (var.labels.values != -1).any():
             m.variables.remove(name)
             continue
         dims = tuple(var.labels.dims)
-        m.variables.add(frame(var, dims, _pypsa_dims(dims, False)))
+        data = frame(var.data, dims, _pypsa_dims(dims, False))
+        m.variables.add(Variable(data, m, name, skip_broadcast=True))
 
     constraints = {}
     for name, con in m.constraints.items():
-        if not (con.labels != -1).any():
+        if not (con.labels.values != -1).any():
             continue
         dims = tuple(con.labels.dims)
         renamed = _pypsa_dims(dims, True) | DIMS.get(name, {})
         lhs = frame(con.lhs, dims, renamed)
-        constraints[name] = _constraint(m, lhs, frame(_cells(con), dims, renamed), name)
+        at = tuple(0 if squeeze and d == "scenario" else slice(None) for d in dims)
+        constraints[name] = _constraint(m, lhs, con, at)
     for name in list(m.constraints):
         m.constraints.remove(name)
     for con in constraints.values():
