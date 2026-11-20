@@ -225,14 +225,11 @@ PIECEWISE_SUFFIX = {"order": "order_binary", "cost": "output_link"}
 FIELDS = ("sign", "rhs", "labels", "scaling")
 
 
-def _constraint(
-    m: Model, lhs: LinearExpression, con: Constraint, at: tuple[int | slice, ...]
-) -> Constraint:
-    """Return `con` on `lhs`, a relabelling of its lhs, each field cut at `at` and laid on the grid of `lhs`."""
+def _constraint(m: Model, lhs: LinearExpression, con: Constraint) -> Constraint:
+    """Return `con` on `lhs`, a relabelling of its lhs, each field laid on the grid of `lhs`."""
     like = lhs.const
     fields = {
-        k: like.copy(deep=False, data=getattr(con, k).values[at]).rename(k)
-        for k in FIELDS
+        k: like.copy(deep=False, data=getattr(con, k).values).rename(k) for k in FIELDS
     }
     return Constraint(lhs, model=m, name=con.name, attrs=dict(con.attrs), **fields)
 
@@ -283,8 +280,7 @@ def _relabel(
         dims = tuple(con.labels.dims)
         renamed = _pypsa_dims(dims, True) | DIMS.get(name, {})
         lhs = frame(con.lhs, dims, renamed)
-        at = tuple(0 if squeeze and d == "scenario" else slice(None) for d in dims)
-        constraints[name] = _constraint(m, lhs, con, at)
+        constraints[name] = _constraint(m, lhs, con)
     for name in list(m.constraints):
         m.constraints.remove(name)
     for con in constraints.values():
