@@ -207,6 +207,14 @@ class NetworkSources(Mapping[str, Any]):
         return self.n.snapshots.get_indexer(self.network_index)
 
     @functools.cached_property
+    def every_snapshot(self) -> bool:
+        """Whether the build spans every snapshot of `n`, in its order."""
+        positions = self.positions
+        return len(positions) == len(self.n.snapshots) and bool(
+            (positions == np.arange(len(positions))).all()
+        )
+
+    @functools.cached_property
     def periods(self) -> pd.Index:
         """The investment periods the build spans."""
         if self.multi_invest:
@@ -382,7 +390,7 @@ class NetworkSources(Mapping[str, Any]):
         if attr not in c.dynamic.keys():
             values = column
         elif c.dynamic[attr].columns.empty:
-            values = column.reshape(1, -1).repeat(len(self.n.snapshots), axis=0)
+            values = np.broadcast_to(column, (len(self.n.snapshots), column.size))
         else:
             values = c._as_dynamic(attr).to_numpy()
         if values.dtype.kind not in "biuf":
@@ -390,7 +398,7 @@ class NetworkSources(Mapping[str, Any]):
         kept = self.kept(c)
         if kept is not None:
             values = values[..., kept]
-        if values.ndim == 2:
+        if values.ndim == 2 and not self.every_snapshot:
             values = values[self.positions]
         return values[np.newaxis]
 
