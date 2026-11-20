@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -363,7 +364,9 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
 def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     """Initialize variables 'attr' for a given component c to allow a modular expansion of the attribute 'attr_nom'.
 
-    It allows to define 'n_opt', the optimal number of installed modules.
+    It allows to define 'n_mod', the optimal number of installed modules. For
+    semi-continuous components (`build_mode="semi_continuous"`), 'n_mod' is the binary build
+    decision.
 
     Parameters
     ----------
@@ -376,35 +379,15 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
 
     """
     c = n.components[c_name]
-    mod_i = c.extendables.intersection(c.modulars).intersection(c.active_assets)
+    mod_i = c._n_mod_assets.intersection(c.active_assets)
 
     if mod_i.empty:
         return
 
-    n.model.add_variables(lower=0, coords=[mod_i], name=f"{c.name}-n_mod", integer=True)
-
-
-def define_purchase_variables(
-    n: Network,
-    c_name: str,
-    attr: str,
-    sns: Sequence,
-) -> None:
-    """Define the unit purchase variables for extendable components."""
-    c = n.components[c_name]
-    purchase_i = c.active_purchasables
-    if purchase_i.empty:
-        return
-    com_i = purchase_i.difference(c.modulars).intersection(c.committables)
-
-    n.model.add_variables(coords=[purchase_i], name=f"{c.name}-purchased", binary=True)
-
-    if com_i.empty:
-        return
-
-    active = c.da.active.sel(name=com_i, snapshot=sns)
+    is_semi_continuous = mod_i.isin(c._semi_continuous)
+    upper = xr.DataArray(np.where(is_semi_continuous, 1, np.inf), coords=[mod_i])
     n.model.add_variables(
-        coords=active.coords, name=f"{c.name}-available_{attr}", mask=active
+        lower=0, upper=upper, coords=[mod_i], name=f"{c.name}-n_mod", integer=True
     )
 
 

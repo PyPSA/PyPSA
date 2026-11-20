@@ -36,6 +36,7 @@ from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
 from pypsa.constants import (
+    BUILD_MODES,
     DEFAULT_EPSG,
     DEFAULT_TIMESTAMP,
     RE_PORTS,
@@ -765,13 +766,13 @@ class Components(
             type                        (name) object 48B '' '' '' '' '' ''
             p_nom                       (name) float64 48B 80.0 5e+04 ... 110.0 8e+04
             p_nom_mod                   (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
-            p_nom_extendable            (name) bool 6B True True True True True True
+            build_mode                  (name) object 48B 'continuous' ... 'continuous'
             ...                          ...
             ramp_limit_shut_down        (name) float64 48B nan nan nan nan nan nan
             weight                      (name) float64 48B 1.0 1.0 1.0 1.0 1.0 1.0
             p_nom_opt                   (name) float64 48B 4.091e+03 0.0 ... 982.0
             capital_cost_piecewise_opt  (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
-            purchased_opt               (name) float64 48B nan nan nan nan nan nan
+            n_mod_opt                   (name) float64 48B nan nan nan nan nan nan
             p                           (snapshot, name) float64 480B 742.0 ... 483.2
 
         """
@@ -1020,12 +1021,25 @@ class Components(
 
         return idx
 
+    def _name_index(self, mask: pd.Series) -> pd.Index:
+        """Return the single-level name index of static rows selected by mask."""
+        idx = self.static.loc[mask].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
     @property
     def modulars(self) -> pd.Index:
         """Get the index of modular elements of this component.
 
-        Modular components have a positive module size (e.g., p_nom_mod > 0)
-        which introduces integer variables for capacity expansion.
+        Modular components (`build_mode="modular"`) are built in an integer number
+        of fixed-size modules (e.g. of size `p_nom_mod`). Rows with a module size
+        and `build_mode="continuous"` count as modular if they are extendable or
+        committable (deprecated). Fixed, non-committable rows with a module size
+        and `build_mode="continuous"` are not modular.
 
         <!-- md:badge-version v1.1.0 -->
 
@@ -1035,67 +1049,55 @@ class Components(
             Single-level index of modular elements.
 
         """
-        mod_col = self._operational_attrs["nom_mod"]
-        if mod_col not in self.static.columns:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[self.static[mod_col] > 0].index
-
-        # Remove scenario dimension, since they cannot vary across scenarios
-        if self.has_scenarios:
-            idx = idx.get_level_values("name").drop_duplicates()
-
-        return idx
+        modular = (self._build_mode == "modular") | self._implicit_modular
+        return self._name_index(modular)
 
     @property
-    def purchasables(self) -> pd.Index:
-        """Get the index of unit purchasable elements of this component.
-
-        Purchasable components have a purchasable flag which introduces binary variables for unit capacity investment.
-
-        <!-- md:badge-version v1.1.0 -->
-
-        Returns
-        -------
-        pd.Index
-            Single-level index of purchasable elements.
-
-        """
-        if "purchasable" not in self.static:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[self.static["purchasable"]].index
-
-        # Remove scenario dimension, since they cannot vary across scenarios
-        if self.has_scenarios:
-            idx = idx.get_level_values("name").drop_duplicates()
-
-        return idx
+    def _build_mode(self) -> pd.Series:
+        """Build mode of each row, empty if the component has no `build_mode`."""
+        if "build_mode" not in self.static.columns:
+            return pd.Series("", index=self.static.index, dtype=object)
+        build_mode = self.static["build_mode"]
+        invalid = ~build_mode.isin(BUILD_MODES)
+        if invalid.any():
+            values = sorted(set(build_mode[invalid]), key=str)
+            names = ", ".join(str(name) for name in self._name_index(invalid))
+            msg = (
+                f"Component {self.name} has assets that have an invalid `build_mode` "
+                f"{values}: {names}. Use one of {list(BUILD_MODES)}."
+            )
+            raise ValueError(msg)
+        return build_mode
 
     @property
-    def active_purchasables(self) -> pd.Index:
-        """Get the index of purchasable elements considered in the optimization.
+    def _implicit_modular(self) -> pd.Series:
+        """Mask of rows with a module size but `build_mode="continuous"` (deprecated)."""
+        continuous = self._build_mode == "continuous"
+        if not continuous.any():
+            return continuous
+        static = self.static
+        applies = static[self._operational_attrs["nom_extendable"]]
+        if "committable" in static.columns:
+            applies = applies | static["committable"]
+        sized = static[self._operational_attrs["nom_mod"]] > 0
+        return continuous & sized & applies
 
-        These are the elements that are purchasable, extendable and active, i.e.
-        the ones for which a purchase decision variable is created.
+    @property
+    def _semi_continuous(self) -> pd.Index:
+        """Get the index of semi-continuous elements (`build_mode="semi_continuous"`).
 
-        <!-- md:badge-version v1.1.0 -->
-
-        Returns
-        -------
-        pd.Index
-            Single-level index of active, extendable, purchasable elements.
-
+        Their capacity is either zero or within its bounds, decided by a binary
+        build decision `n_mod`.
         """
-        purchasables = self.purchasables
-        if purchasables.empty:
-            return purchasables
-        return purchasables.intersection(self.extendables).intersection(
-            self.active_assets
-        )
+        return self._name_index(self._build_mode == "semi_continuous")
+
+    @property
+    def _n_mod_assets(self) -> pd.Index:
+        """Get the index of extendable elements with a module count `n_mod`."""
+        return self.modulars.union(self._semi_continuous).intersection(self.extendables)
 
     def _resolve_big_m_default(self, committable_big_m: float | None) -> float:
-        """Resolve the scalar big-M fallback for committable/purchasable bounds."""
+        """Resolve the scalar big-M fallback for committable bounds."""
         big_m_default = committable_big_m
         if big_m_default is None and self.n is not None:
             big_m_default = self.n._committable_big_m
@@ -1220,21 +1222,21 @@ class Components(
         )
 
     @property
-    def unit_cost(self) -> pd.Series:
-        """Calculate periodized unit investment cost per purchased unit.
+    def build_cost(self) -> pd.Series:
+        """Calculate periodized investment cost per module.
 
         <!-- md:badge-version v1.1.0 -->
 
         See Also
         --------
         `pypsa.costs.periodized_cost`
-        `periodized_unit_cost` : Same values as xarray DataArray.
+        `periodized_build_cost` : Same values as xarray DataArray.
 
         """
         static = self.static
         return periodized_cost(
-            capital_cost=static["unit_cost"],
-            overnight_cost=static["unit_cost_overnight"],
+            capital_cost=static["build_cost"],
+            overnight_cost=static["build_cost_overnight"],
             discount_rate=static["discount_rate"],
             lifetime=static["lifetime"],
             fom_cost=0,
@@ -1242,8 +1244,8 @@ class Components(
         )
 
     @property
-    def periodized_unit_cost(self) -> xarray.DataArray:
-        """Calculate periodized unit investment cost from component attributes as xarray DataArray.
+    def periodized_build_cost(self) -> xarray.DataArray:
+        """Calculate periodized module investment cost from component attributes as xarray DataArray.
 
         <!-- md:badge-version v1.1.0 -->
 
@@ -1252,7 +1254,7 @@ class Components(
         `pypsa.costs.periodized_cost`
 
         """
-        da = xarray.DataArray(self.unit_cost)
+        da = xarray.DataArray(self.build_cost)
         if self.has_scenarios:
             da = da.unstack().reindex(name=self.names, scenario=self.scenarios)
         return da
@@ -1368,29 +1370,31 @@ class Components(
         )
 
     @property
-    def overnight_unit_cost(self) -> pd.Series:
-        """Calculate overnight unit investment cost from component attributes.
+    def overnight_build_cost(self) -> pd.Series:
+        """Calculate overnight module investment cost from component attributes.
 
         <!-- md:badge-version v1.1.0 -->
 
-        If unit_cost_overnight column is provided (not NaN), returns it directly.
-        Otherwise, converts periodized unit_cost back to overnight cost using
-        the formula: unit_cost_overnight = unit_cost / (annuity_factor × nyears).
+        If build_cost_overnight column is provided (not NaN), returns it directly.
+        Otherwise, converts periodized build_cost back to overnight cost using
+        the formula: build_cost_overnight = build_cost / (annuity_factor × nyears).
 
         Returns
         -------
         pd.Series
-            Overnight (upfront) unit investment cost for the purchase decision.
+            Overnight (upfront) investment cost per module.
 
         See Also
         --------
-        `periodized_unit_cost` : Periodized unit investment cost for the modeled horizon.
+        `periodized_build_cost` : Periodized module investment cost for the modeled horizon.
         `overnight_cost` : Overnight cost per unit of capacity.
 
         """
         static = self.static
         return self._overnight_from_annuitized(
-            static["unit_cost"], static["unit_cost_overnight"], "unit_cost_overnight"
+            static["build_cost"],
+            static["build_cost_overnight"],
+            "build_cost_overnight",
         )
 
 

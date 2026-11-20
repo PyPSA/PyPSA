@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+import warnings
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -24,7 +25,7 @@ from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from pypsa import Network
     from pypsa.components import Components
@@ -585,60 +586,180 @@ def check_cost_consistency(component: Components, strict: bool = False) -> None:
 
     """
     static = component.static
-    if {"unit_cost", "unit_cost_overnight"}.issubset(static.columns):
-        both_unit = (static["unit_cost_overnight"].notna()) & (static["unit_cost"] != 0)
-        if both_unit.any():
-            assets = static.index[both_unit].tolist()
-            _log_or_raise(
-                strict,
-                "Component %s has assets with both 'unit_cost_overnight' and "
-                "'unit_cost' set: %s. When 'unit_cost_overnight' is provided, it takes "
-                "precedence and 'unit_cost' is ignored. Consider setting unit_cost=0 "
-                "for these assets.",
-                component.name,
-                ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
-            )
+    for overnight, annuitised in (
+        ("build_cost_overnight", "build_cost"),
+        ("overnight_cost", "capital_cost"),
+    ):
+        if {overnight, annuitised}.issubset(static.columns):
+            _check_overnight_cost(component, overnight, annuitised, strict)
 
-    if not {"capital_cost", "overnight_cost"}.issubset(static.columns):
-        return
-    has_overnight = static["overnight_cost"].notna()
-    has_capital = static["capital_cost"] != 0
 
-    both_set = has_overnight & has_capital
+def _asset_labels(assets: pd.Index) -> str:
+    labels = ", ".join(str(asset) for asset in assets[:5])
+    return labels + ("..." if len(assets) > 5 else "")
+
+
+def _check_overnight_cost(
+    component: Components, overnight: str, annuitised: str, strict: bool
+) -> None:
+    static = component.static
+    has_overnight = static[overnight].notna()
+
+    both_set = has_overnight & (static[annuitised] != 0)
     if both_set.any():
-        assets = static.index[both_set].tolist()
         _log_or_raise(
             strict,
-            "Component %s has assets with both 'overnight_cost' and 'capital_cost' "
-            "set: %s. When 'overnight_cost' is provided, it takes precedence and "
-            "'capital_cost' is ignored. Consider setting capital_cost=0 for these assets.",
+            "Component %s has assets with both '%s' and '%s' set: %s. When '%s' is "
+            "provided, it takes precedence and '%s' is ignored. Consider setting "
+            "%s=0 for these assets.",
             component.name,
-            ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
+            overnight,
+            annuitised,
+            _asset_labels(static.index[both_set]),
+            overnight,
+            annuitised,
+            annuitised,
         )
 
-    if "discount_rate" in static.columns:
-        missing_discount_rate = has_overnight & static["discount_rate"].isna()
-        if missing_discount_rate.any():
-            assets = static.index[missing_discount_rate].tolist()
+    for attr in ("discount_rate", "lifetime"):
+        if attr not in static.columns:
+            continue
+        missing = has_overnight & static[attr].isna()
+        if missing.any():
             _log_or_raise(
                 True,
-                "Component %s has assets with 'overnight_cost' set but missing "
-                "'discount_rate': %s. Provide discount_rate for annuitization.",
+                "Component %s has assets with '%s' set but missing '%s': %s. "
+                "Provide %s for annuitization.",
                 component.name,
-                ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
+                overnight,
+                attr,
+                _asset_labels(static.index[missing]),
+                attr,
             )
 
-    if "lifetime" in static.columns:
-        missing_lifetime_rate = has_overnight & static["lifetime"].isna()
-        if missing_lifetime_rate.any():
-            assets = static.index[missing_lifetime_rate].tolist()
-            _log_or_raise(
-                True,
-                "Component %s has assets with 'overnight_cost' set but missing "
-                "'lifetime': %s. Provide lifetime for annuitization.",
-                component.name,
-                ", ".join(assets[:5]) + ("..." if len(assets) > 5 else ""),
-            )
+
+_COMMITMENT_ATTRS = (
+    "start_up_cost",
+    "shut_down_cost",
+    "stand_by_cost",
+    "min_up_time",
+    "min_down_time",
+    "up_time_before",
+    "down_time_before",
+    "ramp_limit_start_up",
+    "ramp_limit_shut_down",
+)
+
+
+class _UnusedAttributeRule(NamedTuple):
+    attrs: tuple[str, ...]
+    uses: Callable[[Components], pd.Index]
+    requirement: str
+    error: bool
+
+
+def _not_semi_continuous(c: Components) -> pd.Index:
+    return c._name_index(c._build_mode != "semi_continuous")
+
+
+UNUSED_ATTRIBUTE_RULES: tuple[_UnusedAttributeRule, ...] = (
+    _UnusedAttributeRule(
+        ("build_cost", "build_cost_overnight"),
+        lambda c: c._n_mod_assets.union(c.fixed),
+        'an extendable capacity and `build_mode` "semi_continuous" or "modular"',
+        error=True,
+    ),
+    _UnusedAttributeRule(
+        ("build_cost", "build_cost_overnight"),
+        lambda c: c._n_mod_assets,
+        'an extendable capacity and `build_mode` "semi_continuous" or "modular"',
+        error=False,
+    ),
+    _UnusedAttributeRule(
+        ("nom_mod",),
+        _not_semi_continuous,
+        '`build_mode="modular"`',
+        error=True,
+    ),
+    _UnusedAttributeRule(
+        ("nom_mod",),
+        lambda c: c.extendables.union(c.committables),
+        'an extendable capacity or `committable=True` and `build_mode="modular"`',
+        error=False,
+    ),
+    _UnusedAttributeRule(
+        ("build_mode",),
+        lambda c: c.extendables.union(_not_semi_continuous(c)),
+        'an extendable capacity if `build_mode="semi_continuous"`',
+        error=False,
+    ),
+    _UnusedAttributeRule(
+        _COMMITMENT_ATTRS,
+        lambda c: c.committables,
+        "`committable=True`",
+        error=False,
+    ),
+)
+
+
+def _non_default_names(component: Components, attr: str) -> pd.Index:
+    values = component.da[attr]
+    default = component.defaults.at[attr, "default"]
+    differs = (values != default) & ~(values.isnull() & pd.isna(default))
+    differs = differs.any(dim=[dim for dim in differs.dims if dim != "name"])
+    return pd.Index(differs.coords["name"].values[differs.to_numpy()])
+
+
+def check_unused_attributes(component: Components, strict: bool = False) -> None:
+    """Check for attributes set to a non-default value that their asset does not use.
+
+    Each rule in `UNUSED_ATTRIBUTE_RULES` pairs an attribute with the condition
+    under which the optimization uses it. Unused `build_cost` and
+    `build_cost_overnight` on extendable assets, and `{p,s,e}_nom_mod` with
+    `build_mode="semi_continuous"`, always raise. On fixed assets, unused build
+    attributes (`build_cost`, `build_cost_overnight`, `{p,s,e}_nom_mod` and
+    `build_mode="semi_continuous"`) log a warning, so that a network with
+    capacities fixed after an earlier optimization stays valid. Unused unit
+    commitment attributes on non-committable assets also log a warning. `{p,s,e}_nom_mod > 0` with
+    `build_mode="continuous"` on extendable or committable assets is left to the
+    deprecation warning in `check_modular_consistency`. An invalid `build_mode`
+    raises a `ValueError`.
+
+    Activate strict mode in general consistency check by passing
+    `['unused_attributes']` to the `strict` argument.
+
+    Parameters
+    ----------
+    component : pypsa.Component
+        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    if "build_mode" not in component.static.columns:
+        return
+    for keys, uses, requirement, error in UNUSED_ATTRIBUTE_RULES:
+        attrs = [component._operational_attrs.get(key, key) for key in keys]
+        attrs = [attr for attr in attrs if attr in component.static.columns]
+        if not attrs:
+            continue
+        used_i = uses(component)
+        for attr in attrs:
+            unused = _non_default_names(component, attr).difference(used_i)
+            if not unused.empty:
+                _log_or_raise(
+                    error or strict,
+                    "The following %s set `%s` to a non-default value, but it is "
+                    "only used with %s:\n%s",
+                    component.list_name,
+                    attr,
+                    requirement,
+                    unused,
+                )
 
 
 def check_generators(component: Components, strict: bool = False) -> None:
@@ -985,6 +1106,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "phase_shift_bounds",
             "generators",
             "cost_consistency",
+            "unused_attributes",
             "dispatch_delays",
             "maintenance",
             "disconnected_buses",
@@ -1036,6 +1158,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_maintenance_attributes(self, c, "maintenance" in strict)
             # Checks cost attributes consistency
             check_cost_consistency(c)
+            check_unused_attributes(c, "unused_attributes" in strict)
             # Checks dispatch delay attributes
             check_dispatch_delays(self, c, "dispatch_delays" in strict)
 
@@ -1198,7 +1321,7 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
         "s_nom_mod",
         "e_nom_mod",
         "committable",  # changes mathematical problem
-        "purchasable",  # changes mathematical problem
+        "build_mode",  # changes mathematical problem
         "sign",
         "carrier",
         "weight",
@@ -1491,36 +1614,6 @@ def check_big_m_exceeded(n: Network, strict: bool = False) -> None:
                 ", ".join(details),
             )
 
-    for c in n.components:
-        purchase_i = c.active_purchasables
-        if purchase_i.empty:
-            continue
-
-        nom_attr = nominal_attrs[c.name]
-        nom_max = c.da[f"{nom_attr}_max"].sel(name=purchase_i)
-        unbounded = ~(np.isfinite(nom_max) & (nom_max > 0))
-        if not unbounded.any().item():
-            continue
-
-        big_m = c._resolve_big_m_default(n._committable_big_m)
-        nom_opt = c.da[f"{nom_attr}_opt"].sel(name=purchase_i)
-        exceeded = (nom_opt >= big_m - 1e-6) & unbounded
-
-        reduce_dims = [dim for dim in exceeded.dims if dim != "name"]
-        if reduce_dims:
-            exceeded = exceeded.any(dim=reduce_dims)
-        names = exceeded["name"].values[exceeded.values]
-        if len(names):
-            _log_or_raise(
-                strict,
-                "Optimized capacities reach the big-M fallback bound for purchasable %s "
-                "with unbounded %s_max: %s. Provide a finite %s_max to avoid a silent cap.",
-                c.name.lower(),
-                nom_attr,
-                ", ".join(str(name) for name in names),
-                nom_attr,
-            )
-
 
 def check_maintenance_attributes(
     n: NetworkType, component: Components, strict: bool = False
@@ -1605,13 +1698,22 @@ def check_maintenance_attributes(
         )
 
 
-def check_purchasable_consistency(n: Network) -> None:
-    """Check that purchasable components use a supported feature combination.
+def _raise(component: str, idx: pd.Index, problem: str, fix: str) -> None:
+    msg = (
+        f"Component {component} has assets that {problem}: {_asset_labels(idx)}. {fix}."
+    )
+    raise ValueError(msg)
 
-    Purchase decisions require an extendable capacity and, when combined with unit
-    commitment, cannot additionally be maintainable unless the asset is modular.
-    Both unsupported combinations would otherwise fail with an opaque error while
-    building the optimization model.
+
+def check_modular_consistency(n: Network) -> None:
+    """Check that `build_mode` is valid and consistent with the module size.
+
+    `build_mode` must be one of `"continuous"`, `"semi_continuous"` or
+    `"modular"`. Modular components require a module size (e.g. `p_nom_mod > 0`).
+    Extendable semi-continuous components require a finite upper bound (e.g.
+    `p_nom_max`), which scales with the binary build decision. Unsupported
+    combinations would otherwise fail with an opaque error or a silent big-M
+    bound while building the optimization model.
 
     Parameters
     ----------
@@ -1624,37 +1726,50 @@ def check_purchasable_consistency(n: Network) -> None:
 
     """
     for c in n.components:
-        purchasables = c.purchasables
-        if purchasables.empty:
+        if "build_mode" not in c.static.columns:
             continue
 
-        non_extendable = purchasables.difference(c.extendables)
-        if not non_extendable.empty:
-            names = ", ".join(non_extendable[:5])
+        build_mode = c._build_mode
+        nom_attr = c._operational_attrs["nom"]
+        nom_mod = c.static[c._operational_attrs["nom_mod"]]
+
+        implicit = c._implicit_modular
+        if implicit.any():
+            names = _asset_labels(c._name_index(implicit))
             msg = (
-                f"Component {c.name} has purchasable assets that are not extendable: "
-                f"{names}. `purchasable` is only supported for extendable components."
+                f'{c.name} components with `{nom_attr}_mod > 0` and `build_mode="continuous"` '
+                f'are treated as `build_mode="modular"`: {names}. Set `build_mode="modular"` '
+                "explicitly. Deprecated in version 1.5. Will raise an error in version 2.0."
             )
-            raise ValueError(msg)
+            warnings.warn(msg, FutureWarning, stacklevel=4)
 
-        maint_com = (
-            purchasables.intersection(c.committables)
-            .intersection(c.maintainables)
-            .difference(c.modulars)
-        )
-        if not maint_com.empty:
-            names = ", ".join(maint_com[:5])
-            msg = (
-                f"Component {c.name} has purchasable committable assets that are also "
-                f"maintainable but not modular: {names}. This combination is not "
-                f"supported; set a module size (e.g. p_nom_mod > 0) or drop the "
-                f"maintenance attributes."
+        no_size = (build_mode == "modular") & ~(np.isfinite(nom_mod) & (nom_mod > 0))
+        if no_size.any():
+            _raise(
+                c.name,
+                c._name_index(no_size),
+                f'have `build_mode="modular"` but no finite module size `{nom_attr}_mod > 0`',
+                f"Set a finite `{nom_attr}_mod > 0` or another `build_mode`",
             )
-            raise ValueError(msg)
+
+        semi_ext_i = c._semi_continuous.intersection(c._n_mod_assets)
+        if semi_ext_i.empty:
+            continue
+
+        nom_max = c.da[f"{nom_attr}_max"].sel(name=semi_ext_i)
+        other_dims = [dim for dim in nom_max.dims if dim != "name"]
+        unbounded = (~np.isfinite(nom_max)).any(dim=other_dims)
+        if unbounded.any().item():
+            _raise(
+                c.name,
+                semi_ext_i[unbounded.to_numpy()],
+                f'have `build_mode="semi_continuous"` and an infinite `{nom_attr}_max`',
+                f"Set a finite `{nom_attr}_max`, which bounds the capacity if built",
+            )
 
 
-def check_no_modular_purchasable_committables(n: Network) -> None:
-    """Check that no modular/purchasable committable components exist if linearized_unit_commitment is used.
+def check_no_modular_committables(n: Network) -> None:
+    """Check that no modular committable components exist if linearized_unit_commitment is used.
 
     Raises ValueError if linearized_unit_commitment is used with modular
     committable components, as this combination is semantically invalid.
@@ -1676,7 +1791,7 @@ def check_no_modular_purchasable_committables(n: Network) -> None:
         if com_i.empty:
             continue
         com_i = com_i.intersection(c.active_assets)
-        mod_com_i = com_i.intersection(c.modulars.union(c.purchasables))
+        mod_com_i = com_i.intersection(c.modulars)
         if not mod_com_i.empty:
             modular_committables.extend(f"{c.name}:{name}" for name in mod_com_i)
 
@@ -1685,13 +1800,13 @@ def check_no_modular_purchasable_committables(n: Network) -> None:
         if len(modular_committables) > 5:
             components_str += f", ... ({len(modular_committables)} total)"
         msg = (
-            f"linearized_unit_commitment=True cannot be used with modular/purchasable "
+            f"linearized_unit_commitment=True cannot be used with modular "
             f"committable components: {components_str}. "
             f"Modular components use integer status variables representing the "
             f"number of committed modules, which cannot be meaningfully relaxed "
             f"to continuous values. Use standard unit commitment "
             f"(linearized_unit_commitment=False) or remove modular sizing "
-            f"(set p_nom_mod=0). "
+            f'(set build_mode="continuous" and p_nom_mod=0). '
             f"See https://go.pypsa.org/modular-committable"
         )
         raise ValueError(msg)

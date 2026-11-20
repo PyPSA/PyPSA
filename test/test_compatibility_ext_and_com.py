@@ -36,6 +36,7 @@ def test_compatibility_ext_and_comt():
         capital_cost=1,
         s_nom_max=7000,
         s_nom_mod=0.5,
+        build_mode="modular",
         s_nom_extendable=True,
     )
 
@@ -63,6 +64,7 @@ def test_compatibility_ext_and_comt():
         capital_cost=1,
         stand_by_cost=10,
         p_nom_mod=500,
+        build_mode="modular",
         p_min_pu=0.1,
         start_up_cost=2,
     )
@@ -91,6 +93,7 @@ def test_compatibility_ext_and_comt():
         p_min_pu=0.1,
         p_nom=1000,
         p_nom_mod=250,
+        build_mode="modular",
         start_up_cost=2,
     )
 
@@ -106,6 +109,7 @@ def test_compatibility_ext_and_comt():
         p_min_pu=0.1,
         p_nom=1000,
         p_nom_mod=250,
+        build_mode="modular",
         start_up_cost=2,
     )
 
@@ -120,6 +124,7 @@ def test_compatibility_ext_and_comt():
         stand_by_cost=10,
         p_min_pu=0.1,
         p_nom_mod=250,
+        build_mode="modular",
         capital_cost=0.5,
     )
 
@@ -166,6 +171,7 @@ def test_ext_and_com_single():
         marginal_cost=1,
         capital_cost=1,
         p_nom_mod=200,
+        build_mode="modular",
         p_nom_max=10000,
         p_min_pu=0.1,
         stand_by_cost=1,
@@ -193,6 +199,7 @@ def test_unit_commitment_mod():
         p_nom_extendable=True,
         p_min_pu=0.3,
         p_nom_mod=10000,
+        build_mode="modular",
         p_nom_min=10000,
         p_nom_max=10000,
         marginal_cost=20,
@@ -244,6 +251,7 @@ def test_unit_commitment_mod():
         (
             {
                 "p_nom_mod": 1,
+                "build_mode": "modular",
                 "p_nom_max": 5000,
                 "capital_cost": 1,
                 "marginal_cost": 0,
@@ -256,6 +264,7 @@ def test_unit_commitment_mod():
         (
             {
                 "p_nom_mod": 200,
+                "build_mode": "modular",
                 "p_nom_max": 5000,
                 "capital_cost": 1,
                 "marginal_cost": 0,
@@ -292,6 +301,7 @@ def test_com_ext_mod_p_nom():
         bus="bus",
         p_nom=0,
         p_nom_mod=200,
+        build_mode="modular",
         p_nom_max=10000,
         p_nom_extendable=True,
         committable=True,
@@ -320,6 +330,7 @@ def test_p_nom_not_multiple_of_mod_raises():
         bus="bus",
         p_nom=6001,
         p_nom_mod=2,
+        build_mode="modular",
         capital_cost=1,
         marginal_cost=0.5,
         committable=True,
