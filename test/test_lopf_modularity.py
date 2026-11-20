@@ -29,6 +29,7 @@ def test_modular_components():
         marginal_cost=10,
         p_nom_max=5000,
         p_nom_mod=1000,
+        build_mode="modular",
     )
 
     n.add(
@@ -38,6 +39,7 @@ def test_modular_components():
         e_nom_extendable=True,
         e_nom_max=2000,
         e_nom_mod=100,
+        build_mode="modular",
         capital_cost=100,
     )
 
@@ -65,6 +67,7 @@ def test_modular_committable_with_ramp_limits():
         committable=True,
         p_nom_max=800,
         p_nom_mod=200,
+        build_mode="modular",
         p_min_pu=0.3,
         marginal_cost=30,
         capital_cost=100,
@@ -110,6 +113,7 @@ def test_modular_fixed_committable_dispatch():
         bus="bus",
         p_nom=300,
         p_nom_mod=100,
+        build_mode="modular",
         committable=True,
         p_min_pu=0.4,
         marginal_cost=1,

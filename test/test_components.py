@@ -4,7 +4,6 @@
 
 import warnings
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -96,7 +95,9 @@ def test_modulars_property():
     n.add("Bus", "bus")
 
     # Add modular generator
-    n.add("Generator", "gen_mod", bus="bus", p_nom=100, p_nom_mod=10)
+    n.add(
+        "Generator", "gen_mod", bus="bus", p_nom=100, p_nom_mod=10, build_mode="modular"
+    )
 
     # Add non-modular generator (explicit zero)
     n.add("Generator", "gen_nonmod", bus="bus", p_nom=100, p_nom_mod=0)
@@ -125,13 +126,20 @@ def test_modulars_with_extendables_and_committables():
         bus="bus",
         p_nom=100,
         p_nom_mod=10,
+        build_mode="modular",
         p_nom_extendable=True,
         capital_cost=10,
     )
 
     # Modular + committable
     n.add(
-        "Generator", "gen_mod_com", bus="bus", p_nom=100, p_nom_mod=10, committable=True
+        "Generator",
+        "gen_mod_com",
+        bus="bus",
+        p_nom=100,
+        p_nom_mod=10,
+        build_mode="modular",
+        committable=True,
     )
 
     # Modular + extendable + committable
@@ -141,6 +149,7 @@ def test_modulars_with_extendables_and_committables():
         bus="bus",
         p_nom=100,
         p_nom_mod=10,
+        build_mode="modular",
         p_nom_extendable=True,
         committable=True,
         capital_cost=10,
@@ -184,7 +193,15 @@ def test_modulars_different_components():
     n.add("Bus", "bus2")
 
     # Test with Lines (s_nom_mod)
-    n.add("Line", "line_mod", bus0="bus1", bus1="bus2", x=0.1, s_nom_mod=100)
+    n.add(
+        "Line",
+        "line_mod",
+        bus0="bus1",
+        bus1="bus2",
+        x=0.1,
+        s_nom_mod=100,
+        build_mode="modular",
+    )
     n.add("Line", "line_nonmod", bus0="bus1", bus1="bus2", x=0.1, s_nom_mod=0)
 
     line_modulars = n.c.lines.modulars
@@ -193,7 +210,9 @@ def test_modulars_different_components():
     assert "line_nonmod" not in line_modulars
 
     # Test with Links (p_nom_mod)
-    n.add("Link", "link_mod", bus0="bus1", bus1="bus2", p_nom_mod=50)
+    n.add(
+        "Link", "link_mod", bus0="bus1", bus1="bus2", p_nom_mod=50, build_mode="modular"
+    )
     n.add("Link", "link_nonmod", bus0="bus1", bus1="bus2", p_nom_mod=0)
 
     link_modulars = n.c.links.modulars
@@ -202,7 +221,7 @@ def test_modulars_different_components():
     assert "link_nonmod" not in link_modulars
 
     # Test with Stores (e_nom_mod)
-    n.add("Store", "store_mod", bus="bus1", e_nom_mod=1000)
+    n.add("Store", "store_mod", bus="bus1", e_nom_mod=1000, build_mode="modular")
     n.add("Store", "store_nonmod", bus="bus1", e_nom_mod=0)
 
     store_modulars = n.c.stores.modulars
@@ -210,99 +229,89 @@ def test_modulars_different_components():
     assert "store_mod" in store_modulars
 
 
-def test_modulars_property_with_flag():
-    """The `modular` flag and a module size both make an element modular."""
+@pytest.mark.parametrize(
+    ("build_mode", "p_nom_mod", "semi_continuous", "modular"),
+    [
+        ("continuous", 0, False, False),
+        ("semi_continuous", 0, True, False),
+        ("modular", 50, False, True),
+    ],
+)
+def test_build_mode_selects_subset(build_mode, p_nom_mod, semi_continuous, modular):
+    """`build_mode` selects semi-continuous and fixed-size modular elements."""
     n = Network()
     n.add("Bus", "bus")
-
-    n.add("Generator", "gen_flag", bus="bus", p_nom=100, modular=True)
-    n.add("Generator", "gen_size", bus="bus", p_nom=100, p_nom_mod=50)
-    n.add("Generator", "gen_both", bus="bus", p_nom=100, modular=True, p_nom_mod=50)
-    n.add("Generator", "gen_off", bus="bus", p_nom=100, modular=False)
-    # Generator without the attribute set (defaults to False)
-    n.add("Generator", "gen_default", bus="bus", p_nom=100)
+    n.add("Generator", "gen", bus="bus", build_mode=build_mode, p_nom_mod=p_nom_mod)
 
     c = n.c.generators
-    assert set(c.modulars) == {"gen_flag", "gen_size", "gen_both"}
-    assert set(c._fixed_size_modulars) == {"gen_size", "gen_both"}
-    assert set(c._continuous_modulars) == {"gen_flag"}
+    assert ("gen" in c._semi_continuous) == semi_continuous
+    assert ("gen" in c.modulars) == modular
 
 
-def test_modulars_without_attribute():
-    """Components without module attributes return an empty index."""
+@pytest.mark.parametrize(
+    ("component", "kwargs"),
+    [
+        ("Line", {"bus0": "bus1", "bus1": "bus2", "x": 0.1}),
+        ("Transformer", {"bus0": "bus1", "bus1": "bus2", "x": 0.1}),
+        ("Link", {"bus0": "bus1", "bus1": "bus2"}),
+        ("Store", {"bus": "bus1"}),
+        ("StorageUnit", {"bus": "bus1"}),
+    ],
+)
+def test_semi_continuous_different_components(component, kwargs):
+    """`build_mode` works for all components with a nominal capacity."""
+    n = Network()
+    n.add("Bus", ["bus1", "bus2"])
+    n.add(component, "on", build_mode="semi_continuous", **kwargs)
+    n.add(component, "off", **kwargs)
+
+    assert list(n.c[component]._semi_continuous) == ["on"]
+
+
+def test_semi_continuous_without_attribute():
+    """Components without the `build_mode` attribute return an empty index."""
     n = Network()
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=100)
 
-    assert n.c.loads.modulars.empty
-    assert n.c.buses.modulars.empty
+    assert n.c.loads._semi_continuous.empty
+    assert n.c.buses._semi_continuous.empty
 
 
-def test_modulars_flag_different_components():
-    """Test the `modular` flag works for different component types."""
-    n = Network()
-    n.add("Bus", "bus1")
-    n.add("Bus", "bus2")
-
-    n.add("Line", "line_m", bus0="bus1", bus1="bus2", x=0.1, modular=True)
-    n.add("Line", "line_nm", bus0="bus1", bus1="bus2", x=0.1)
-    n.add("Transformer", "trafo_m", bus0="bus1", bus1="bus2", x=0.1, modular=True)
-    n.add("Transformer", "trafo_nm", bus0="bus1", bus1="bus2", x=0.1)
-    n.add("Link", "link_m", bus0="bus1", bus1="bus2", modular=True)
-    n.add("Link", "link_nm", bus0="bus1", bus1="bus2")
-    n.add("Store", "store_m", bus="bus1", modular=True)
-    n.add("Store", "store_nm", bus="bus1")
-    n.add("StorageUnit", "su_m", bus="bus1", modular=True)
-    n.add("StorageUnit", "su_nm", bus="bus1")
-
-    assert list(n.c.lines.modulars) == ["line_m"]
-    assert list(n.c.transformers.modulars) == ["trafo_m"]
-    assert list(n.c.links.modulars) == ["link_m"]
-    assert list(n.c.stores.modulars) == ["store_m"]
-    assert list(n.c.storage_units.modulars) == ["su_m"]
-
-
-def test_modulars_flag_with_scenarios():
-    """The module decision cannot vary across scenarios."""
+def test_semi_continuous_with_scenarios():
+    """The build decision cannot vary across scenarios."""
     n = Network(snapshots=range(2))
     n.set_scenarios({"low": 0.5, "high": 0.5})
     n.add("Bus", "bus")
-    n.add("Generator", "gen_modular", bus="bus", p_nom=100, modular=True)
+    n.add(
+        "Generator", "gen_modular", bus="bus", p_nom=100, build_mode="semi_continuous"
+    )
     n.add("Generator", "gen_default", bus="bus", p_nom=100)
 
-    modulars = n.c.generators.modulars
+    semi_continuous = n.c.generators._semi_continuous
 
-    assert not isinstance(modulars, pd.MultiIndex)
-    assert list(modulars) == ["gen_modular"]
-
-
-def test_n_mod_bounds_defaults():
-    """A missing `n_mod_max` means one module if continuous and no limit otherwise."""
-    n = Network()
-    n.add("Bus", "bus")
-    n.add("Generator", "cont", bus="bus", modular=True)
-    n.add("Generator", "cont_min", bus="bus", modular=True, n_mod_min=3)
-    n.add("Generator", "fixed", bus="bus", p_nom_mod=50)
-    n.add("Generator", "capped", bus="bus", p_nom_mod=50, n_mod_min=1, n_mod_max=4)
-
-    names = pd.Index(["cont", "cont_min", "fixed", "capped"], name="name")
-    lower, upper = n.c.generators._n_mod_bounds(names)
-
-    assert lower.tolist() == [0, 3, 0, 1]
-    assert upper.tolist() == [1, 3, np.inf, 4]
+    assert not isinstance(semi_continuous, pd.MultiIndex)
+    assert list(semi_continuous) == ["gen_modular"]
 
 
-def test_module_cost_property():
-    """`module_cost` is passed through when given directly."""
+def test_build_cost_property():
+    """`build_cost` is passed through when given directly."""
     n = Network(snapshots=range(2))
     n.add("Bus", "bus")
-    n.add("Generator", "gen", bus="bus", p_nom=100, modular=True, module_cost=1234.0)
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        build_mode="semi_continuous",
+        build_cost=1234.0,
+    )
 
-    assert n.c.generators.periodized_module_cost.sel(name="gen").item() == 1234.0
+    assert n.c.generators.periodized_build_cost.sel(name="gen").item() == 1234.0
 
 
-def test_module_cost_property_overnight():
-    """`module_cost_overnight` is annuitised and takes precedence over `module_cost`."""
+def test_build_cost_property_overnight():
+    """`build_cost_overnight` is annuitised and takes precedence over `build_cost`."""
     from pypsa.costs import annuity
 
     n = Network(snapshots=range(2))
@@ -312,14 +321,13 @@ def test_module_cost_property_overnight():
         "gen",
         bus="bus",
         p_nom=100,
-        modular=True,
-        module_cost=1.0,
-        module_cost_overnight=1000.0,
+        build_mode="semi_continuous",
+        build_cost=1.0,
+        build_cost_overnight=1000.0,
         discount_rate=0.07,
         lifetime=25,
     )
 
     expected = 1000.0 * annuity(0.07, 25) * n.c.generators.nyears
-    assert n.c.generators.periodized_module_cost.sel(
-        name="gen"
-    ).item() == pytest.approx(expected)
+    periodized = n.c.generators.periodized_build_cost.sel(name="gen").item()
+    assert periodized == pytest.approx(expected)

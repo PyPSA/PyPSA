@@ -415,13 +415,13 @@ def define_objective(
             caps_lin = m[f"{c.name}-{attr}"].sel(name=ext_i)
             lin_weight = cost_weight.sel(name=ext_i)
             capex_terms.append((caps_lin * lin_weight * periodic_cost).sum(dim=sum_dim))
-        mod_i = c._active_modulars
+        mod_i = c._n_mod_assets.intersection(c.active_assets)
         if not mod_i.empty:
-            module_cost = c.periodized_module_cost.sel(name=mod_i)
-            if module_cost.size > 0 and not (module_cost == 0).all():
+            build_cost = c.periodized_build_cost.sel(name=mod_i)
+            if not (build_cost == 0).all():
                 n_mod = m[f"{c.name}-n_mod"].sel(name=mod_i)
                 mod_weight = cost_weight.sel(name=mod_i)
-                capex_terms.append((module_cost * mod_weight * n_mod).sum(dim=sum_dim))
+                capex_terms.append((build_cost * mod_weight * n_mod).sum(dim=sum_dim))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -814,7 +814,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         # Define variables
         for c, attr in lookup.query("nominal").index:
             define_nominal_variables(n, c, attr)
-            define_modular_variables(n, c, attr, sns)
+            define_modular_variables(n, c, attr)
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
             define_operational_variables(n, sns, c, attr)
@@ -1066,10 +1066,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
             # Skip auxiliary McCormick linearization variables
             if attr in ("maintenance_capacity", "maintenance_status"):
-                continue
-
-            # Skip auxiliary available capacity variables of continuous modulars
-            if attr.startswith("available_"):
                 continue
 
             if not hasattr(n.c, _c_name):

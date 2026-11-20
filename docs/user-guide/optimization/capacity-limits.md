@@ -151,72 +151,75 @@ These constraints are defined in the function `define_ramp_limit_constraints()`.
 
 ## Modularity Constraints
 
-The capacity expansion can be decided in **modules**, represented by an integer number of modules $n^{\textrm{mod}}_{*} \in \mathbb{N}$ per asset.
-A component is modular if `modular=True` or if it has a positive module size `{p,s,e}_nom_mod>0`, which implies `modular=True`.
-Modularity comes in two flavours:
+Extendable components can add an integer decision variable $n^{\textrm{mod}}_{*}$ to their capacity expansion.
+The `build_mode` attribute selects one of three cases per asset:
 
-| `modular` | `{p,s,e}_nom_mod` | Capacity of each module | Typical use |
-|-----------|-------------------|-------------------------|-------------|
-| any | $> 0$ | Fixed to the module size | Fixed block sizes, e.g. a nuclear power plant or a new circuit |
-| `True` | $0$ | Continuous decision | Capacity-independent costs, e.g. grid connection, land acquisition or project development |
+| `build_mode` | `{p,s,e}_nom_mod` | Capacity | Typical use |
+|--------------|-------------------|----------|-------------|
+| `"continuous"` (default) | $0$¹ | $\underline{G} \leq G \leq \bar{G}$ | Plain capacity expansion |
+| `"semi_continuous"` | $0$ | $G = 0$ or $\underline{G} \leq G \leq \bar{G}$, decided by a binary $n^{\textrm{mod}}$ | Capacity-independent costs, e.g. grid connection, land acquisition or project development |
+| `"modular"` | $> 0$ | $G = \tilde{G} \cdot n^{\textrm{mod}}$ with integer $n^{\textrm{mod}}$ | Fixed block sizes, e.g. a nuclear power plant or a new circuit |
 
-Each module incurs the capacity-independent `module_cost` in the objective (see [Module Costs](objective.md#module-costs)).
-The module variables are available as `n.model.variables['{Component}-n_mod']` and the optimised number of modules is written back to the static output `n_mod_opt` (e.g. `n.generators.n_mod_opt`), which is `NaN` for assets that are not modular or not extendable.
-The module decision carries neither a snapshot nor a scenario dimension.
+¹ An extendable or committable asset with `{p,s,e}_nom_mod>0` and `build_mode="continuous"` is treated as `build_mode="modular"` and emits a `FutureWarning`. On a fixed, non-committable asset, the module size is unused and [`n.consistency_check()`][pypsa.Network.consistency_check] logs a warning.
+
+For each mode, the figure shows which capacities are feasible and how `build_cost` lifts their cost above the dashed `capital_cost · p_nom` line.
+
+<figure>
+--8<-- "docs/assets/images/build-modes.svg"
+</figure>
+
+Optimising raises a `ValueError` for any other value of `build_mode`, for `build_mode="modular"` without `{p,s,e}_nom_mod>0` and for an extendable semi-continuous asset with an infinite `{p,s,e}_nom_max`.
+[`n.consistency_check()`][pypsa.Network.consistency_check] raises a `ConsistencyError` for `{p,s,e}_nom_mod>0` with `build_mode="semi_continuous"` and for `build_cost` or `build_cost_overnight` on an extendable asset with `build_mode="continuous"`.
+On a fixed asset, it logs a warning for `build_mode="semi_continuous"`, `build_cost` and `build_cost_overnight`, because the optimisation does not use them.
+That is, a network whose capacities were fixed after an earlier optimisation stays valid.
+
+!!! warning "Deprecated: module size without `build_mode`"
+
+    An asset with `{p,s,e}_nom_mod>0` and the default `build_mode="continuous"` is currently treated as `build_mode="modular"` and emits a `FutureWarning` when optimising.
+    From PyPSA 2.0, this will raise an error. Set `build_mode="modular"` explicitly.
+    This also applies to non-extendable committable assets, whose module size sets the number of committed modules.
+
+Each module, or the build decision of a semi-continuous asset, incurs the capacity-independent `build_cost` in the objective (see [Build Costs](objective.md#build-costs)).
+The variables are available as `n.model.variables['{Component}-n_mod']`.
+The optimised value is written back to the static output `n_mod_opt` (e.g. `n.generators.n_mod_opt`), which is `NaN` for assets without modules or that are not extendable.
+The variable carries neither a snapshot nor a scenario dimension.
 
 ### Fixed Module Sizes
 
-If `{p,s,e}_nom_mod>0`, the nominal capacity is given by:
+If `build_mode="modular"`, the nominal capacity is given by:
 
 | Constraint | Dual Variable | Name |
 |-------------------|------------------|------------------|
-| $G_{n,s} = G^{\textrm{mod}}_{n,s} \cdot \tilde{G}_{n,s}$ | N/A | `Generator-p_nom_modularity` |
-| $F_{l} = F^{\textrm{mod}}_{l} \cdot \tilde{F}_{l}$ | N/A | `Link-p_nom_modularity` |
-| $R_{m} = R^{\textrm{mod}}_{m} \cdot \tilde{R}_{m}$ | N/A | `Process-p_nom_modularity` |
-| $P_{l} = P^{\textrm{mod}}_{l} \cdot \tilde{P}_{l}$ | N/A | `{Line,Transformer}-s_nom_modularity` |
-| $E_{n,s} = E^{\textrm{mod}}_{n,s} \cdot \tilde{E}_{n,s}$ | N/A | `Store-e_nom_modularity` |
-| $H_{n,s} = H^{\textrm{mod}}_{n,s} \cdot \tilde{H}_{n,s}$ | N/A | `StorageUnit-p_nom_modularity` |
+| $G_{n,s} = n^{\textrm{mod}}_{n,s} \cdot \tilde{G}_{n,s}$ | N/A | `Generator-p_nom_modularity` |
+| $F_{l} = n^{\textrm{mod}}_{l} \cdot \tilde{F}_{l}$ | N/A | `Link-p_nom_modularity` |
+| $R_{m} = n^{\textrm{mod}}_{m} \cdot \tilde{R}_{m}$ | N/A | `Process-p_nom_modularity` |
+| $P_{l} = n^{\textrm{mod}}_{l} \cdot \tilde{P}_{l}$ | N/A | `{Line,Transformer}-s_nom_modularity` |
+| $E_{n,s} = n^{\textrm{mod}}_{n,s} \cdot \tilde{E}_{n,s}$ | N/A | `Store-e_nom_modularity` |
+| $H_{n,s} = n^{\textrm{mod}}_{n,s} \cdot \tilde{H}_{n,s}$ | N/A | `StorageUnit-p_nom_modularity` |
 
-### Continuous Module Capacity
+The plain bounds of [Upper and Lower Bounds](#upper-and-lower-bounds) apply to the total capacity.
+These constraints are set in the function `define_modular_constraints()`.
 
-If `modular=True` and `{p,s,e}_nom_mod=0`, the total capacity of the modules is a continuous decision, which requires at least one module to be built:
+### Semi-continuous Capacity
 
-| Constraint | Dual Variable | Name |
-|-------------------|------------------|------------------|
-| $G_{n,s} \leq \bar{G}_{n,s} \cdot G^{\textrm{mod}}_{n,s}$ | N/A | `Generator-p_nom_modularity_upper` |
-| $F_{l} \leq \bar{F}_{l} \cdot F^{\textrm{mod}}_{l}$ | N/A | `Link-p_nom_modularity_upper` |
-| $R_{m} \leq \bar{R}_{m} \cdot R^{\textrm{mod}}_{m}$ | N/A | `Process-p_nom_modularity_upper` |
-| $P_{l} \leq \bar{P}_{l} \cdot P^{\textrm{mod}}_{l}$ | N/A | `{Line,Transformer}-s_nom_modularity_upper` |
-| $E_{n,s} \leq \bar{E}_{n,s} \cdot E^{\textrm{mod}}_{n,s}$ | N/A | `Store-e_nom_modularity_upper` |
-| $H_{n,s} \leq \bar{H}_{n,s} \cdot H^{\textrm{mod}}_{n,s}$ | N/A | `StorageUnit-p_nom_modularity_upper` |
-
-Where the maximum capacity is infinite, the [big-M constant](#big-m-parameter-configuration) is used in its place.
-The minimum and maximum capacities `{p,s,e}_nom_{min,max}` always bound the **total** capacity of all modules.
-
-By default, a continuous modular asset consists of a single module ($n^{\textrm{mod}} \in \{0, 1\}$), i.e. the module decides *whether* the asset is built, separately from *how much* capacity is built.
-In that case, the lower capacity bound only has to be respected if the asset is built at all:
+If `build_mode="semi_continuous"`, $n^{\textrm{mod}}_{*} \in \{0, 1\}$ decides _whether_ the asset is built, separately from how much capacity is built.
+The capacity bounds are scaled by this build decision, so the lower bound only applies if the asset is built:
 
 | Constraint | Dual Variable | Name |
 |-------------------|------------------|------------------|
-| $G_{n,s} \geq \underline{G}_{n,s} \cdot G^{\textrm{mod}}_{n,s}$ | N/A | `Generator-ext-p_nom-lower-modular` |
+| $G_{n,s} \geq \underline{G}_{n,s} \cdot n^{\textrm{mod}}_{n,s}$ | N/A | `Generator-ext-p_nom-lower-semi-continuous` |
+| $G_{n,s} \leq \bar{G}_{n,s} \cdot n^{\textrm{mod}}_{n,s}$ | N/A | `Generator-ext-p_nom-upper-semi-continuous` |
 
-This replaces the plain lower bound described in [Upper and Lower Bounds](#upper-and-lower-bounds) and is set in `define_nominal_constraints_for_extendables()`.
-If more than one module is allowed, the plain lower bound applies, as for fixed module sizes.
+Other components follow the same pattern, e.g. `Link-ext-p_nom-lower-semi-continuous` or `Line-ext-s_nom-upper-semi-continuous`.
+The lower bound replaces the plain lower bound of [Upper and Lower Bounds](#upper-and-lower-bounds).
+These constraints are set in `define_nominal_constraints_for_extendables()`.
 
-### Number of Modules
-
-The number of modules is bounded by `n_mod_min` (default 0) and `n_mod_max`:
-
-$$\underline{n}^{\textrm{mod}}_{*} \leq n^{\textrm{mod}}_{*} \leq \bar{n}^{\textrm{mod}}_{*}$$
-
-If `n_mod_max` is not set (`NaN`), there is no upper limit for fixed module sizes and a single module (or `n_mod_min` modules, if larger) for continuous module capacities.
-Setting `n_mod_min` forces a minimum number of modules to be built, e.g. to reproduce a known number of turbines whose total capacity is still optimised.
-
-All modularity constraints are set in the function `define_modular_constraints()`.
+The upper bound $\bar{G}$ must be finite, so PyPSA does not need a big-M constant in its place.
+A semi-continuous asset with an infinite `{p,s,e}_nom_max` raises a `ValueError` before the model is built.
 
 ### Modular and Committable Components
 
-When extendable components additionally have **fixed module sizes** (`p_nom_mod > 0`) and are **committable** (`committable=True`), the formulation differs from the big-M approach above. Instead of a binary on/off status variable, the status variable becomes an **integer** representing the **number of committed modules** inside the component.
+When extendable components additionally have **fixed module sizes** (`build_mode="modular"` and `p_nom_mod > 0`) and are **committable** (`committable=True`), the formulation differs from the big-M approach above. Instead of a binary on/off status variable, the status variable becomes an **integer** representing the **number of committed modules** inside the component.
 
 #### Module-Level Commitment Formulation
 
@@ -316,70 +319,45 @@ These constraints are defined in the function `define_operational_constraints_fo
         | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu` | Parameter |
 
 
-### Continuous Modules and Unit Commitment
+### Semi-continuous Capacity and Unit Commitment
 
-Committable components with a single continuous module cannot use the big-M dispatch formulation of [Committable and Extendable Components](#committable-and-extendable-components) directly, because the dispatch bounds would depend on the product of the capacity, the commitment status and the module decision.
-Instead, an auxiliary variable
-$A_{n,s,t}$ (the **capacity available** in each snapshot, i.e. the product $G_{n,s} \cdot u_{n,s,t}$ of capacity and commitment status) is introduced and linearised against the module decision:
+A committable, semi-continuous asset uses the big-M dispatch formulation of [Committable and Extendable Components](#committable-and-extendable-components).
+The status is additionally limited by the build decision, and the dispatch of an offline asset is bounded from below by the big-M constant $M$:
 
-=== "Generator"
+| Constraint | Name |
+|-------------------|------------------|
+| $u_{n,s,t} \leq n^{\textrm{mod}}_{n,s}$ | `Generator-status-p_nom-variable-upper` |
+| $u_{l,t} \leq n^{\textrm{mod}}_{l}$ | `Link-status-p_nom-variable-upper` |
+| $g_{n,s,t} \geq -M \cdot u_{n,s,t}$ | `Generator-com-ext-p-lower-semi-continuous` |
+| $f_{l,t} \geq -M \cdot u_{l,t}$ | `Link-com-ext-p-lower-semi-continuous` |
 
-    | Constraint | Name |
-    |-------------------|------------------|
-    | $u_{n,s,t} \leq n^{\textrm{mod}}_{n,s}$ | `Generator-status-p_nom-variable-upper` |
-    | $A_{n,s,t} \leq G_{n,s}$ | `Generator-p_nom_available_continuous` |
-    | $A_{n,s,t} \leq \bar{G}_{n,s} \cdot u_{n,s,t}$ | `Generator-p_nom_available_binary` |
-    | $A_{n,s,t} \geq G_{n,s} + (u_{n,s,t} - n^{\textrm{mod}}_{n,s}) \cdot \bar{G}_{n,s}$ | `Generator-p_nom_available_switch` |
-    | $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot A_{n,s,t}$ | `Generator-com-mod-continuous-p-lower` |
-    | $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot A_{n,s,t}$ | `Generator-com-mod-continuous-p-upper` |
+An asset that is not built has $G_{n,s} = 0$ and $u_{n,s,t} = 0$, so its dispatch is zero, also with a negative `p_min_pu`.
+An offline asset that is built also has zero dispatch.
+An asset that is built behaves exactly as an ordinary committable, extendable component.
+The status, start-up and shut-down variables stay binary, and the start-up and shut-down variables are not limited by the build decision.
+That is, an asset that is committed before the optimisation horizon can shut down in the first snapshot without being built.
 
-=== "Link"
-
-    | Constraint | Name |
-    |-------------------|------------------|
-    | $u_{l,t} \leq n^{\textrm{mod}}_{l}$ | `Link-status-p_nom-variable-upper` |
-    | $A_{l,t} \leq F_{l}$ | `Link-p_nom_available_continuous` |
-    | $A_{l,t} \leq \bar{F}_{l} \cdot u_{l,t}$ | `Link-p_nom_available_binary` |
-    | $A_{l,t} \geq F_{l} + (u_{l,t} - n^{\textrm{mod}}_{l}) \cdot \bar{F}_{l}$ | `Link-p_nom_available_switch` |
-    | $f_{l,t} \geq \underline{f}_{l,t} \cdot A_{l,t}$ | `Link-com-mod-continuous-p-lower` |
-    | $f_{l,t} \leq \bar{f}_{l,t} \cdot A_{l,t}$ | `Link-com-mod-continuous-p-upper` |
-
-An asset without a module can never be committed ($u \leq n^{\textrm{mod}}$), so $A = 0$ and the dispatch is forced to zero.
-An asset that is built and committed has $A_{n,s,t} = G_{n,s}$ and behaves exactly as an ordinary committable component.
-When it is built but not committed, the availability constraint drives $A_{n,s,t}$ to zero without affecting the installed capacity.
-The status, start-up and shut-down variables stay binary.
-
-Like other modular committable components, they cannot be used with `n.optimize(linearized_unit_commitment=True)`, because relaxing the integrality of the module decision is not meaningful.
-Doing so raises a `ValueError`.
+With `n.optimize(linearized_unit_commitment=True)`, the status is relaxed but the build decision stays binary.
+In contrast, fixed-size modular committables cannot be linearised and raise a `ValueError`.
 
 !!! note "Initial status of modular committables"
 
     For [modular committable](#modular-and-committable-components) assets with fixed module sizes the `status` attribute defaults to 1.
-    That is, one module is assumed to be committed before the optimisation horizon starts, which implicitly forces at least one module to be built.
-    Set `status=0` and `up_time_before=0` to leave the module decision entirely to the optimiser.
-
-!!! warning "Current limitations"
-
-    - Modular components without a module size are only supported for extendable components.
-      Setting `modular=True` on a component with a fixed capacity and `{p,s,e}_nom_mod=0` raises a `ValueError` before the model is built.
-    - A committable component without a module size must consist of a single module (`n_mod_max <= 1`), because the capacity available from a subset of several continuous modules is not linear.
-    - A committable component without a module size cannot also be maintainable.
-    - A one-off cost for the asset as a whole cannot be combined with fixed-size modules, since `module_cost` is charged per module.
+    That is, one module is assumed to be committed before the optimisation horizon starts.
+    If no module is built, that module can shut down in the first snapshot, and a minimum up time from `up_time_before` only applies if at least one module is built.
+    Set `status=0` and `up_time_before=0` to start the horizon with no module committed.
 
 ??? note "Mapping of symbols to component attributes"
 
     | Symbol | Attribute | Type |
     |-------------------|-----------|-------------|
-    | $G^{\textrm{mod}}_{n,s}$ | `n.generators.n_mod_opt` | Decision variable (integer) |
-    | $F^{\textrm{mod}}_{l}$ | `n.links.n_mod_opt` | Decision variable (integer) |
-    | $A_{n,s,t}$       | `n.model.variables['Generator-available_p_nom']` | Decision variable |
+    | $n^{\textrm{mod}}_{n,s}$ | `n.generators.n_mod_opt` | Decision variable (binary) |
+    | $n^{\textrm{mod}}_{l}$ | `n.links.n_mod_opt` | Decision variable (binary) |
     | $u_{n,s,t}$       | `n.generators_t.status` | Decision variable (binary) |
+    | $M$               | auto-inferred or `committable_big_m` parameter | Parameter |
     | $\tilde{G}_{n,s}$ | `n.generators.p_nom_mod` | Parameter |
     | $\underline{G}_{n,s}$ | `n.generators.p_nom_min` | Parameter |
     | $\bar{G}_{n,s}$   | `n.generators.p_nom_max` | Parameter |
-    | $\underline{n}^{\textrm{mod}}_{*}$ | `n.{generators,...}.n_mod_min` | Parameter |
-    | $\bar{n}^{\textrm{mod}}_{*}$ | `n.{generators,...}.n_mod_max` | Parameter |
-    | $M$               | auto-inferred or `committable_big_m` parameter | Parameter |
 
 ## Compatibility of Capacity Expansion with Unit Commitment Features
 
@@ -392,16 +370,18 @@ The following table summarizes which unit commitment features are compatible wit
 | Minimum part-load (`p_min_pu`) | ✓ | ✓ (per module)¹ |
 | Ramp limits (`ramp_limit_up/down`) | ✓ | ✓² |
 | Stand-by costs | ✓ | ✓ |
-| Minimum up time (`min_up_time`) | ✓ | ✗ |
-| Minimum down time (`min_down_time`) | ✓ | ✗ |
-| Up time before (`up_time_before`) | ✓ | ✗ |
-| Down time before (`down_time_before`) | ✓ | ✗ |
+| Minimum up time (`min_up_time`) | ✓ | ✓³ |
+| Minimum down time (`min_down_time`) | ✓ | ✓³ |
+| Up time before (`up_time_before`) | ✓ | ✓³ |
+| Down time before (`down_time_before`) | ✓ | ✓³ |
 
 ---
 
 ¹ For modular components, `p_min_pu` and `p_max_pu` apply to **each committed module**. The minimum/maximum power is calculated as `p_min_pu × p_nom_mod × status` where `status` is the number of committed modules.
 
 ² For modular + committable components, ramp limits are applied to the **total installed capacity** (similar to standard committable components), not per module. The ramp constraint is `p_t - p_{t-1} ≤ ramp_limit_up × p_nom_opt`, where `p_nom_opt` is the total capacity of all installed modules. This differs from the per-module behavior of minimum/maximum part-load constraints.
+
+³ For modular + committable components, minimum up and down times apply to the **number of committed modules**, which `start_up` and `shut_down` count. A minimum up time from `up_time_before` only applies if at least one module is built.
 
 
 ## Fixed Capacity
@@ -431,7 +411,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $G_{n,s}$         | `n.generators.p_nom_opt` | Decision variable |
-        | $G^{\textrm{mod}}_{n,s}$ | not stored | Decision variable |
+        | $n^{\textrm{mod}}_{n,s}$ | `n.generators.n_mod_opt` | Decision variable (binary or integer) |
         | $\underline{G}_{n,s}$ | `n.generators.p_nom_min` | Parameter |
         | $\bar{G}_{n,s}$   | `n.generators.p_nom_max` | Parameter |
         | $\tilde{G}_{n,s}$ | `n.generators.p_nom_mod` | Parameter |
@@ -443,7 +423,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $F_{l}$           | `n.links.p_nom_opt` | Decision variable |
-        | $F^{\textrm{mod}}_{l}$   | not stored | Decision variable |
+        | $n^{\textrm{mod}}_{l}$ | `n.links.n_mod_opt` | Decision variable (binary or integer) |
         | $\underline{F}_{l}$ | `n.links.p_nom_min` | Parameter |
         | $\bar{F}_{l}$     | `n.links.p_nom_max` | Parameter |
         | $\tilde{F}_{l}$   | `n.links.p_nom_mod` | Parameter |
@@ -454,7 +434,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $R_{m}$           | `n.processes.p_nom_opt` | Decision variable |
-        | $R^{\textrm{mod}}_{m}$   | not stored | Decision variable |
+        | $n^{\textrm{mod}}_{m}$ | `n.processes.n_mod_opt` | Decision variable (binary or integer) |
         | $\underline{R}_{m}$ | `n.processes.p_nom_min` | Parameter |
         | $\bar{R}_{m}$     | `n.processes.p_nom_max` | Parameter |
         | $\tilde{R}_{m}$   | `n.processes.p_nom_mod` | Parameter |
@@ -465,7 +445,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $P_{l}$           | `n.lines.s_nom_opt` | Decision variable |
-        | $P^{\textrm{mod}}_{l}$   | not stored | Decision variable |
+        | $n^{\textrm{mod}}_{l}$ | `n.lines.n_mod_opt` | Decision variable (binary or integer) |
         | $\underline{P}_{l}$ | `n.lines.s_nom_min` | Parameter |
         | $\bar{P}_{l}$     | `n.lines.s_nom_max` | Parameter |
         | $\tilde{P}_{l}$   | `n.lines.s_nom_mod` | Parameter |
@@ -476,7 +456,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $P_{l}$           | `n.transformers.s_nom_opt` | Decision variable |
-        | $P^{\textrm{mod}}_{l}$   | not stored | Decision variable |
+        | $n^{\textrm{mod}}_{l}$ | `n.transformers.n_mod_opt` | Decision variable (binary or integer) |
         | $\underline{P}_{l}$ | `n.transformers.s_nom_min` | Parameter |
         | $\bar{P}_{l}$     | `n.transformers.s_nom_max` | Parameter |
         | $\tilde{P}_{l}$   | `n.transformers.s_nom_mod` | Parameter |
@@ -487,7 +467,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $E_{n,s}$         | `n.stores.e_nom_opt` | Decision variable |
-        | $E^{\textrm{mod}}_{n,s}$   | not stored | Decision variable |
+        | $n^{\textrm{mod}}_{n,s}$ | `n.stores.n_mod_opt` | Decision variable (binary or integer) |
         | $\underline{E}_{n,s}$ | `n.stores.e_nom_min` | Parameter |
         | $\bar{E}_{n,s}$   | `n.stores.e_nom_max` | Parameter |
         | $\tilde{E}_{n,s}$ | `n.stores.e_nom_mod` | Parameter |
@@ -498,7 +478,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | Symbol | Attribute | Type |
         |-------------------|-----------|-------------|
         | $H_{n,s}$         | `n.storage_units.p_nom_opt` | Decision variable |
-        | $H^{\textrm{mod}}_{n,s}$   | not stored | Decision variable |
+        | $n^{\textrm{mod}}_{n,s}$ | `n.storage_units.n_mod_opt` | Decision variable (binary or integer) |
         | $\underline{H}_{n,s}$ | `n.storage_units.p_nom_min` | Parameter |
         | $\bar{H}_{n,s}$   | `n.storage_units.p_nom_max` | Parameter |
         | $\tilde{H}_{n,s}$ | `n.storage_units.p_nom_mod` | Parameter |

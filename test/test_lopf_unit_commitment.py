@@ -1289,7 +1289,7 @@ def test_ramp_limit_shut_down_first_snapshot_with_slack():
     "generator_kwargs",
     [
         {},
-        {"p_nom_extendable": True, "p_nom_mod": 50},
+        {"p_nom_extendable": True, "p_nom_mod": 50, "build_mode": "modular"},
         {"ramp_limit_up": 0.5},
     ],
     ids=["fixed", "extendable-modular", "ramp-limited"],
@@ -1384,6 +1384,7 @@ def test_inactive_asset_with_modular_committable_ramp():
         bus="bus",
         p_nom_extendable=True,
         p_nom_mod=50,
+        build_mode="modular",
         p_nom_max=200,
         committable=True,
         marginal_cost=12,

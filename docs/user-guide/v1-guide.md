@@ -97,7 +97,7 @@ Norway Gas           Norway      PQ  ...                        0.0        NaN
 Frankfurt Wind    Frankfurt      PQ  ...                        0.0        NaN
 Frankfurt Gas     Frankfurt      PQ  ...                        0.0        NaN
 <BLANKLINE>
-[6 rows x 53 columns]
+[6 rows x 51 columns]
 
 # Opt-in to new components API
 >>> pypsa.options.api.new_components_api = True
@@ -120,7 +120,7 @@ Norway Gas           Norway      PQ  ...                        0.0        NaN
 Frankfurt Wind    Frankfurt      PQ  ...                        0.0        NaN
 Frankfurt Gas     Frankfurt      PQ  ...                        0.0        NaN
 <BLANKLINE>
-[6 rows x 53 columns]
+[6 rows x 51 columns]
 
 >>> pypsa.options.api.new_components_api = False
 ```

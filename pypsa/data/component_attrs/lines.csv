@@ -9,9 +9,7 @@ g,float,Siemens,0,Shunt conductivity. Shunt admittance is $y = g + jb$.,Input (o
 b,float,Siemens,0,Shunt susceptance. If the line has shunt capacitance $C$ in Farads then $b = 2\\pi f C$ where $f$ is the frequency in Hertz. Shunt admittance is $y = g + jb$. Ignored if `type` defined.,Input (optional)
 s_nom,float,MVA,0,Limit of apparent power which can pass through branch in either direction. Ignored if `s_nom_extendable=True`.,Input (optional)
 s_nom_mod,float,MVA,0,Modular unit size of line expansion of `s_nom` (e.g. fixed rating of added circuit). Introduces integer variables.,Input (optional)
-modular,boolean,n/a,False,"Decide `s_nom` in modules, introducing an integer variable for the number of modules. If `s_nom_mod > 0` the capacity of each module is fixed, otherwise the total capacity of the modules is a continuous decision (a single module unless `n_mod_max` allows more). Implied if `s_nom_mod > 0`. Without `s_nom_mod`, only supported if `s_nom_extendable=True`.",Input (optional)
-n_mod_min,float,n/a,0,"Minimum number of modules. Only used if the line is modular and `s_nom_extendable=True`.",Input (optional)
-n_mod_max,float,n/a,NaN,"Maximum number of modules. If NaN, defaults to `max(1, n_mod_min)` if `s_nom_mod = 0` (i.e. a single module of continuous capacity unless more are required) and to no limit otherwise. Only used if the line is modular and `s_nom_extendable=True`.",Input (optional)
+build_mode,string,n/a,continuous,"How the capacity `s_nom` is built if `s_nom_extendable=True`: ""continuous"" (any value between `s_nom_min` and `s_nom_max`), ""semi_continuous"" (binary build decision: zero or between `s_nom_min` and a finite `s_nom_max`; requires `s_nom_mod=0`) or ""modular"" (integer number of modules of size `s_nom_mod > 0`).",Input (optional)
 s_nom_extendable,boolean,n/a,False,Switch to allow capacity `s_nom` to be extended in optimisation.,Input (optional)
 s_nom_min,float,MVA,0,"If `s_nom_extendable=True`, set the minimum value of `s_nom_opt`.",Input (optional)
 s_nom_max,float,MVA,inf,"If `s_nom_extendable=True`, set the maximum value of `s_nom_opt`.",Input (optional)
@@ -21,8 +19,8 @@ capital_cost,float,currency/MVA,0,"Fixed period costs of extending `s_nom` by 1 
 overnight_cost,float,currency/MVA,NaN,"Overnight (upfront) investment cost per MVA. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `capital_cost`.",Input (optional)
 discount_rate,float,per unit,NaN,"Discount rate for annuity calculation when using `overnight_cost`. Supports 0% rate (simple depreciation).",Input (optional)
 fom_cost,float,currency/MVA,0,"Fixed period operation and maintenance cost per MVA, added to annuitized investment cost.",Input (optional)
-module_cost,float,currency,0.,"Annuitised cost per module of the line, irrespective of its capacity. Only used if the line is modular and `s_nom_extendable=True`.",Input (optional)
-module_cost_overnight,float,currency,NaN,"Upfront cost per module of the line, irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `module_cost`.",Input (optional)
+build_cost,float,currency,0.,"Annuitised cost per module of the line (if `build_mode=""modular""`) or for building it (if `build_mode=""semi_continuous""`), irrespective of its capacity. Only used if `s_nom_extendable=True`.",Input (optional)
+build_cost_overnight,float,currency,NaN,"Upfront cost per module of the line (if `build_mode=""modular""`) or for building it (if `build_mode=""semi_continuous""`), irrespective of its capacity. If specified, PyPSA calculates annuity using `discount_rate` and `lifetime`. Takes precedence over `build_cost`.",Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
 build_year,int,year,0,Build year of line.,Input (optional)
 lifetime,float,years,inf,Lifetime of line.,Input (optional)
@@ -47,4 +45,4 @@ s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
 mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit $-F \\leq f$. Always non-negative.,Output
 mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit $f \\leq F$. Always non-negative.,Output
 capital_cost_piecewise_opt,float,currency/MVA,0.,Optimised capital cost when using piecewise linearisation.,Output
-n_mod_opt,float,n/a,n/a,"Optimised number of modules. Only for modular components with `s_nom_extendable=True`.",Output
+n_mod_opt,float,n/a,n/a,"Optimised number of modules (if `build_mode=""modular""`) or build decision (if `build_mode=""semi_continuous""`). Only if `s_nom_extendable=True`.",Output

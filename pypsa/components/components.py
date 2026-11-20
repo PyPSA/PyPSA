@@ -36,6 +36,7 @@ from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
 from pypsa.constants import (
+    BUILD_MODES,
     DEFAULT_EPSG,
     DEFAULT_TIMESTAMP,
     RE_PORTS,
@@ -759,13 +760,13 @@ class Components(
         Coordinates:
           * name                        (name) object 48B 'Manchester Wind' ... 'Fran...
           * snapshot                    (snapshot) datetime64[ns] 80B 2015-01-01 ... ...
-        Data variables: (12/54)
+        Data variables: (12/52)
             bus                         (name) object 48B 'Manchester' ... 'Frankfurt'
             control                     (name) object 48B 'Slack' 'PQ' ... 'Slack' 'PQ'
             type                        (name) object 48B '' '' '' '' '' ''
             p_nom                       (name) float64 48B 80.0 5e+04 ... 110.0 8e+04
             p_nom_mod                   (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
-            modular                     (name) bool 6B False False False ... False False
+            build_mode                  (name) object 48B 'continuous' ... 'continuous'
             ...                          ...
             ramp_limit_shut_down        (name) float64 48B nan nan nan nan nan nan
             weight                      (name) float64 48B 1.0 1.0 1.0 1.0 1.0 1.0
@@ -1034,11 +1035,11 @@ class Components(
     def modulars(self) -> pd.Index:
         """Get the index of modular elements of this component.
 
-        Modular components decide their capacity in modules, which introduces an
-        integer variable for the number of modules. An element is modular if the
-        `modular` flag is set or if it has a positive module size (e.g.,
-        p_nom_mod > 0). With a module size, the capacity of each module is fixed;
-        without one, the total capacity of the modules is a continuous decision.
+        Modular components (`build_mode="modular"`) are built in an integer number
+        of fixed-size modules (e.g. of size `p_nom_mod`). Rows with a module size
+        and `build_mode="continuous"` count as modular if they are extendable or
+        committable (deprecated). Fixed, non-committable rows with a module size
+        and `build_mode="continuous"` are not modular.
 
         <!-- md:badge-version v1.1.0 -->
 
@@ -1048,78 +1049,55 @@ class Components(
             Single-level index of modular elements.
 
         """
-        mask = self._fixed_size_mask()
-        if "modular" in self.static.columns:
-            mask |= self.static["modular"].eq(True)
-        return self._name_index(mask)
+        modular = (self._build_mode == "modular") | self._implicit_modular
+        return self._name_index(modular)
 
-    def _scenario_invariant_static(self, attr: str) -> pd.Series:
-        """Return a scenario-invariant static attribute indexed by name only."""
-        values = self.static[attr]
-        if self.has_scenarios:
-            values = values.groupby(level="name").first()
-        return values
+    @property
+    def _build_mode(self) -> pd.Series:
+        """Build mode of each row, empty if the component has no `build_mode`."""
+        if "build_mode" not in self.static.columns:
+            return pd.Series("", index=self.static.index, dtype=object)
+        build_mode = self.static["build_mode"]
+        invalid = ~build_mode.isin(BUILD_MODES)
+        if invalid.any():
+            values = sorted(set(build_mode[invalid]), key=str)
+            names = ", ".join(str(name) for name in self._name_index(invalid))
+            msg = (
+                f"Component {self.name} has assets that have an invalid `build_mode` "
+                f"{values}: {names}. Use one of {list(BUILD_MODES)}."
+            )
+            raise ValueError(msg)
+        return build_mode
 
-    def _n_mod_bounds(self, names: pd.Index) -> tuple[pd.Series, pd.Series]:
-        """Return the lower and upper bounds on the number of modules.
+    @property
+    def _implicit_modular(self) -> pd.Series:
+        """Mask of rows with a module size but `build_mode="continuous"` (deprecated)."""
+        continuous = self._build_mode == "continuous"
+        if not continuous.any():
+            return continuous
+        static = self.static
+        applies = static[self._operational_attrs["nom_extendable"]]
+        if "committable" in static.columns:
+            applies = applies | static["committable"]
+        sized = static[self._operational_attrs["nom_mod"]] > 0
+        return continuous & sized & applies
 
-        A missing `n_mod_max` defaults to a single module (or `n_mod_min` modules,
-        if larger) for continuous modular elements and to no limit for elements
-        with a fixed module size.
+    @property
+    def _semi_continuous(self) -> pd.Index:
+        """Get the index of semi-continuous elements (`build_mode="semi_continuous"`).
+
+        Their capacity is either zero or within its bounds, decided by a binary
+        build decision `n_mod`.
         """
-        lower = self._scenario_invariant_static("n_mod_min").reindex(names)
-        upper = self._scenario_invariant_static("n_mod_max").reindex(names)
-        is_continuous = names.isin(self._continuous_modulars)
-        default = lower.clip(lower=1).where(is_continuous, np.inf)
-        return lower, upper.fillna(default)
+        return self._name_index(self._build_mode == "semi_continuous")
 
     @property
-    def _single_module_continuous_modulars(self) -> pd.Index:
-        """Get the index of active, extendable, continuous modular elements with at most one module."""
-        cont_i = self._active_continuous_modulars
-        if cont_i.empty:
-            return cont_i
-        _, n_mod_max = self._n_mod_bounds(cont_i)
-        return cont_i[(n_mod_max <= 1).to_numpy()]
-
-    def _fixed_size_mask(self) -> pd.Series:
-        """Return a mask of static rows with a positive module size (e.g. p_nom_mod > 0)."""
-        try:
-            mod_col = self._operational_attrs["nom_mod"]
-        except KeyError:  # component without nominal capacity, e.g. Bus
-            mod_col = None
-        if mod_col not in self.static.columns:
-            return pd.Series(False, index=self.static.index)
-        return self.static[mod_col] > 0
-
-    @property
-    def _fixed_size_modulars(self) -> pd.Index:
-        """Get the index of modular elements with a fixed module size (e.g. p_nom_mod > 0)."""
-        return self._name_index(self._fixed_size_mask())
-
-    @property
-    def _continuous_modulars(self) -> pd.Index:
-        """Get the index of modular elements whose module capacity is continuous."""
-        return self.modulars.difference(self._fixed_size_modulars)
-
-    @property
-    def _active_modulars(self) -> pd.Index:
-        """Get the index of active, extendable, modular elements.
-
-        These are the elements for which a module count variable is created.
-        """
-        mod_i = self.modulars
-        if mod_i.empty:
-            return mod_i
-        return mod_i.intersection(self.extendables).intersection(self.active_assets)
-
-    @property
-    def _active_continuous_modulars(self) -> pd.Index:
-        """Get the index of active, extendable, continuous modular elements."""
-        return self._active_modulars.difference(self._fixed_size_modulars)
+    def _n_mod_assets(self) -> pd.Index:
+        """Get the index of extendable elements with a module count `n_mod`."""
+        return self.modulars.union(self._semi_continuous).intersection(self.extendables)
 
     def _resolve_big_m_default(self, committable_big_m: float | None) -> float:
-        """Resolve the scalar big-M fallback for committable/modular bounds."""
+        """Resolve the scalar big-M fallback for committable bounds."""
         big_m_default = committable_big_m
         if big_m_default is None and self.n is not None:
             big_m_default = self.n._committable_big_m
@@ -1244,7 +1222,7 @@ class Components(
         )
 
     @property
-    def module_cost(self) -> pd.Series:
+    def build_cost(self) -> pd.Series:
         """Calculate periodized investment cost per module.
 
         <!-- md:badge-version v1.1.0 -->
@@ -1252,13 +1230,13 @@ class Components(
         See Also
         --------
         `pypsa.costs.periodized_cost`
-        `periodized_module_cost` : Same values as xarray DataArray.
+        `periodized_build_cost` : Same values as xarray DataArray.
 
         """
         static = self.static
         return periodized_cost(
-            capital_cost=static["module_cost"],
-            overnight_cost=static["module_cost_overnight"],
+            capital_cost=static["build_cost"],
+            overnight_cost=static["build_cost_overnight"],
             discount_rate=static["discount_rate"],
             lifetime=static["lifetime"],
             fom_cost=0,
@@ -1266,7 +1244,7 @@ class Components(
         )
 
     @property
-    def periodized_module_cost(self) -> xarray.DataArray:
+    def periodized_build_cost(self) -> xarray.DataArray:
         """Calculate periodized module investment cost from component attributes as xarray DataArray.
 
         <!-- md:badge-version v1.1.0 -->
@@ -1276,7 +1254,7 @@ class Components(
         `pypsa.costs.periodized_cost`
 
         """
-        da = xarray.DataArray(self.module_cost)
+        da = xarray.DataArray(self.build_cost)
         if self.has_scenarios:
             da = da.unstack().reindex(name=self.names, scenario=self.scenarios)
         return da
@@ -1392,14 +1370,14 @@ class Components(
         )
 
     @property
-    def overnight_module_cost(self) -> pd.Series:
+    def overnight_build_cost(self) -> pd.Series:
         """Calculate overnight module investment cost from component attributes.
 
         <!-- md:badge-version v1.1.0 -->
 
-        If module_cost_overnight column is provided (not NaN), returns it directly.
-        Otherwise, converts periodized module_cost back to overnight cost using
-        the formula: module_cost_overnight = module_cost / (annuity_factor × nyears).
+        If build_cost_overnight column is provided (not NaN), returns it directly.
+        Otherwise, converts periodized build_cost back to overnight cost using
+        the formula: build_cost_overnight = build_cost / (annuity_factor × nyears).
 
         Returns
         -------
@@ -1408,15 +1386,15 @@ class Components(
 
         See Also
         --------
-        `periodized_module_cost` : Periodized module investment cost for the modeled horizon.
+        `periodized_build_cost` : Periodized module investment cost for the modeled horizon.
         `overnight_cost` : Overnight cost per unit of capacity.
 
         """
         static = self.static
         return self._overnight_from_annuitized(
-            static["module_cost"],
-            static["module_cost_overnight"],
-            "module_cost_overnight",
+            static["build_cost"],
+            static["build_cost_overnight"],
+            "build_cost_overnight",
         )
 
 

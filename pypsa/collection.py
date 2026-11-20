@@ -91,7 +91,7 @@ class NetworkCollection:
                                Frankfurt Wind    Frankfurt  ...       NaN
                                Frankfurt Gas     Frankfurt  ...       NaN
     <BLANKLINE>
-    [12 rows x 53 columns]
+    [12 rows x 51 columns]
 
 
     >>> nc.statistics.energy_balance()  # doctest: +ELLIPSIS
@@ -522,8 +522,8 @@ def _get_method_patterns() -> dict[str, str]:
         rf"({_component_classes}.static)|"
         rf"({_component_classes}.get_active_assets)|"
         rf"({_component_classes}.capital_cost)|"
-        rf"({_component_classes}.module_cost)|"
-        rf"({_component_classes}.overnight_module_cost)|"
+        rf"({_component_classes}.build_cost)|"
+        rf"({_component_classes}.overnight_build_cost)|"
         rf"({_component_classes}.annuity)|"
         rf"static|"
         rf"get_active_assets|"

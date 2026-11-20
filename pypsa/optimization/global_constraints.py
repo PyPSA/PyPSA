@@ -936,6 +936,12 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
             vars = m[f"{c.name}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((cost, vars)).sum())
 
+            mod_i = ext_i.intersection(c._n_mod_assets)
+            if not mod_i.empty:
+                build_cost = (c.build_cost.reindex(ext_i) * comp_weights).loc[mod_i]
+                n_mod = m[f"{c.name}-n_mod"].loc[mod_i]
+                lhs.append(m.linexpr((build_cost, n_mod)).sum())
+
         if not lhs:
             continue
 

@@ -114,7 +114,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Frankfurt Wind    Frankfurt   Slack  ...                        0.0        NaN
         Frankfurt Gas     Frankfurt      PQ  ...                        0.0        NaN
         <BLANKLINE>
-        [6 rows x 53 columns]
+        [6 rows x 51 columns]
         >>> n.generators is n.components.generators.static
         True
 

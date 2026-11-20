@@ -16,6 +16,7 @@ DEFAULT_EPSG = 4326
 DEFAULT_TIMESTAMP = "now"
 EARTH_RADIUS = 6378137.0  # equitorial radius in meters
 HOURS_PER_YEAR = 8760.0
+BUILD_MODES = ("continuous", "semi_continuous", "modular")
 
 RE_PORTS = re.compile(r"^bus(\d*)$")
 # Pattern for filtering bus columns without capture groups

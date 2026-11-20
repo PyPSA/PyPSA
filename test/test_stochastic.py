@@ -320,6 +320,9 @@ def test_solved_network_simple_modular(stochastic_benchmark_network):
     for scenario in n.scenarios:
         n.c.generators.static.loc[(scenario, "gas"), "p_nom_mod"] = 0.7
         n.c.generators.static.loc[(scenario, "lignite"), "p_nom_mod"] = 0.7
+    n.c.generators.static.loc[(slice(None), ["gas", "lignite"]), "build_mode"] = (
+        "modular"
+    )
 
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
