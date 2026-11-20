@@ -63,7 +63,7 @@ excel = ["openpyxl", "python-calamine"]
 gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
 dotenv = ["python-dotenv"]
-tsam = ["tsam"]
+tsam = ["tsam>=3"]
 test = [
     "pytest",
     "pytest-cov",
@@ -99,7 +99,7 @@ docs = [
     "mkdocs-jupyter",
     "cairosvg",
     "pillow",
-    "tsam",
+    "tsam>=3",
     "gurobipy",
     "openpyxl",
     "python-calamine",

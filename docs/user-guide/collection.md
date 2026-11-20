@@ -102,27 +102,27 @@ network. They will just be concatenated across all networks in the collection.
 
 Accessing static data:
 ``` py
->>> nc.buses  # doctest: +NORMALIZE_WHITESPACE
-                       v_nom type  ... sub_network country
-custom-dim name                    ...
-network1   London      380.0       ...           0      UK
-           Norwich     380.0       ...           0      UK
-           Norwich DC  200.0       ...           1      UK
-           Manchester  380.0       ...           0      UK
-           Bremen      380.0       ...           2      DE
-           Bremen DC   200.0       ...           1      DE
-           Frankfurt   380.0       ...           2      DE
-           Norway      380.0       ...           3      NO
-           Norway DC   200.0       ...           1      NO
-network2   London      380.0       ...           0      UK
-           Norwich     380.0       ...           0      UK
-           Norwich DC  200.0       ...           1      UK
-           Manchester  380.0       ...           0      UK
-           Bremen      380.0       ...           2      DE
-           Bremen DC   200.0       ...           1      DE
-           Frankfurt   380.0       ...           2      DE
-           Norway      380.0       ...           3      NO
-           Norway DC   200.0       ...           1      NO
+>>> nc.buses  # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+                       v_nom ... country
+custom-dim name             ...
+network1   London      380.0 ... UK
+           Norwich     380.0 ... UK
+           Norwich DC  200.0 ... UK
+           Manchester  380.0 ... UK
+           Bremen      380.0 ... DE
+           Bremen DC   200.0 ... DE
+           Frankfurt   380.0 ... DE
+           Norway      380.0 ... NO
+           Norway DC   200.0 ... NO
+network2   London      380.0 ... UK
+           Norwich     380.0 ... UK
+           Norwich DC  200.0 ... UK
+           Manchester  380.0 ... UK
+           Bremen      380.0 ... DE
+           Bremen DC   200.0 ... DE
+           Frankfurt   380.0 ... DE
+           Norway      380.0 ... NO
+           Norway DC   200.0 ... NO
 <BLANKLINE>
 [18 rows x 15 columns]
 ```
