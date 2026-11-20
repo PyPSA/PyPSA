@@ -40,6 +40,16 @@ class Processes(_Multiport):
     """
 
     _operational_variables = ["p"]
+    _power_variable = "p"
+    _formulation = (
+        "extendable",
+        "carrier_expansion",
+        "marginal_cost",
+        "dispatch",
+        "commitment",
+        "maintenance",
+        "multiport",
+    )
     _unsuffixed_attrs: set[str] = set()
 
     @property

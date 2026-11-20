@@ -15,41 +15,48 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+import xarray as xr
 
 from pypsa.components.common import invariant
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from pypsa import Network
 
 KVL = "Kirchhoff-Voltage-Law"
 
 
-def global_constraint_factor(n: Network, name: str) -> float:
-    """Return the row factor of the global constraint `name`.
+def global_constraint_factors(n: Network, names: pd.Index) -> xr.DataArray | float:
+    """Return the row factors of the global constraints `names`.
 
     Parameters
     ----------
     n : pypsa.Network
         Network with `GlobalConstraint.scaling` defined.
-    name : str
-        Name of the global constraint.
+    names : pd.Index
+        Names of the global constraints.
 
     Returns
     -------
-    float
-        `GlobalConstraint.scaling` of `name`.
+    xarray.DataArray | float
+        `GlobalConstraint.scaling` over `name`, or `1.0` if all factors are `1`
+        so that unscaled models stay unchanged.
 
     Raises
     ------
     ValueError
-        If the factor is not finite and positive, or differs across scenarios.
+        If a factor is not finite and positive, or differs across scenarios.
 
     """
-    value = float(invariant(n.c.global_constraints.static.scaling)[name])
-    if not np.isfinite(value) or value <= 0:
-        msg = f"GlobalConstraint.scaling must be finite and positive, got {value} for '{name}'."
+    factors = invariant(n.c.global_constraints.static.scaling).reindex(names)
+    invalid = ~np.isfinite(factors) | (factors <= 0)
+    if invalid.any():
+        msg = f"GlobalConstraint.scaling must be finite and positive, got:\n{factors[invalid]}"
         raise ValueError(msg)
-    return value
+    if (factors == 1).all():
+        return 1.0
+    return xr.DataArray(factors.rename("scaling").rename_axis("name"))
 
 
 def check_sub_networks(n: Network) -> None:

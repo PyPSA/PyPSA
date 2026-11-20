@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Dispatch Limits
 
-Each [`Generator`][pypsa.components.Generators] has a dispatch variable $g_{n,s,t}$ where $n$ labels the bus, $s$ labels the particular generator at the bus and $t$ labels the snapshot. Each [`Link`][pypsa.components.Links] has a dispatch variable $f_{l,t}$ where $l$ labels the link and $t$ labels the snapshot. Each [`Process`][pypsa.components.Processes] has an internal dispatch variable $r_{m,t}$ where $m$ labels the process and $t$ labels the snapshot. Each [`Line`][pypsa.components.Lines] and [`Transformer`][pypsa.components.Transformers] has a dispatch variable $p_{l,t}$ where $l$ labels the line/transformer and $t$ labels the snapshot.
+Each [`Generator`][pypsa.components.Generators] $i$ has a dispatch variable $g_{i,s,t}$ where $s$ labels the scenario and $t$ labels the snapshot. Each [`Link`][pypsa.components.Links] $k$ has a dispatch variable $f_{k,s,t}$. Each [`Process`][pypsa.components.Processes] $m$ has an internal dispatch variable $r_{m,s,t}$. Each [`Line`][pypsa.components.Lines] $l$ has a flow variable $p_{l,s,t}$ and each [`Transformer`][pypsa.components.Transformers] $q$ a flow variable $p_{s,t,q}$. The [trait `dispatch`](formulation/traits/dispatch.md) states the limits below.
 
 !!! note "Dispatch limits of [`Store`][pypsa.components.Stores] and [`StorageUnit`][pypsa.components.StorageUnits]"
 
@@ -17,157 +17,72 @@ Each [`Generator`][pypsa.components.Generators] has a dispatch variable $g_{n,s,
 
 For non-extendable components (`{p,s}_nom_extendable=False`), the dispatch is limited by:
 
-| Constraint | Dual Variable | | Name |
-|------------|---------------|--|------|
-| $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot \hat{g}_{n,s}$ | $w_t^o \underline{\mu}_{n,s,t}$ | `n.generators_t.mu_lower` | `Generator-fix-p-lower` |
-| $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot \hat{g}_{n,s}$ | $w_t^o \bar{\mu}_{n,s,t}$ | `n.generators_t.mu_upper` | `Generator-fix-p-upper` |
-| $f_{l,t} \geq \underline{f}_{l,t} \cdot \hat{f}_{l}$ | $w_t^o \underline{\mu}_{l,t}$ | `n.links_t.mu_lower` | `Link-fix-p-lower` |
-| $f_{l,t} \leq \bar{f}_{l,t} \cdot \hat{f}_{l}$ | $w_t^o \bar{\mu}_{l,t}$ | `n.links_t.mu_upper` | `Link-fix-p-upper` |
-| $r_{m,t} \geq \underline{r}_{m,t} \cdot \hat{r}_{m}$ | $w_t^o \underline{\mu}_{m,t}$ | `n.processes_t.mu_lower` | `Process-fix-p-lower` |
-| $r_{m,t} \leq \bar{r}_{m,t} \cdot \hat{r}_{m}$ | $w_t^o \bar{\mu}_{m,t}$ | `n.processes_t.mu_upper` | `Process-fix-p-upper` |
-| $p_{l,t} \geq - \bar{p}_{l,t} \cdot \hat{p}_{l}$ | $w_t^o \underline{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_lower` | `Line-fix-p-lower` |
-| $p_{l,t} \leq \bar{p}_{l,t} \cdot \hat{p}_{l}$ | $w_t^o \bar{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_upper` | `Line-fix-p-upper` |
+<!-- md:spec-table Generator_fix_p_lower Generator_fix_p_upper Link_fix_p_lower Link_fix_p_upper Process_fix_p_lower Process_fix_p_upper Line_fix_s_lower Line_fix_s_upper Transformer_fix_s_lower Transformer_fix_s_upper -->
 
-where $\hat{g}_{n,s}$, $\hat{f}_{l}$, $\hat{r}_{m}$, and $\hat{p}_{l}$ are the nominal capacities; $\underline{g}_{n,s,t}$, $\underline{f}_{l,t}$, $\underline{r}_{m,t}$, $\bar{g}_{n,s,t}$, $\bar{f}_{l,t}$, $\bar{r}_{m,t}$ and $\bar{p}_{l,t}$ are time-dependent restrictions on the dispatch given per unit of nominal capacity (e.g. due to wind availability for generators or dynamic line rating and security margins for lines).
+where the rated capacity (e.g. `Generator_p_nom_rated`) is the nominal capacity $\hat{g}_{i,s}$, $\hat{f}_{k,s}$, $\hat{r}_{m,s}$ or $\hat{p}_{l,s}$, reduced by planned maintenance where it applies; $\underline{g}_{i,s,t}$, $\underline{f}_{k,s,t}$, $\underline{r}_{m,s,t}$, $\bar{g}_{i,s,t}$, $\bar{f}_{k,s,t}$, $\bar{r}_{m,s,t}$ and $\bar{p}_{l,s,t}$ are time-dependent restrictions on the dispatch given per unit of nominal capacity (e.g. due to wind availability for generators or dynamic line rating and security margins for lines). With [lossy transmission](../optimization/power-flow.md#linear-loss-approximation), the line limits include the loss $\psi_{l,s,t}$.
 
-These constraints are set in the function `define_operational_constraints_for_non_extendables()`.
+The dual variables, scaled by the snapshot weighting $w^{\mathrm{o}}_t$, are stored in `mu_lower` and `mu_upper` of the dynamic component data (e.g. `n.generators_t.mu_upper`).
 
 ## Extendable Components
 
 For extendable components  (`{p,s}_nom_extendable=True`), the dispatch is limited by:
 
-Constraint | Dual Variable | | Name |
-|------------|---------------|--|------|
-|  $g_{n,s,t} \geq \underline{g}_{n,s,t} \cdot G_{n,s}$ | $w_t^o \underline{\mu}_{n,s,t}$ | `n.generators_t.mu_lower` | `Generator-ext-p-lower` |
-| $g_{n,s,t} \leq \bar{g}_{n,s,t} \cdot G_{n,s}$ | $w_t^o \bar{\mu}_{n,s,t}$ | `n.generators_t.mu_upper` | `Generator-ext-p-upper` |
-| $f_{l,t} \geq \underline{f}_{l,t} \cdot F_{l}$ | $w_t^o \underline{\mu}_{l,t}$ | `n.links_t.mu_lower` | `Link-ext-p-lower` |
-| $f_{l,t} \leq \bar{f}_{l,t} \cdot F_{l}$ | $w_t^o \bar{\mu}_{l,t}$ | `n.links_t.mu_upper` | `Link-ext-p-upper` |
-| $r_{m,t} \geq \underline{r}_{m,t} \cdot R_{m}$ | $w_t^o \underline{\mu}_{m,t}$ | `n.processes_t.mu_lower` | `Process-ext-p-lower` |
-| $r_{m,t} \leq \bar{r}_{m,t} \cdot R_{m}$ | $w_t^o \bar{\mu}_{m,t}$ | `n.processes_t.mu_upper` | `Process-ext-p-upper` |
-| $p_{l,t} \geq - \bar{p}_{l,t} \cdot P_{l}$ | $w_t^o \underline{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_lower` | `Line-ext-p-lower` |
-| $p_{l,t} \leq \bar{p}_{l,t} \cdot P_{l}$ | $w_t^o \bar{\mu}_{l,t}$ | `n.{lines,transformers}_t.mu_upper` | `Line-ext-p-upper` |
+<!-- md:spec-table Generator_ext_p_lower Generator_ext_p_upper Link_ext_p_lower Link_ext_p_upper Process_ext_p_lower Process_ext_p_upper Line_ext_s_lower Line_ext_s_upper Transformer_ext_s_lower Transformer_ext_s_upper -->
 
-where $G_{n,s}$, $F_{l}$, $R_{m}$, and $P_{l}$ are the nominal capacities to be optimised.
-
-These constraints are set in the function `define_operational_constraints_for_extendables()`.
+where $G_{i}$, $F_{k}$, $R_{m}$, and $P_{l}$ are the nominal capacities to be optimised. Their dual variables are stored as for non-extendable components.
 
 ## Fixed Dispatch
 
-Additionally, the dispatch can be fixed to a certain value $\tilde{g}_{n,s,t}$ for generators, $\tilde{f}_{l,t}$ for links and $\tilde{r}_{m,t}$ for processes. In this case, the dispatch is given by:
+Additionally, the dispatch can be fixed to a certain value $\tilde{g}_{i,s,t}$ for generators, $\tilde{f}_{k,s,t}$ for links and $\tilde{r}_{m,s,t}$ for processes. In this case, the dispatch is given by:
 
+<!-- md:spec-table Generator_p_set Link_p_set Process_p_set -->
 
-Constraint | Dual Variable | | Name |
-|------------|---------------|--|------|
-| $g_{n,s,t} = \tilde{g}_{n,s,t}$ | $w_t^o  \tilde{\mu}_{n,s,t}$ | `n.generators_t.mu_p_set` | `Generator-p_set` |
-| $f_{l,t} = \tilde{f}_{l,t}$ | $w_t^o  \tilde{\mu}_{l,t}$ | `n.links_t.mu_p_set` | `Link-p_set` |
-| $r_{m,t} = \tilde{r}_{m,t}$ | $w_t^o  \tilde{\mu}_{m,t}$ | `n.processes_t.mu_p_set` | `Process-p_set` |
-
-These constraints are set in the function `define_fixed_operation_constraints()`.
+The dual variables, scaled by $w^{\mathrm{o}}_t$, are stored in `mu_p_set` (e.g. `n.generators_t.mu_p_set`).
 
 ## Volume Limits
 
-Generators, links, processes and stores can also have volume limits, i.e. the weighted sum of their power over all snapshots must be above a minimum $\underline{e}_{*}$ (`e_sum_min`) or below a maximum $\bar{e}_{*}$ (`e_sum_max`). The limits apply once over all snapshots. With multiple investment periods, they apply to the total over all periods, and the energy of each period is multiplied by its investment period weighting `years`, as for [`operational_limit`](./global-constraints.md) global constraints.
+Generators, links, processes and stores can also have volume limits, i.e. the weighted sum of their power over all snapshots must be above a minimum (`e_sum_min`) or below a maximum (`e_sum_max`). The limits apply once over all snapshots. With multiple investment periods, they apply to the total over all periods, and the energy of each period is multiplied by its investment period weighting `years`, as for [`operational_limit`](./global-constraints.md) global constraints.
 
-| Constraint | Dual Variable | Name |
-|-------------------|------------------|------------------|
-| $\sum_t w_t^g g_{n,s,t} \geq \underline{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Generator-e_sum_min` |
-| $\sum_t w_t^g g_{n,s,t} \leq \bar{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Generator-e_sum_max` |
-| $\sum_t w_t^g f_{l,t} \geq \underline{e}_{l} \quad \forall l$ | only in `n.model` | `Link-e_sum_min` |
-| $\sum_t w_t^g f_{l,t} \leq \bar{e}_{l} \quad \forall l$ | only in `n.model` | `Link-e_sum_max` |
-| $\sum_t w_t^g r_{m,t} \geq \underline{e}_{m} \quad \forall m$ | only in `n.model` | `Process-e_sum_min` |
-| $\sum_t w_t^g r_{m,t} \leq \bar{e}_{m} \quad \forall m$ | only in `n.model` | `Process-e_sum_max` |
-| $\sum_t w_t^g h_{n,s,t} \geq \underline{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Store-e_sum_min` |
-| $\sum_t w_t^g h_{n,s,t} \leq \bar{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Store-e_sum_max` |
+<!-- md:spec-table Generator_e_sum_min Generator_e_sum_max Link_e_sum_min Link_e_sum_max Process_e_sum_min Process_e_sum_max Store_e_sum_min Store_e_sum_max -->
 
-The limited power has the sign convention of `p`. For links it is the withdrawal at `bus0`, and for processes the internal power `p`. For stores it is the net power, i.e. discharge minus charge (see [Storage](storage.md) for the symbol $h$). All volume limits use the generator snapshot weightings $w_t^g$, as [`n.statistics.energy_balance()`][pypsa.statistics.StatisticsAccessor.energy_balance].
-
-These constraints are set in the function `define_total_supply_constraints()`.
+The limited power has the sign convention of `p`. For links it is the withdrawal at `bus0`, and for processes the internal power `p`. For stores it is the net power, i.e. discharge minus charge (see [Storage](storage.md) for the symbol $h$). All volume limits use the generator snapshot weightings $w^{\mathrm{g}}_t$, as [`n.statistics.energy_balance()`][pypsa.statistics.StatisticsAccessor.energy_balance]. Their dual variables are only stored in `n.model`.
 
 !!! note "Rolling horizon"
 
-    In [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] the volume limits apply to all snapshots of the rolling horizon. Each window gets the part of the limit left open by previous windows and by what later windows can at most ($\bar{e}$) or must at least ($\underline{e}$) produce given their capacity, `p_min_pu` and `p_max_pu`. Committable and maintainable components may produce nothing in later windows, inactive components produce nothing. Without foresight, a maximum is depleted by the earliest windows and a minimum is filled by the latest windows, which may turn the last window infeasible.
+    In [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] the volume limits apply to all snapshots of the rolling horizon. Each window gets the part of the limit left open by previous windows and by what later windows can at most (`e_sum_max`) or must at least (`e_sum_min`) produce given their capacity, `p_min_pu` and `p_max_pu`. Committable and maintainable components may produce nothing in later windows, inactive components produce nothing. Without foresight, a maximum is depleted by the earliest windows and a minimum is filled by the latest windows, which may turn the last window infeasible.
 
 ## Voltage Angle Limits
 
-AC lines and transformers can limit the magnitude of their linearised voltage angle difference to $\bar{\theta}$ (attribute `v_ang_max` in degrees). The limit applies symmetrically to both flow directions; the attribute `v_ang_min` is deprecated and ignored. The limit is imposed as a bound on the flow by dividing through the strictly positive $x^\text{pu,eff}$, and is only added for branches with a finite `v_ang_max`. Unlike a manual conversion into `s_max_pu`, this formulation contains no $s^\text{nom}$ and therefore stays linear for extendable branches, although the reactance is a fixed parameter in the optimisation (see [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively]).
+AC lines and transformers can limit the magnitude of their linearised voltage angle difference to $\bar{\theta}$ (attribute `v_ang_max` in degrees). The limit applies symmetrically to both flow directions; the attribute `v_ang_min` is deprecated and ignored. The limit is imposed as a bound on the flow by dividing through the strictly positive effective reactance $x$ (`x_pu_eff`), and is only added for branches with a finite `v_ang_max`. Unlike a manual conversion into `s_max_pu`, this formulation contains no branch capacity, neither $\hat{p}$ nor $P$, and therefore stays linear for extendable branches, although the reactance is a fixed parameter in the optimisation (see [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively]).
 
-For a line the angle difference is $\theta_{l,t} = x^\text{pu,eff}_l \, p_{l,t}$. For a transformer it additionally includes the phase shift $\phi_{t,t}$ (either the fixed `phase_shift` or, when `phase_shift_min < phase_shift_max`, the optimised phase-shift variable), so $\theta_{t,t} = x^\text{pu,eff}_t \, p_{t,t} + \phi_{t,t}$.
+For a line $l$ the angle difference is $x_{l,s}\, p_{l,s,t}$. For a transformer $q$ it additionally includes the phase shift: either the fixed `phase_shift` or, when `phase_shift_min < phase_shift_max`, the optimised phase-shift variable $\phi_{s,t,q}$, so the angle difference is $x_{s,q}\, p_{s,t,q} + \phi_{s,t,q}$.
 
-| Constraint | Name |
-|-------------------|------------------|
-| $p_{l,t} \geq -\bar{\theta}_l / x^\text{pu,eff}_l$ | `Line-v_ang-lower` |
-| $p_{l,t} \leq \bar{\theta}_l / x^\text{pu,eff}_l$ | `Line-v_ang-upper` |
-| $p_{t,t} + \phi_{t,t} / x^\text{pu,eff}_t \geq -\bar{\theta}_t / x^\text{pu,eff}_t$ | `Transformer-v_ang-lower` |
-| $p_{t,t} + \phi_{t,t} / x^\text{pu,eff}_t \leq \bar{\theta}_t / x^\text{pu,eff}_t$ | `Transformer-v_ang-upper` |
+<!-- md:spec-table Line_v_ang_lower Line_v_ang_upper Transformer_v_ang_lower Transformer_v_ang_upper Transformer_v_ang_var_lower Transformer_v_ang_var_upper -->
 
-These constraints are set in the function `define_voltage_angle_constraints()`. For background on voltage angle difference limits, see the [MATPOWER manual](https://matpower.org/docs/MATPOWER-manual.pdf), pages 76-77.
+For background on voltage angle difference limits, see the [MATPOWER manual](https://matpower.org/docs/MATPOWER-manual.pdf), pages 76-77.
 
-
-!!! note "Mapping of symbols to attributes"
+??? note "Symbols"
 
     === "Generator"
 
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $g_{n,s,t}$       | `n.generators_t.p` | Decision variable |
-        | $G_{n,s}$         | `n.generators.p_nom_opt` | Decision variable |
-        | $\hat{g}_{n,s}$   | `n.generators.p_nom` | Parameter |
-        | $\underline{g}_{n,s,t}$ | `n.generators_t.p_min_pu` | Parameter |
-        | $\bar{g}_{n,s,t}$ | `n.generators_t.p_max_pu` | Parameter |
-        | $\tilde{g}_{n,s,t}$ | `n.generators_t.p_set` | Parameter |
-        | $\underline{e}_{n,s}$        | `n.generators.e_sum_min` | Parameter |
-        | $\bar{e}_{n,s}$        | `n.generators.e_sum_max` | Parameter |
-        | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
-        | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
+        <!-- md:spec-legend Generator_fix_p_lower Generator_fix_p_upper Generator_ext_p_lower Generator_ext_p_upper Generator_p_set Generator_e_sum_min Generator_e_sum_max -->
 
     === "Link"
 
-
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $f_{l,t}$         | `n.links_t.p` | Decision variable |
-        | $F_{l}$           | `n.links.p_nom_opt` | Decision variable |
-        | $\hat{f}_{l}$     | `n.links.p_nom` | Parameter |
-        | $\underline{f}_{l,t}$ | `n.links_t.p_min_pu` | Parameter |
-        | $\bar{f}_{l,t}$   | `n.links_t.p_max_pu` | Parameter |
-        | $\tilde{f}_{l,t}$ | `n.links_t.p_set` | Parameter |
-        | $\underline{e}_{l}$ | `n.links.e_sum_min` | Parameter |
-        | $\bar{e}_{l}$     | `n.links.e_sum_max` | Parameter |
-        | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
-        | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
+        <!-- md:spec-legend Link_fix_p_lower Link_fix_p_upper Link_ext_p_lower Link_ext_p_upper Link_p_set Link_e_sum_min Link_e_sum_max -->
 
     === "Process"
 
-
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $r_{m,t}$         | `n.processes_t.p` | Decision variable |
-        | $R_{m}$           | `n.processes.p_nom_opt` | Decision variable |
-        | $\hat{r}_{m}$     | `n.processes.p_nom` | Parameter |
-        | $\underline{r}_{m,t}$ | `n.processes_t.p_min_pu` | Parameter |
-        | $\bar{r}_{m,t}$   | `n.processes_t.p_max_pu` | Parameter |
-        | $\tilde{r}_{m,t}$ | `n.processes_t.p_set` | Parameter |
-        | $\underline{e}_{m}$ | `n.processes.e_sum_min` | Parameter |
-        | $\bar{e}_{m}$     | `n.processes.e_sum_max` | Parameter |
-        | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
-        | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
+        <!-- md:spec-legend Process_fix_p_lower Process_fix_p_upper Process_ext_p_lower Process_ext_p_upper Process_p_set Process_e_sum_min Process_e_sum_max -->
 
     === "Store"
 
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $h_{n,s,t}$       | `n.stores_t.p` | Decision variable |
-        | $\underline{e}_{n,s}$ | `n.stores.e_sum_min` | Parameter |
-        | $\bar{e}_{n,s}$   | `n.stores.e_sum_max` | Parameter |
-        | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
+        <!-- md:spec-legend Store_e_sum_min Store_e_sum_max -->
 
     === "Line"
 
-        | Symbol | Attribute | Type |
-        |-------------------|-----------|-------------|
-        | $p_{l,t}$         | `n.{lines,transformers}_t.p0` | Decision variable |
-        | $P_{l}$           | `n.{lines,transformers}.s_nom_opt` | Decision variable |
-        | $\hat{p}_l$       | `n.{lines,transformers}.s_nom` | Parameter |
-        | $\bar{p}_{l,t}$   | `n.{lines,transformers}_t.s_max_pu` | Parameter |
-        | $w_t^g$           | `n.snapshots.weightings.generators` | Parameter |
-        | $w_t^o$             | `n.snapshots.weightings.objective` | Parameter |
+        <!-- md:spec-legend Line_fix_s_lower Line_fix_s_upper Line_ext_s_lower Line_ext_s_upper Line_v_ang_lower Line_v_ang_upper -->
+
+    === "Transformer"
+
+        <!-- md:spec-legend Transformer_fix_s_lower Transformer_fix_s_upper Transformer_ext_s_lower Transformer_ext_s_upper Transformer_v_ang_lower Transformer_v_ang_upper Transformer_v_ang_var_lower Transformer_v_ang_var_upper -->

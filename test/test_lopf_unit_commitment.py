@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-from contextlib import nullcontext
 
 import numpy as np
 import pandas as pd
@@ -10,7 +9,6 @@ import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
-from pypsa._linopy_compat import linopy_uses_v1, v1_semantics
 
 
 def test_unit_commitment():
@@ -803,16 +801,18 @@ def test_generator_ramp_constraints_mask_nan(direction):
     # Limited generators should not have label -1 except for the very first snapshot
     key = f"Generator-p-ramp_limit_{direction}"
     constraints = n.model.constraints[key]
-    labels_gen_limited = constraints.data["labels"].sel(name="gen_limited").to_pandas()
+    labels_gen_limited = constraints.labels.sel(
+        name="gen_limited", scenario="base"
+    ).to_pandas()
     assert (labels_gen_limited.loc[n.snapshots[1:]] != -1).all(), (
         f"ramp_{direction} constraint should be active for 'gen_limited'."
     )
 
-    labels_gen_unlimited = (
-        constraints.data["labels"].sel(name="gen_unlimited").to_pandas()
+    labels_gen_unlimited = constraints.labels.reindex(
+        name=["gen_unlimited"], fill_value=-1
     )
     assert (labels_gen_unlimited == -1).all(), (
-        f"ramp_{direction} constraint should be masked for 'gen_unlimited'."
+        f"ramp_{direction} constraint should have no row for 'gen_unlimited'."
     )
 
 
@@ -877,18 +877,18 @@ def test_link_ramp_constraints_mask_nan(direction):
     # Link with undefined ramp limits should have label -1 (no constraint)
     key = f"Link-p-ramp_limit_{direction}"
     constraints = n.model.constraints[key]
-    labels_link_limited = (
-        constraints.data["labels"].sel(name="link_limited").to_pandas()
-    )
+    labels_link_limited = constraints.labels.sel(
+        name="link_limited", scenario="base"
+    ).to_pandas()
     assert (labels_link_limited.loc[n.snapshots[1:]] != -1).all(), (
         f"ramp_{direction} constraint should be active for 'link_limited'."
     )
 
-    labels_link_unlimited = (
-        constraints.data["labels"].sel(name="link_unlimited").to_pandas()
+    labels_link_unlimited = constraints.labels.reindex(
+        name=["link_unlimited"], fill_value=-1
     )
     assert (labels_link_unlimited == -1).all(), (
-        f"ramp_{direction} constraint should be masked for 'link_unlimited'."
+        f"ramp_{direction} constraint should have no row for 'link_unlimited'."
     )
 
 
@@ -1565,17 +1565,13 @@ def test_linearized_uc_tightening_with_time_varying_costs(caplog):
 
     n.optimize.create_model(linearized_unit_commitment=True)
 
-    names = n.model.constraints["Generator-com-p-current"].indexes["name"]
-    assert list(names) == ["equal"]
+    labels = n.model.constraints["Generator-com-p-current"].labels
+    assert list(labels.where(labels != -1, drop=True).indexes["name"]) == ["equal"]
     assert "cannot be tightened" in caplog.text
 
 
-@pytest.mark.filterwarnings("ignore::linopy.constants.PerformanceWarning")
-@pytest.mark.parametrize("semantics", ["legacy", "v1"])
 @pytest.mark.parametrize("short_time", [None, 0, 1])
-def test_minimum_time_rows_at_window_boundary(
-    semantics: str, short_time: int | None
-) -> None:
+def test_minimum_time_rows_at_window_boundary(short_time: int | None) -> None:
     n = pypsa.Network()
     n.set_snapshots(pd.date_range("2026-01-01", periods=6, freq="h"))
     n.add("Bus", "bus")
@@ -1603,44 +1599,43 @@ def test_minimum_time_rows_at_window_boundary(
             up_time_before=0,
         )
     n.add("Load", "load", bus="bus", p_set=1)
-    if semantics == "legacy" and linopy_uses_v1():
-        pytest.skip("linopy's legacy arithmetic semantics are not available")
-    v1 = semantics == "v1"
-    with v1_semantics() if v1 else nullcontext():
-        model = n.optimize.create_model(sparse=v1)
-        status = model.variables["Generator-status"].labels.values
-        for kind, sign, transition in [
-            ("up", -1, "start_up"),
-            ("down", 1, "shut_down"),
-        ]:
-            values = model.variables[f"Generator-{transition}"].labels.values
-            data = model.constraints[f"Generator-com-{kind}-time"].data
-            np.testing.assert_array_equal(
-                data.labels.values >= 0,
-                np.tile(
-                    [True, short_time != 0] if short_time is not None else [True],
-                    (6, 1),
-                ),
-            )
-            for generator, duration in enumerate(
-                [3, short_time] if short_time is not None else [3]
-            ):
-                assert duration is not None
-                if duration == 0:
-                    continue
-                for snapshot in range(6):
-                    variables = data.vars.values[snapshot, generator]
-                    coefficients = data.coeffs.values[snapshot, generator]
-                    actual = {
-                        int(label): float(coefficient)
-                        for label, coefficient in zip(variables, coefficients)
-                        if label >= 0 and coefficient != 0
-                    }
-                    expected = {int(status[snapshot, generator]): float(sign)} | {
-                        int(values[t, generator]): 1.0
-                        for t in range(max(0, snapshot - duration + 1), snapshot + 1)
-                    }
-                    assert actual == expected
+    model = n.optimize.create_model(sparse=True)
+    base = {"scenario": "base"}
+    status = model.variables["Generator-status"].labels.sel(base).T.values
+    for kind, sign, transition in [
+        ("up", -1, "start_up"),
+        ("down", 1, "shut_down"),
+    ]:
+        values = model.variables[f"Generator-{transition}"].labels.sel(base).T.values
+        constraint = model.constraints[f"Generator-com-{kind}-time"]
+        generators = n.c.generators.static.index
+        labels = constraint.labels.sel(base).reindex(name=generators, fill_value=-1)
+        labels = labels.T.values
+        terms: dict[int, dict[int, float]] = {}
+        for label, variable, coefficient in (
+            constraint.to_polars().select("labels", "vars", "coeffs").iter_rows()
+        ):
+            terms.setdefault(label, {})[variable] = coefficient
+        np.testing.assert_array_equal(
+            labels >= 0,
+            np.tile(
+                [True, short_time != 0] if short_time is not None else [True],
+                (6, 1),
+            ),
+        )
+        for generator, duration in enumerate(
+            [3, short_time] if short_time is not None else [3]
+        ):
+            assert duration is not None
+            if duration == 0:
+                continue
+            for snapshot in range(6):
+                actual = terms[int(labels[snapshot, generator])]
+                expected = {int(status[snapshot, generator]): float(sign)} | {
+                    int(values[t, generator]): 1.0
+                    for t in range(max(0, snapshot - duration + 1), snapshot + 1)
+                }
+                assert actual == expected
 
 
 @pytest.mark.parametrize(

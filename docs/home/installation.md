@@ -36,7 +36,7 @@ You can install PyPSA via all common package managers:
     pixi add pypsa
     ```
 
-PyPSA is written and tested to be compatible with Python 3.11 and above. We recommend to use the latest version with active support (see [endoflife.date](https://endoflife.date/python)).
+PyPSA is written and tested to be compatible with Python 3.12 and above. We recommend to use the latest version with active support (see [endoflife.date](https://endoflife.date/python)).
 
 ## Solvers
 

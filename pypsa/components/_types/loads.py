@@ -35,6 +35,8 @@ class Loads(Components):
 
     """
 
+    _formulation = ("single_bus",)
+
     def add(
         self,
         name: str | int | Sequence[int | str],

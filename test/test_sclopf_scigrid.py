@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-from itertools import product
 
 import numpy as np
 import pandas as pd
@@ -129,12 +128,20 @@ def _multi_period_network() -> pypsa.Network:
     return n
 
 
-def _security_shapes(n: pypsa.Network) -> dict[str, dict[str, int]]:
-    return {
-        name: dict(con.labels.sizes)
-        for name, con in n.model.constraints.items()
-        if "security" in name
-    }
+def _security_rows(n: pypsa.Network) -> dict[str, set[tuple]]:
+    """Each security entry's live rows, in any scenario, as (period, outage, name)."""
+    dims = ("snapshot", "outage", "name")
+    rows = {}
+    for key, con in n.model.constraints.items():
+        if "security" not in key:
+            continue
+        live = con.labels != -1
+        live = live.any([d for d in live.dims if d not in dims]).transpose(*dims)
+        t, o, b = np.nonzero(live.values)
+        period = n.snapshots.get_level_values(0)[t]
+        outage, name = live.indexes["outage"][o], live.indexes["name"][b]
+        rows[key] = set(zip(period, outage, name, strict=True))
+    return rows
 
 
 @pytest.mark.parametrize("snapshot_index", ["auto", "flat"])
@@ -151,22 +158,19 @@ def test_optimize_security_constrained_multi_period_bodf(scenarios, snapshot_ind
     assert status == "ok"
 
     s = n.model.variables["Line-s"].labels
+    lhs = n.model.constraints["Line-fix-s-upper-security"].lhs
     if scenarios:
-        s = s.sel(scenario="s1")
+        s, lhs = s.sel(scenario="s1"), lhs.sel(scenario="s1")
     coeffs = {}
-    for period in n.investment_periods:
-        name = f"Line-fix-s-upper-security-for-Line-outage-in-sub-network-0-period-{period}"
-        con = n.model.constraints[name].lhs
-        if scenarios:
-            con = con.sel(scenario="s1")
+    for period, out, aff in _security_rows(n)["Line-fix-s-upper-security"]:
+        if out == aff:
+            continue
         position = n.snapshots.get_loc((period, 0))
-        for out, aff in product(con.indexes["Line-outage"], con.indexes["name"]):
-            if out == aff:
-                continue
-            lhs = con.isel(snapshot=0).sel(name=aff, **{"Line-outage": out})
-            var = s.isel(snapshot=position).sel(name=out)
-            coeff = lhs.coeffs.where(lhs.vars == var).sum()
-            coeffs[period, out, aff] = round(float(coeff), 6)
+        row = lhs.isel(snapshot=position).sel(name=aff, outage=out)
+        var = s.isel(snapshot=position).sel(name=out)
+        coeffs[period, out, aff] = round(
+            float(row.coeffs.where(row.vars == var).sum()), 6
+        )
 
     assert coeffs == {
         (2020, "ab", "bc"): 0,
@@ -190,24 +194,37 @@ def test_optimize_security_constrained_multi_period_sub_network_renumbering():
         branch_outages=["ab", "ca"], multi_investment_periods=True
     )
 
-    expected = {
-        "1-period-2020": {"snapshot": 1, "name": 3, "Line-outage": 1},
-        "0-period-2030": {"snapshot": 1, "name": 4, "Line-outage": 2},
+    sub_network = {
+        2020: {"ab": {"ab", "ab_old", "bc"}},
+        2030: dict.fromkeys(("ab", "ca"), {"ab", "bc", "ca", "za"}),
     }
-    assert _security_shapes(n) == {
-        f"Line-fix-s-{bound}-security-for-Line-outage-in-sub-network-{suffix}": shape
-        for bound in ("lower", "upper")
-        for suffix, shape in expected.items()
+    expected = {
+        (period, out, aff)
+        for period, outages in sub_network.items()
+        for out, affected in outages.items()
+        for aff in affected
+    }
+    assert _security_rows(n) == {
+        f"Line-fix-s-{bound}-security": expected for bound in ("lower", "upper")
     }
 
 
 def test_optimize_security_constrained_single_period_names():
+    """One entry per bound over `outage`; line `future` is never active, so it has no row."""
     n = _multi_period_network()
     n.optimize.optimize_security_constrained(branch_outages=["ab", "ca"])
-    shapes = {"snapshot": 2, "name": 5, "Line-outage": 2}
-    assert _security_shapes(n) == {
-        "Line-fix-s-lower-security-for-Line-outage-in-sub-network-0": shapes,
-        "Line-fix-s-upper-security-for-Line-outage-in-sub-network-0": shapes,
+    expected = {
+        (period, out, aff)
+        for out in ("ab", "ca")
+        for period, affected in (
+            (2020, ("ab", "ab_old", "bc")),
+            (2030, ("ab", "bc", "ca")),
+        )
+        for aff in affected
+    }
+    assert _security_rows(n) == {
+        "Line-fix-s-lower-security": expected,
+        "Line-fix-s-upper-security": expected,
     }
 
 

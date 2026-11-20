@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-from contextlib import nullcontext
 from typing import Any
 
 import linopy
@@ -11,7 +10,6 @@ import pandas as pd
 import pytest
 
 import pypsa
-from pypsa._linopy_compat import is_sparse_constraint, v1_semantics
 from pypsa.optimization.scaling import KVL
 
 RTOL = 1e-5
@@ -74,11 +72,10 @@ def test_scaled_matches_unscaled(network, sparse):
     ref.optimize()
     n = scale(build(), factors)
     n.c.global_constraints.static.scaling = 1e-3
-    with v1_semantics() if sparse else nullcontext():
-        n.optimize(model_kwargs={"sparse": sparse}, objective_scaling=1e-6)
+    n.optimize(model_kwargs={"sparse": sparse}, objective_scaling=1e-6)
 
     cons = n.model.constraints
-    assert all(is_sparse_constraint(cons[name]) == sparse for name in cons)
+    assert all(cons[name].lhs.is_sparse == sparse for name in cons)
     for name in cons:
         if name.startswith("GlobalConstraint-"):
             assert (cons[name].scaling == 1e-3).all()
@@ -166,6 +163,32 @@ def test_kvl_independent_of_bus_scaling():
     np.testing.assert_allclose(
         n.c.lines.dynamic.p0, ref.c.lines.dynamic.p0, rtol=RTOL, atol=1e-4
     )
+
+
+@pytest.mark.parametrize(
+    ("name", "factor"),
+    [
+        ("Generator-com-p-upper", 1e-3),
+        ("Generator-com-transition-start-up", 1.0),
+        ("Generator-com-up-time", 1.0),
+    ],
+)
+def test_rows_take_the_factor_of_their_scaling_rule(name, factor):
+    n = pypsa.Network()
+    n.set_snapshots(range(3))
+    n.add("Bus", "bus", scaling=1e-3)
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        committable=True,
+        p_nom=100,
+        marginal_cost=10,
+        min_up_time=2,
+    )
+    n.add("Load", "demand", bus="bus", p_set=[50, 80, 60])
+    m = n.optimize.create_model()
+    assert (m.constraints[name].scaling == factor).all()
 
 
 @pytest.fixture
@@ -448,9 +471,9 @@ def test_feature_network_scaled_matches_unscaled(kwargs):
     assert (
         m.constraints["Generator-marginal_cost_piecewise_chord"].scaling == 1e-2
     ).all()
-    assert (m.variables["Link-p1_piecewise"].scaling == 1e-3).all()
+    assert (m.variables["Link-p_piecewise"].scaling == 1e-3).all()
     assert (m.variables["Generator-status"].scaling == 1).all()
-    assert (m.variables["Link-p1_piecewise_delta"].scaling == 1).all()
+    assert (m.variables["Link-p_piecewise_delta"].scaling == 1).all()
     status, _ = n.optimize.solve_model()
     assert status == "ok"
     assert n.objective == pytest.approx(ref.objective, rel=RTOL)
@@ -471,7 +494,7 @@ def test_cvar_takes_objective_scaling(stochastic_benchmark_network):
         for name in elements
         if name.startswith("CVaR")
     ]
-    assert len(cvar) == 3 + 1 + len(n.scenarios)
+    assert len(cvar) == 5
     assert all((element.scaling == 1e-3).all() for element in cvar)
     M = m.matrices
     col = np.flatnonzero(M.vlabels == m.variables["CVaR"].labels.item()).item()
@@ -565,10 +588,9 @@ def build_model(n: pypsa.Network, mode: str, kwargs: dict) -> linopy.Model:
     if mode == "rolling":
         n.optimize.optimize_with_rolling_horizon(horizon=3, objective_scaling=OBJ)
     elif mode == "sclopf":
-        with v1_semantics():
-            n.optimize.optimize_security_constrained(
-                objective_scaling=OBJ, model_kwargs={"sparse": True}
-            )
+        n.optimize.optimize_security_constrained(
+            objective_scaling=OBJ, model_kwargs={"sparse": True}
+        )
     elif mode == "mga":
         n.optimize(objective_scaling=OBJ)
         weights = {"Generator": {"p_nom": {"Manchester Wind": 1}}}

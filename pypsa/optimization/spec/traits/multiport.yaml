@@ -1,0 +1,101 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+given:
+  parameters:
+    COMPONENT_NOM: {dims: [scenario, UNIT]}
+    COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
+    COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
+  variables:
+    COMPONENT_p: {dims: [scenario, snapshot, UNIT]}
+
+dimensions:
+  scenario: {}
+  snapshot: {dtype: str, ordered: true}
+  bus: {}
+  port: {dtype: int}
+  UNIT: {}
+  breakpoint: {dtype: int, ordered: true}
+
+parameters:
+  COMPONENT_COEF:
+    description: >-
+      energy a port delivers per unit of `p`, negative where it draws; the
+      value at the snapshot the energy arrives applies. No port means no term
+    dims: [scenario, snapshot, UNIT, port]
+    missing: absent
+  COMPONENT_COEF_curve_p:
+    description: >-
+      `p` at each breakpoint of a port's piecewise curve: the `p_pu`
+      breakpoints times `p_nom`. No curve means no rows
+    dims: [UNIT, port, breakpoint]
+    missing: absent
+  COMPONENT_port_delay:
+    description: how long a port's energy takes to arrive, in hours of `snapshot_weightings.generators`
+    dims: [UNIT, port]
+    dtype: int
+
+relations:
+  COMPONENT_port_UNIT:
+    description: the ports each unit has, each to the unit itself
+    key: [UNIT, port]
+    values: {owner: UNIT}
+    missing: absent
+  COMPONENT_port_bus:
+    description: the bus a port connects to
+    key: [UNIT, port]
+    values: bus
+    missing: absent
+  COMPONENT_port_delay_source:
+    description: >-
+      the snapshot whose `p` a delayed port delivers at a snapshot, wrapping
+      within the period where the port is cyclic. No row where the energy has
+      not arrived yet, or where the port has no delay
+    key: [UNIT, port, snapshot]
+    values: { source: snapshot }
+    missing: absent
+
+variables:
+  COMPONENT_p_piecewise:
+    name: COMPONENT-p_piecewise
+    description: what a port with a curve delivers, before its delay
+    dims: [scenario, snapshot, UNIT, port]
+    where: COMPONENT_COEF_curve AND at(COMPONENT_active, by=COMPONENT_port_UNIT[owner])
+
+expressions:
+  COMPONENT_port_linear_arrival:
+    description: "`p` at the port's delay source times its coefficient"
+    dims: [scenario, snapshot, UNIT, port]
+    cases:
+      delayed:
+        when: COMPONENT_port_delay > 0
+        expression: at(COMPONENT_p, by=COMPONENT_port_delay_source[source]) * COMPONENT_COEF
+    otherwise: at(COMPONENT_p, by=COMPONENT_port_UNIT[owner]) * COMPONENT_COEF
+  COMPONENT_port_curve_arrival:
+    description: the value read off the port's curve, at the port's delay source
+    dims: [scenario, snapshot, UNIT, port]
+    cases:
+      delayed:
+        when: COMPONENT_port_delay > 0
+        expression: at(COMPONENT_p_piecewise, by=COMPONENT_port_delay_source[source])
+    otherwise: COMPONENT_p_piecewise
+  COMPONENT_port_arrival:
+    description: what a port delivers at a snapshot, by its curve where it has one
+    dims: [scenario, snapshot, UNIT, port]
+    cases:
+      curve:
+        when: COMPONENT_COEF_curve
+        expression: COMPONENT_port_curve_arrival
+    otherwise: COMPONENT_port_linear_arrival
+
+conditions:
+  COMPONENT_COEF_curve:
+    description: a port with a piecewise curve
+    condition: count(COMPONENT_COEF_curve_p, over=breakpoint) > 0
+
+assumptions:
+  COMPONENT_COEF_curve_on_a_fixed_build:
+    holds: "at(NOT COMPONENT_NOM_extendable AND COMPONENT_NOM != 0 AND COMPONENT_NOM < inf, by=COMPONENT_port_UNIT[owner])"
+    where: "COMPONENT_COEF_curve"
+    description: a port's curve needs a fixed, non-zero, finite nominal capacity

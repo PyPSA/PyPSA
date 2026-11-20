@@ -1,0 +1,150 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+notation: latex
+dimensions:
+  bus: {index: n, set: '\mathcal{N}'}
+  snapshot: {index: t, set: '\mathcal{T}'}
+  scenario: {index: s, set: '\mathcal{S}'}
+  period: {index: a, set: '\mathcal{A}'}
+  Generator: {index: i, set: '\mathcal{G}'}
+  Load: {index: j, set: '\mathcal{D}'}
+  StorageUnit: {index: v, set: '\mathcal{U}'}
+  Store: {index: y, set: '\mathcal{E}'}
+  Link: {index: k, set: '\mathcal{K}'}
+  Line: {index: l, set: '\mathcal{L}'}
+  Transformer: {index: q, set: '\mathcal{Q}'}
+  Process: {index: m, set: '\mathcal{M}'}
+  flow_based_domain: {index: z, set: '\mathcal{Z}'}
+  breakpoint: {index: b, set: '\mathcal{B}'}
+  carrier: {index: '\sigma', set: '\mathcal{C}'}
+  cycle: {index: '\xi', set: '\mathcal{Y}'}
+  outage: {index: '\zeta', set: '\mathcal{O}'}
+  segment: {index: '\epsilon', set: '\mathcal{V}'}
+  global_constraint: {index: '\gamma', set: '\mathcal{H}'}
+  port: {index: '\beta', set: '\mathcal{I}'}
+names:
+  Generator_p: g
+  Generator_p_nom_ext: G
+  Generator_p_nom: '\hat{g}'
+  Generator_p_max_pu: '\bar{g}'
+  Generator_p_min_pu: '\underline{g}'
+  Generator_p_set: '\tilde{g}'
+  Generator_p_nom_set: '\tilde{G}'
+  Generator_p_nom_max: '\bar{G}'
+  Generator_p_nom_min: '\underline{G}'
+  Generator_marginal_cost: o
+  Generator_capital_cost: c
+  Generator_status: u
+  Generator_start_up: su
+  Generator_shut_down: sd
+  Generator_big_m: M
+  Load_demand: d
+  StorageUnit_p_dispatch: 'h^{-}'
+  StorageUnit_p_store: 'h^{+}'
+  StorageUnit_state_of_charge: '\mathit{soc}'
+  StorageUnit_p_nom_ext: H
+  StorageUnit_p_nom: '\hat{h}'
+  StorageUnit_p_max_pu: '\bar{h}'
+  StorageUnit_p_min_pu: '\underline{h}'
+  StorageUnit_p_dispatch_set: '\tilde{h}^{-}'
+  StorageUnit_p_store_set: '\tilde{h}^{+}'
+  StorageUnit_state_of_charge_set: '\tilde{\mathit{soc}}'
+  StorageUnit_p_nom_set: '\tilde{H}'
+  StorageUnit_p_nom_max: '\bar{H}'
+  StorageUnit_p_nom_min: '\underline{H}'
+  StorageUnit_efficiency_store: '\eta^{\mathrm{store}}'
+  StorageUnit_efficiency_dispatch: '\eta^{\mathrm{dispatch}}'
+  StorageUnit_retention: '\eta^{\mathrm{stand}}'
+  StorageUnit_marginal_cost: o
+  StorageUnit_capital_cost: c
+  Store_e: e
+  Store_p: h
+  Store_p_store: 'h^{+}'
+  Store_e_nom_ext: E
+  Store_e_nom: '\hat{e}'
+  Store_e_max_pu: '\bar{e}'
+  Store_e_min_pu: '\underline{e}'
+  Store_e_set: '\tilde{e}'
+  Store_p_set: '\tilde{h}'
+  Store_p_max_pu: '\bar{h}'
+  Store_p_min_pu: '\underline{h}'
+  Store_e_nom_set: '\tilde{E}'
+  Store_e_nom_max: '\bar{E}'
+  Store_e_nom_min: '\underline{E}'
+  Store_efficiency_store: '\eta^{\mathrm{store}}'
+  Store_efficiency_dispatch: '\eta^{\mathrm{dispatch}}'
+  Store_retention: '\eta^{\mathrm{stand}}'
+  Store_marginal_cost: o
+  Store_marginal_cost_store: 'o^{+}'
+  Store_marginal_cost_dispatch: 'o^{-}'
+  Store_capital_cost: c
+  Link_p: f
+  Link_p_nom_ext: F
+  Link_p_nom: '\hat{f}'
+  Link_p_max_pu: '\bar{f}'
+  Link_p_min_pu: '\underline{f}'
+  Link_p_set: '\tilde{f}'
+  Link_p_nom_set: '\tilde{F}'
+  Link_p_nom_max: '\bar{F}'
+  Link_p_nom_min: '\underline{F}'
+  Link_efficiency: '\eta'
+  Link_marginal_cost: o
+  Link_capital_cost: c
+  Link_status: u
+  Link_start_up: su
+  Link_shut_down: sd
+  Link_big_m: M
+  Process_p: r
+  Process_p_nom_ext: R
+  Process_p_nom: '\hat{r}'
+  Process_p_max_pu: '\bar{r}'
+  Process_p_min_pu: '\underline{r}'
+  Process_p_set: '\tilde{r}'
+  Process_p_nom_set: '\tilde{R}'
+  Process_p_nom_max: '\bar{R}'
+  Process_p_nom_min: '\underline{R}'
+  Process_marginal_cost: o
+  Process_capital_cost: c
+  Process_status: u
+  Process_start_up: su
+  Process_shut_down: sd
+  Process_big_m: M
+  Line_s: p
+  Line_s_nom_ext: P
+  Line_s_nom: '\hat{p}'
+  Line_s_max_pu: '\bar{p}'
+  Line_s_set: '\tilde{p}'
+  Line_s_nom_set: '\tilde{P}'
+  Line_s_nom_max: '\bar{P}'
+  Line_s_nom_min: '\underline{P}'
+  Line_loss: '\psi'
+  Line_x_pu_eff: x
+  Line_v_ang_max: '\bar{\theta}'
+  Line_capital_cost: c
+  Transformer_s: p
+  Transformer_s_nom_ext: P
+  Transformer_s_nom: '\hat{p}'
+  Transformer_s_max_pu: '\bar{p}'
+  Transformer_s_set: '\tilde{p}'
+  Transformer_s_nom_set: '\tilde{P}'
+  Transformer_s_nom_max: '\bar{P}'
+  Transformer_s_nom_min: '\underline{P}'
+  Transformer_loss: '\psi'
+  Transformer_x_pu_eff: x
+  Transformer_v_ang_max: '\bar{\theta}'
+  Transformer_phase_shift: '\phi'
+  Transformer_capital_cost: c
+  snapshot_weightings_objective: 'w^{\mathrm{o}}'
+  snapshot_weightings_generators: 'w^{\mathrm{g}}'
+  snapshot_weightings_stores: 'w^{\mathrm{s}}'
+  scenario_weight: '\pi'
+  period_weight_objective: 'W^{\mathrm{o}}'
+  period_weight_years: 'W^{\mathrm{y}}'
+  CVaR_alpha: '\alpha'
+  CVaR_omega: '\omega'
+  CVaR_theta: '\mathit{VaR}'
+  GlobalConstraint_constant: '\Gamma'
+  deg2rad: '\frac{\pi}{180}'
+  Cycle_scale: '10^{5}'

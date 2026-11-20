@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+description: >-
+  The patch for `n.optimize(linearized_unit_commitment=True)`. Status, starts
+  and stops of a committable unit become shares in [0, 1]. Four extra rows
+  tighten the relaxation for a fixed unit whose start and stop cost the same
+  in every snapshot and scenario. Every other row is the base spec's.

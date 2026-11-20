@@ -110,6 +110,20 @@ def _restack_flat_groups(expr: Any) -> Any:
     return indexed.rename(group=keys[0]) if len(keys) == 1 else indexed
 
 
+def _built(m: ln.Model, name: str, port: int | None = None) -> Variable:
+    """Return the variable `name` of `m`, at `port` where given, at its units with a row; the model keeps the others masked."""
+    var = m.variables[name]
+    if port is not None:
+        var = var.sel(port=port, drop=True)
+    others = [d for d in var.labels.dims if d != "name"]
+    return var.isel(name=(var.labels != -1).any(others).values)
+
+
+def _piecewise_aux(m: ln.Model, c: Any, attr: str) -> Variable:
+    """Return the auxiliary variable of the piecewise curve `attr` at its units with a row."""
+    return _built(m, c._piecewise_aux_var(attr), c._piecewise_port(attr))
+
+
 def _capacity_expression(
     n: Network, component: str, include_non_extendable: bool = True
 ) -> LinearExpression | None:
@@ -129,7 +143,7 @@ def _capacity_expression(
     if include_non_extendable and not fixed.empty:
         fixed_capacity = c.da[nom_attr].sel(name=fixed)
     if var_name in m.variables:
-        return _add_optional(m.variables[var_name].to_linexpr(), fixed_capacity)
+        return _add_optional(_built(m, var_name).to_linexpr(), fixed_capacity)
     if fixed_capacity is None:
         return None
     return LinearExpression.from_constant(m, fixed_capacity)
@@ -141,7 +155,7 @@ def _split_piecewise(
     """Split the names handled by the `attr` piecewise curve out of `expr`."""
     if not c.has_piecewise(attr):
         return expr, None
-    aux = m.variables[c._piecewise_aux_var(attr)]
+    aux = _piecewise_aux(m, c, attr)
     return expr.drop_sel(name=aux.coords["name"]), aux
 
 
@@ -335,11 +349,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             return LinearExpression.from_constant(m, p_set)
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
-            return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
+            return _built(m, f"{c}-p_dispatch") - _built(m, f"{c}-p_store")
         if c == "Store":
-            return m.variables[f"{c}-p"]
+            return _built(m, f"{c}-p")
         attr = attr.item()
-        return m.variables[f"{c}-{attr}"]
+        return _built(m, f"{c}-{attr}")
 
     @deprecated_kwargs(
         deprecated_in="1.0",
@@ -512,7 +526,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                     missing = f"{c}-{attr}" not in n.model.variables
                     if missing and cost_type == "spill_cost":
                         continue
-                    var = n.model.variables[f"{c}-{attr}"]
+                    var = _built(n.model, f"{c}-{attr}")
                     sns = var.indexes["snapshot"]
                     var, add_opex = _split_piecewise(var, n.model, n.c[c], cost_type)
                     names = var.indexes["name"]
@@ -683,12 +697,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if isinstance(c, _Multiport) and c.has_piecewise(
                 y_attr := c._port_coefficient_attr(port)
             ):
-                pw = sign * n.model.variables[c._piecewise_aux_var(y_attr)]
+                pw = sign * _piecewise_aux(n.model, c, y_attr)
                 names = pw.coords["name"].values
                 coeffs.loc[{"name": names}] = 0
                 pw_var = _direct_piecewise(c, y_attr, sign, pw, names, direction)
 
             expr = coeffs * var.where(coeffs != 0)
+            if pw_var is not None:
+                expr = expr.fillna(0)
 
             if direction in ("supply", "withdrawal"):
                 if direction == "withdrawal":
@@ -704,8 +720,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 msg = f"Got unexpected argument direction={direction}. Must be 'supply', 'withdrawal' or 'both'."
                 raise ValueError(msg)
 
-            if pw_var is not None:
-                expr = expr.fillna(0)
             return self._aggregate_timeseries(
                 _add_optional(expr, pw_var), weights, agg=groupby_time
             )
