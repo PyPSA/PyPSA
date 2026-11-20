@@ -75,8 +75,9 @@ class TestCSVDir:
         fn = tmpdir / "csv_export"
         scipy_network.meta = meta
         scipy_network.export_to_csv_folder(fn)
-        pypsa.Network(fn)
-        reloaded = pypsa.Network(fn)
+        with pypsa.option_context("future.string_dtype", False):
+            pypsa.Network(fn)
+            reloaded = pypsa.Network(fn)
         assert reloaded.meta == scipy_network.meta
 
     @pytest.mark.parametrize(
@@ -184,7 +185,8 @@ class TestNetcdf:
         fn = tmpdir / "netcdf_export.nc"
         scipy_network.meta = meta
         scipy_network.export_to_netcdf(fn)
-        reloaded = pypsa.Network(fn)
+        with pypsa.option_context("future.string_dtype", False):
+            reloaded = pypsa.Network(fn)
         assert reloaded.meta == scipy_network.meta
 
     def test_netcdf_io_Path(self, scipy_network, tmpdir):
@@ -320,9 +322,9 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=True)
         pypsa.Network(fn)
 
-    @pytest.mark.parametrize("legacy", [True, False])
-    def test_netcdf_io_string_dtypes(self, tmpdir, legacy):
-        """String data follows `api.legacy_string_dtype` (#1585)."""
+    @pytest.mark.parametrize("flag", [True, False, None])
+    def test_netcdf_io_string_dtypes(self, tmpdir, flag):
+        """String data follows `future.string_dtype` (#1585)."""
         fn = tmpdir / "string_dtypes.nc"
 
         n = pypsa.Network()
@@ -332,17 +334,22 @@ class TestNetcdf:
         n.add("Load", "load0", bus="bus0", p_set=50)
         n.export_to_netcdf(fn)
 
-        with pypsa.option_context("api.legacy_string_dtype", legacy):
-            m = pypsa.Network(fn)
+        with pypsa.option_context("future.string_dtype", flag):
+            if flag is None:
+                with pytest.warns(pypsa.PyPSA2Warning, match="string_dtype"):
+                    m = pypsa.Network(fn)
+            else:
+                m = pypsa.Network(fn)
 
+        as_object = flag is not True
         for c in m.components:
             df = c.static
-            assert pd.api.types.is_object_dtype(df.index.dtype) == legacy, (
+            assert pd.api.types.is_object_dtype(df.index.dtype) == as_object, (
                 f"{c.name}.static.index is {df.index.dtype}"
             )
             for col, dtype in df.dtypes.items():
                 if c.defaults.at[col, "type"] == "string":
-                    assert pd.api.types.is_object_dtype(dtype) == legacy, (
+                    assert pd.api.types.is_object_dtype(dtype) == as_object, (
                         f"{c.name}.static[{col!r}] is {dtype}"
                     )
 
@@ -357,7 +364,7 @@ class TestNetcdf:
 
         import pypsa.examples  # noqa: PLC0415
 
-        with pypsa.option_context("api.legacy_string_dtype", False):
+        with pypsa.option_context("future.string_dtype", True):
             n = pypsa.examples.ac_dc_meshed()
 
         bus = n.c.generators.static.bus

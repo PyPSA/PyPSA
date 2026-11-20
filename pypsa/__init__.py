@@ -30,6 +30,7 @@ from pypsa import (
     plot,
     statistics,
 )
+from pypsa._future import PyPSA2Warning
 from pypsa._options import (
     option_context,
     options,
@@ -57,6 +58,7 @@ __all__ = [
     "__version_major_minor__",
     "version",
     "options",
+    "PyPSA2Warning",
     "set_option",
     "get_option",
     "option_context",

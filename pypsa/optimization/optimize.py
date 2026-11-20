@@ -19,6 +19,7 @@ from linopy.solvers import available_solvers
 from scipy.sparse.csgraph import connected_components
 from scipy.sparse.linalg import splu
 
+from pypsa._future import future_flag
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import (
@@ -154,25 +155,10 @@ def _apply_delay_shift(
         port_df[cols] = delayed_values
 
 
-def _resolve_include_objective_constant(
-    value: bool | None, stacklevel: int = 3
-) -> bool:
-    """Resolve include_objective_constant from explicit value or options.
-
-    Raises FutureWarning if neither is set.
-    """
+def _resolve_include_objective_constant(value: bool | None) -> bool:
+    """Resolve include_objective_constant from explicit value or future flag."""
     if value is None:
-        value = options.params.optimize.include_objective_constant
-    if value is None:
-        warnings.warn(
-            "The default value of `include_objective_constant` will change from "
-            "True to False in version 2.0. Set `include_objective_constant` "
-            "explicitly to suppress this warning. Using False improves LP numerical "
-            "conditioning by not including the objective constant as a variable.",
-            FutureWarning,
-            stacklevel=stacklevel,
-        )
-        value = True
+        return not future_flag("exclude_objective_constant")
     return value
 
 
@@ -655,8 +641,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant : bool | None, default None
             Whether to include the objective constant (capital costs of existing
             infrastructure) as a variable in the objective function. Setting to False
-            improves LP numerical conditioning. Defaults to module wide option. See
-            `pypsa.options.params.optimize.describe()` for more information.
+            improves LP numerical conditioning. If None, follows
+            `pypsa.options.future.exclude_objective_constant`.
         committable_big_m : float | None, default None
             Big-M value for committable+extendable constraints. If None, PyPSA infers
             a scale from the network (e.g. peak load). Otherwise this numeric bound
@@ -798,8 +784,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant : bool | None, default: None
             Whether to include the objective constant (capital costs of existing
             infrastructure) as a variable in the objective function. Setting to False
-            improves LP numerical conditioning. Defaults to module wide option. See
-            `pypsa.options.params.optimize.describe()` for more information.
+            improves LP numerical conditioning. If None, follows
+            `pypsa.options.future.exclude_objective_constant`.
         committable_big_m : float | None, default: None
             Big-M value for committable+extendable constraints. If None, PyPSA infers
             a scale from the network (e.g. peak load). Otherwise this numeric bound
@@ -1372,7 +1358,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         )
 
         # load
-        if len(n.loads):
+        if len(n.c.loads.static):
             _set_dynamic_data(
                 n, "Load", "p", n.get_switchable_as_dense("Load", "p_set", sns)
             )

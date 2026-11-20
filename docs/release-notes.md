@@ -40,6 +40,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Deprecation: [`n.plot.iplot()`][pypsa.plot.accessor.PlotAccessor.iplot] is deprecated and will be removed in PyPSA 2.0. Use [`n.plot.explore()`][pypsa.plot.accessor.PlotAccessor.explore] instead. The interactive statistics plots `n.statistics.*.iplot()` are not affected. (<!-- md:pr 2158 -->)
 - Deprecation: `pypsa.network.power_flow.aggregate_multi_graph` is deprecated and will be removed in PyPSA 2.0 without replacement. (<!-- md:pr 2158 -->)
 - Deprecation: `c.n_save` and `c.attached` of [`Components`][pypsa.Components] are deprecated and will be removed in PyPSA 2.0. Components are attached to a network, use `c.n`. (<!-- md:pr 2106 -->)
+- Deprecation: `api.legacy_string_dtype`, `api.new_components_api` and `params.optimize.include_objective_constant` are renamed to `future.string_dtype`, `future.components_api` and `future.exclude_objective_constant` (first and last inverted), joined by the new `future.inds_order`. Unset flags emit a `PyPSA2Warning` where the 2.0 behaviour applies, except `future.components_api`, which stays silent. `PYPSA_FUTURE=true` opts in to all 2.0 behaviour at once. See <!-- md:guide options.md -->. (<!-- md:pr 2163 -->)
 
 ### Documentation
 

@@ -11,13 +11,13 @@ DataArray for each variable.
 from __future__ import annotations
 
 import copy
-import warnings
 from typing import TYPE_CHECKING, NoReturn
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pypsa._future import future_flag
 from pypsa._options import options
 from pypsa.common import (
     UnexpectedError,
@@ -268,8 +268,8 @@ class ComponentsArrayMixin(_ComponentsABC):
             Restrict to these component names rather than all components. For
             stochastic networks, the names are selected in all scenarios. The
             columns follow component order, duplicates are collapsed and unknown
-            names dropped. In PyPSA 2.0, columns follow `inds` order, duplicates
-            are kept and unknown names raise a `KeyError`.
+            names dropped. With `options.future.inds_order`, columns follow `inds`
+            order, duplicates are kept and unknown names raise a `KeyError`.
 
         Returns
         -------
@@ -297,18 +297,21 @@ class ComponentsArrayMixin(_ComponentsABC):
             dynamic = dynamic.reindex(sns, fill_value=np.nan)
 
         # Filter names
-        if inds is not None:
-            index = index[index.get_level_values("name").isin(inds)]
-            if not index.unique("name").equals(pd.Index(inds)):
-                warnings.warn(
-                    "In PyPSA 2.0, `get_switchable_as_dense` will return columns in "
-                    "`inds` order, keep duplicates and raise a `KeyError` for "
-                    "unknown names. To keep the current result, pass unique, known "
-                    "names in component order, e.g. "
-                    "`n.c.<component>.static.index.unique('name').intersection(inds)`.",
-                    FutureWarning,
-                    stacklevel=3,
+        inds_order = inds is not None and future_flag("inds_order")
+        if inds is not None and inds_order:
+            unknown = pd.Index(inds).difference(index.unique("name"))
+            if len(unknown) > 0:
+                msg = f"Names not found in {self.name}: {list(unknown[:5])}"
+                raise KeyError(msg)
+            index = (
+                pd.MultiIndex.from_product(
+                    [index.unique(level=0), list(inds)], names=index.names
                 )
+                if self.has_scenarios
+                else pd.Index(list(inds), name=index.name)
+            )
+        elif inds is not None:
+            index = index[index.get_level_values("name").isin(inds)]
 
         # Find columns that need to be filled from static data
         diff = index.difference(dynamic.columns)
@@ -334,7 +337,7 @@ class ComponentsArrayMixin(_ComponentsABC):
                 res = pd.concat([dynamic, static_to_dynamic], axis=1)
                 res = res[index]
             else:
-                res = static_to_dynamic
+                res = static_to_dynamic[index] if inds_order else static_to_dynamic
 
         res.index.name = sns.name
         if self.has_scenarios:
