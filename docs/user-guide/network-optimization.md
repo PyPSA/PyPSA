@@ -114,12 +114,12 @@ Linopy LP model
 <BLANKLINE>
 Variables:
 ----------
- * Generator-p (name, snapshot)
+ * Generator-p (name, scenario, snapshot)
  * ...
 <BLANKLINE>
 Constraints:
 ------------
- * Bus-nodal_balance (name, snapshot)
+ * Bus-nodal_balance (name, scenario, snapshot)
  * ...
 <BLANKLINE>
 Status:
@@ -209,8 +209,7 @@ Assume we want to set a minimum state of charge of 50 MWh for our storage unit. 
 ``` py
 >>> sus = m.variables["StorageUnit-state_of_charge"]
 >>> m.add_constraints(sus >= 50, name="StorageUnit-minimum_soc")  # doctest: +ELLIPSIS
-Constraint `StorageUnit-minimum_soc` [name: ..., snapshot: ...]:
--------------------------------------------------------------
+Constraint `StorageUnit-minimum_soc` [name: ..., scenario: 1, snapshot: ...]:
 ...
 ```
 

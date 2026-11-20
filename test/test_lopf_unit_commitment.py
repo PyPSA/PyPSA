@@ -801,7 +801,9 @@ def test_generator_ramp_constraints_mask_nan(direction):
     # Limited generators should not have label -1 except for the very first snapshot
     key = f"Generator-p-ramp_limit_{direction}"
     constraints = n.model.constraints[key]
-    labels_gen_limited = constraints.data["labels"].sel(name="gen_limited").to_pandas()
+    labels_gen_limited = constraints.labels.sel(
+        name="gen_limited", scenario="base"
+    ).to_pandas()
     assert (labels_gen_limited.loc[n.snapshots[1:]] != -1).all(), (
         f"ramp_{direction} constraint should be active for 'gen_limited'."
     )
@@ -875,9 +877,9 @@ def test_link_ramp_constraints_mask_nan(direction):
     # Link with undefined ramp limits should have label -1 (no constraint)
     key = f"Link-p-ramp_limit_{direction}"
     constraints = n.model.constraints[key]
-    labels_link_limited = (
-        constraints.data["labels"].sel(name="link_limited").to_pandas()
-    )
+    labels_link_limited = constraints.labels.sel(
+        name="link_limited", scenario="base"
+    ).to_pandas()
     assert (labels_link_limited.loc[n.snapshots[1:]] != -1).all(), (
         f"ramp_{direction} constraint should be active for 'link_limited'."
     )
@@ -1598,15 +1600,17 @@ def test_minimum_time_rows_at_window_boundary(short_time: int | None) -> None:
         )
     n.add("Load", "load", bus="bus", p_set=1)
     model = n.optimize.create_model(sparse=True)
-    status = model.variables["Generator-status"].labels.T.values
+    base = {"scenario": "base"}
+    status = model.variables["Generator-status"].labels.sel(base).T.values
     for kind, sign, transition in [
         ("up", -1, "start_up"),
         ("down", 1, "shut_down"),
     ]:
-        values = model.variables[f"Generator-{transition}"].labels.T.values
+        values = model.variables[f"Generator-{transition}"].labels.sel(base).T.values
         constraint = model.constraints[f"Generator-com-{kind}-time"]
         generators = n.c.generators.static.index
-        labels = constraint.labels.reindex(name=generators, fill_value=-1).T.values
+        labels = constraint.labels.sel(base).reindex(name=generators, fill_value=-1)
+        labels = labels.T.values
         terms: dict[int, dict[int, float]] = {}
         for label, variable, coefficient in (
             constraint.to_polars().select("labels", "vars", "coeffs").iter_rows()

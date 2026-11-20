@@ -270,6 +270,8 @@ ok
 
 As investment variables (i.e. `p_nom`, `s_nom`, `e_nom`) are scenario-independent first-stage decisions, they do not have a scenario dimension (i.e. are common across all scenarios). This is also called non-anticipativity constraint. Operational variables, on the other hand, are fully scenario-indexed. All constraints are duplicated across scenarios with scenario-specific parameters and the objective function weights scenario costs by their probabilities.
 
+The model of a network without scenarios has the same layout: its operational variables and constraints carry a `scenario` dimension with the one label `"base"`, e.g. `n.model["Generator-p"].sel(scenario="base")`. The results written to the network have no `scenario` level.
+
 !!! note "Problem Scaling Properties"
 
     - **Investment variables** scale as O(components)

@@ -929,7 +929,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 and not c.has_scenarios
             ):
                 built = constraint.labels != -1
-                dual = constraint.dual.where(built, drop=True).to_series()
+                dual = _from_xarray(constraint.dual.where(built, drop=True), c)
                 c.static.loc[dual.index, "mu"] = dual
 
             # SCALAR DUALS (constraints without snapshot dimension)
@@ -937,7 +937,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 if c.has_scenarios:
                     raise NotImplementedError()
 
-                c.static.loc[suffix, "mu"] = constraint.dual
+                c.static.loc[suffix, "mu"] = constraint.dual.item()
 
         if unassigned_constraints:
             logger.info(

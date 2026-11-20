@@ -709,11 +709,11 @@ class Network(
         <BLANKLINE>
         Variables:
         ----------
-         * Generator-p (name, snapshot)
+         * Generator-p (name, scenario, snapshot)
          * Generator-p_nom (name)
-         * Line-s (name, snapshot)
+         * Line-s (name, scenario, snapshot)
          * Line-s_nom (name)
-         * Link-p (name, snapshot)
+         * Link-p (name, scenario, snapshot)
          * Link-p_nom (name)
          * objective_constant
         <BLANKLINE>
@@ -723,18 +723,18 @@ class Network(
         <BLANKLINE>
         Constraints:
         ------------
-         * Bus-nodal_balance (name, snapshot)
-         * Generator-ext-p-lower (name, snapshot)
+         * Bus-nodal_balance (name, scenario, snapshot)
+         * Generator-ext-p-lower (name, scenario, snapshot)
          * Generator-ext-p_nom-lower (name)
-         * Generator-ext-p-upper (name, snapshot)
-         * GlobalConstraint-primary_energy-upper (name)
-         * Kirchhoff-Voltage-Law (cycle, snapshot)
-         * Line-ext-s-lower (name, snapshot)
+         * Generator-ext-p-upper (name, scenario, snapshot)
+         * GlobalConstraint-primary_energy-upper (name, scenario)
+         * Kirchhoff-Voltage-Law (cycle, scenario, snapshot)
+         * Line-ext-s-lower (name, scenario, snapshot)
          * Line-ext-s_nom-lower (name)
-         * Line-ext-s-upper (name, snapshot)
-         * Link-ext-p-lower (name, snapshot)
+         * Line-ext-s-upper (name, scenario, snapshot)
+         * Link-ext-p-lower (name, scenario, snapshot)
          * Link-ext-p_nom-lower (name)
-         * Link-ext-p-upper (name, snapshot)
+         * Link-ext-p-upper (name, scenario, snapshot)
         <BLANKLINE>
         Status:
         -------

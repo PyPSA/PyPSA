@@ -15,7 +15,7 @@ import pandas as pd
 import xarray as xr
 
 from pypsa.optimization.spec.sources import (
-    NO_SCENARIO,
+    BASE_SCENARIO,
     NetworkSources,
     of_scenario,
     source,
@@ -33,7 +33,7 @@ def _rows(s: NetworkSources, attr: str, labels: pd.Index | None = None) -> pd.Da
     if s.n.has_scenarios:
         table = column.unstack("scenario")
     else:
-        table = column.to_frame(NO_SCENARIO)
+        table = column.to_frame(BASE_SCENARIO)
     if labels is None:
         labels = s.coords("global_constraint")
     return table.reindex(index=labels, columns=s.scenarios)

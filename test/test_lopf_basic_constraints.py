@@ -664,7 +664,7 @@ def test_fixed_operational_constraints_of_an_unrated_component(component, attrs,
 
     for name, expected in rows.items():
         constraint = n.model.constraints[name]
-        built = constraint.labels.sel(name="unit") != -1
+        built = constraint.labels.sel(name="unit", scenario="base") != -1
         assert built.values.tolist() == expected, (
             f"{name} has a row only where the per-unit limit is zero"
         )

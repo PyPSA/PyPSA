@@ -97,9 +97,9 @@ def test_assign_duals_noname(ac_dc_network):
     )
     n.optimize.solve_model(assign_all_duals=True)
 
-    dual_model_investment = float(
-        n.model.constraints["GlobalConstraint-investment_limit"].dual
-    )
+    dual_model_investment = n.model.constraints[
+        "GlobalConstraint-investment_limit"
+    ].dual.item()
     dual_network_investment = float(
         n.c.global_constraints.static.mu.loc["investment_limit"]
     )
@@ -108,7 +108,7 @@ def test_assign_duals_noname(ac_dc_network):
     )
 
     co2 = n.model.constraints["GlobalConstraint-primary_energy-upper"]
-    dual_model_co2 = float(co2.dual.sel(name="co2_limit"))
+    dual_model_co2 = co2.dual.sel(name="co2_limit").item()
     dual_network_co2 = float(n.c.global_constraints.static.mu.loc["co2_limit"])
     assert dual_model_co2 == pytest.approx(dual_network_co2, rel=1e-8, abs=1e-10)
 
@@ -128,7 +128,7 @@ def test_each_global_constraint_keeps_its_dual(ac_dc_network):
     n.optimize()
     co2 = n.model.constraints["GlobalConstraint-primary_energy-upper"]
     mu = n.c.global_constraints.static.mu
-    assert mu["co2_limit"] == pytest.approx(float(co2.dual.sel(name="co2_limit")))
+    assert mu["co2_limit"] == pytest.approx(co2.dual.sel(name="co2_limit").item())
     assert mu["co2_limit"] < 0
     assert mu["wind_limit"] == pytest.approx(0)
 

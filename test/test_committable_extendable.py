@@ -146,7 +146,7 @@ def test_committable_extendable_generator(base_network):
     assert "Generator-start_up" in n.model.variables
     assert "Generator-shut_down" in n.model.variables
 
-    status_values = n.model.variables["Generator-status"].solution
+    status_values = n.model.variables["Generator-status"].solution.sel(scenario="base")
     dispatch_values = n.c["Generator"].dynamic["p"]["gas_gen"]
     p_nom_opt = n.c["Generator"].static.loc["gas_gen", "p_nom_opt"]
     p_min_pu = n.c["Generator"].static.loc["gas_gen", "p_min_pu"]
@@ -691,9 +691,15 @@ def test_ramp_big_m_startup_shutdown_limits():
 
     p = n.c["Generator"].dynamic["p"]["gen"]
     p_nom_opt = n.c["Generator"].static.loc["gen", "p_nom_opt"]
-    status_var = n.model.variables["Generator-status"].solution.sel(name="gen")
-    start_up_var = n.model.variables["Generator-start_up"].solution.sel(name="gen")
-    shut_down_var = n.model.variables["Generator-shut_down"].solution.sel(name="gen")
+    status_var = n.model.variables["Generator-status"].solution.sel(
+        name="gen", scenario="base"
+    )
+    start_up_var = n.model.variables["Generator-start_up"].solution.sel(
+        name="gen", scenario="base"
+    )
+    shut_down_var = n.model.variables["Generator-shut_down"].solution.sel(
+        name="gen", scenario="base"
+    )
     status_values = status_var.values
     start_up_values = start_up_var.values
     shut_down_values = shut_down_var.values

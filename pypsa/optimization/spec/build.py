@@ -237,18 +237,16 @@ def _constraint(
 
 def _relabel(
     m: Model,
-    n: Network,
     *,
     snapshots: pd.Index,
     network_index: pd.Index,
 ) -> None:
     """Rename every dim of `m` as PyPSA names it, in linopy's order and with linopy's labels.
 
-    Entries without a single row are removed, as PyPSA does not build them,
-    and the placeholder scenario of a network without scenarios is squeezed.
+    Entries without a single row are removed, as PyPSA does not build them.
+    A network without scenarios keeps its one scenario, labelled `BASE_SCENARIO`.
     A unit without a row stays as a masked coordinate.
     """
-    squeeze = not n.has_scenarios
     levels = (
         {
             name: ("snapshot", network_index.get_level_values(name).to_numpy())
@@ -264,8 +262,6 @@ def _relabel(
     ) -> T:
         if renamed:
             obj = obj.rename(renamed)
-        if squeeze and "scenario" in dims:
-            obj = obj.isel(scenario=0, drop=True)
         if "snapshot" in dims:
             obj = obj.assign_coords({"snapshot": snapshots, **levels})
         return obj
@@ -489,7 +485,7 @@ def build_model(
         dim_order=_unit_dims(),
         **model_kwargs,
     )
-    _relabel(m, n, snapshots=model_index, network_index=network_index)
+    _relabel(m, snapshots=model_index, network_index=network_index)
     m.constraints.sanitize_zeros()
     rules = _rules(spec_scalings(linearized_unit_commitment), rename)
     _scale(m, n, sources, rules, objective_scaling)
