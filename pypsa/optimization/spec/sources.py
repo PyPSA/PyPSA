@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from pypsa.components._types.mixin.multiports import _Multiport
 
 #: The scenario label of a network that has none.
-NO_SCENARIO = "-"
+BASE_SCENARIO = "base"
 #: The period label of a run without investment periods.
 NO_PERIOD = 0
 
@@ -192,7 +192,7 @@ class NetworkSources(Mapping[str, Any]):
         """The scenario labels, one placeholder for a network without scenarios."""
         if self.n.has_scenarios:
             return pd.Index(self.n.scenarios, name="scenario")
-        return pd.Index([NO_SCENARIO], name="scenario")
+        return pd.Index([BASE_SCENARIO], name="scenario")
 
     @functools.cached_property
     def snapshots(self) -> pd.Index:

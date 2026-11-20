@@ -182,7 +182,7 @@ def test_ports_of_links_and_processes_share_one_dim():
     link, proc = (m.variables[f"{c}-p_piecewise"] for c in ("Link", "Process"))
     assert list(link.indexes["port"]) == list(proc.indexes["port"]) == [0, 1, 2]
     live = {
-        c: (v.labels != -1).any("snapshot").to_series()
+        c: (v.labels != -1).any(["scenario", "snapshot"]).to_series()
         for c, v in [("Link", link), ("Process", proc)]
     }
     assert live["Link"][live["Link"]].index.tolist() == [("link", 2)]

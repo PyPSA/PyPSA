@@ -80,33 +80,17 @@ def test_optimize_link_only_network_skips_topology():
     assert list(n.c.buses.dynamic.v_ang.columns) == ["a", "b"]
 
 
+@pytest.mark.parametrize("network", ["ac_dc_network", "ac_dc_stochastic"])
 @pytest.mark.parametrize(
-    ("network", "entry", "dims"),
+    ("entry", "dims"),
     [
-        pytest.param("ac_dc_network", "Generator-p", ("name", "snapshot"), id="var"),
+        pytest.param("Generator-p", ("name", "scenario", "snapshot"), id="var"),
+        pytest.param("Generator-p_nom", ("name",), id="shared-var"),
         pytest.param(
-            "ac_dc_network",
-            "Kirchhoff-Voltage-Law",
-            ("cycle", "snapshot"),
-            id="kvl",
+            "GlobalConstraint-primary_energy-upper", ("name", "scenario"), id="static"
         ),
         pytest.param(
-            "ac_dc_stochastic",
-            "Generator-p",
-            ("name", "scenario", "snapshot"),
-            id="stochastic-var",
-        ),
-        pytest.param(
-            "ac_dc_stochastic",
-            "GlobalConstraint-primary_energy-upper",
-            ("name", "scenario"),
-            id="stochastic-static",
-        ),
-        pytest.param(
-            "ac_dc_stochastic",
-            "Kirchhoff-Voltage-Law",
-            ("cycle", "scenario", "snapshot"),
-            id="stochastic-kvl",
+            "Kirchhoff-Voltage-Law", ("cycle", "scenario", "snapshot"), id="kvl"
         ),
     ],
 )
@@ -117,3 +101,9 @@ def test_model_dims_lead_with_name(request, network, entry, dims):
     assert item.labels.dims == dims
     assert tuple(item.coords) == dims, "coords list in the order of the dims"
     assert not m.expressions, "the spec's expressions are not kept"
+
+
+def test_model_keeps_base_scenario(ac_dc_network):
+    """A network without scenarios builds its one scenario, labelled `base`."""
+    m = ac_dc_network.optimize.create_model()
+    assert list(m.variables["Generator-p"].indexes["scenario"]) == ["base"]

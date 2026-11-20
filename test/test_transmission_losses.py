@@ -27,7 +27,9 @@ def test_secant_losses_larger():
     n.optimize(transmission_losses={"mode": "secants"})
     true_losses = (n.lines_t.p0**2 * n.c.lines.static.r_pu_eff).values
     model_losses = (
-        n.model.solution["Line-loss"].sel(name=n.c.lines.static.index).T.values
+        n.model.solution["Line-loss"]
+        .sel(name=n.c.lines.static.index, scenario="base")
+        .T.values
     )
 
     # Assert with tolerance
@@ -40,7 +42,9 @@ def test_tangent_losses_smaller():
     n.optimize(transmission_losses={"mode": "tangents", "segments": 3})
     true_losses = (n.lines_t.p0**2 * n.c.lines.static.r_pu_eff).values
     model_losses = (
-        n.model.solution["Line-loss"].sel(name=n.c.lines.static.index).T.values
+        n.model.solution["Line-loss"]
+        .sel(name=n.c.lines.static.index, scenario="base")
+        .T.values
     )
 
     # Assert with tolerance

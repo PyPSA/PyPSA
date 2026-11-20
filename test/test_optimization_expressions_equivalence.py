@@ -145,6 +145,8 @@ def compare(n: pypsa.Network, pair: tuple, **kwargs) -> None:
     call = {**shared, **kwargs}
     expr = getattr(n.optimize.expressions, expr_name)(**call)
     stat = getattr(n.statistics, stat_name)(**call)
+    if not n.has_scenarios and "scenario" in expr.dims:
+        expr = expr.sel(scenario="base")
     if call.get("groupby") is False:
         # ungrouped expressions are indexed by component name alone
         stat = stat.droplevel("component")
@@ -227,7 +229,7 @@ def test_operation_matches_dispatch(solved_network):
     n = solved_network
     expr = n.optimize.expressions.operation(
         components=["Generator"], groupby=False, groupby_time="sum"
-    )
+    ).sel(scenario="base")
     weights = n.snapshot_weightings.generators
     dispatch = n.c.generators.dynamic.p.mul(weights, axis=0).sum()
     solution = as_series(expr)

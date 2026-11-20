@@ -58,7 +58,8 @@ def _from_xarray(da: xr.DataArray, c: Components) -> pd.DataFrame | pd.Series:
     - name, scenario: multi-index series with name and scenarios as rows
     - name, snapshot, scenario: multi-index dataframe with snapshots as rows and name/ scenarios as columns
 
-    If name or scenarios (if stochastic) are missing, they will be expanded to cover them
+    If name or scenarios (if stochastic) are missing, they will be expanded to cover them.
+    The one scenario of a network without scenarios, as its model holds it, is dropped.
 
     """
     # Restore the snapshot MultiIndex from a flat build's tuple labels once
@@ -72,6 +73,8 @@ def _from_xarray(da: xr.DataArray, c: Components) -> pd.DataFrame | pd.Series:
         da = da.expand_dims(name=c.names)
     if "scenario" not in da.dims and c.has_scenarios:
         da = da.expand_dims(scenario=c.scenarios)
+    elif "scenario" in da.dims and not c.has_scenarios:
+        da = da.squeeze("scenario", drop=True)
 
     dims = set(da.dims)
     if dims in ({"name"}, {"name", "snapshot"}):

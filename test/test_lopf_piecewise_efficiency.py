@@ -291,7 +291,7 @@ class TestPiecewiseMultiPort2Bus:
         expected_p1 = (
             -1
             * n.model.variables[f"{comp}-p_piecewise"]
-            .solution.sel(port=1)
+            .solution.sel(port=1, scenario="base")
             .T.to_pandas()
         )
         pd.testing.assert_frame_equal(
@@ -452,7 +452,7 @@ class TestPiecewiseMultiPort3Bus:
         expected_p2 = (
             -1
             * n.model.variables[f"{comp}-p_piecewise"]
-            .solution.sel(port=2)
+            .solution.sel(port=2, scenario="base")
             .T.to_pandas()
         )
         pd.testing.assert_frame_equal(

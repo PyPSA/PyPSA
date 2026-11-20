@@ -50,12 +50,12 @@ Linopy LP model
 <BLANKLINE>
 Variables:
 ----------
- * Generator-p (name, snapshot)
+ * Generator-p (name, scenario, snapshot)
  * ...
 <BLANKLINE>
 Constraints:
 ------------
- * Bus-nodal_balance (name, snapshot)
+ * Bus-nodal_balance (name, scenario, snapshot)
  * ...
 <BLANKLINE>
 Status:
@@ -90,9 +90,9 @@ alignment is stated with the `join` argument on `.add()`/`.sub()` or
 
 ``` py
 >>> (2 * m.variables["Generator-p"]).add(0.5 * m.variables["Link-p"], join="outer")  # doctest: +ELLIPSIS
-LinearExpression [name: 10, snapshot: 10]:
-------------------------------------------
-[Bremen Converter, 2015-01-01 00:00:00]: +0.5 Link-p[Bremen Converter, 2015-01-01 00:00:00]
+LinearExpression (sparse) [name: 10, scenario: 1, snapshot: 10]:
+----------------------------------------------------------------
+[Bremen Converter, base, 2015-01-01 00:00:00]: +0.5 Link-p[Bremen Converter, base, 2015-01-01 00:00:00]
 ...
 ```
 
@@ -114,9 +114,9 @@ facilitate further modifications or inspection:
 
 ``` py
 >>> m.add_constraints(constraint_expression, name="Bus-minimum_generation_share")  # doctest: +ELLIPSIS
-Constraint `Bus-minimum_generation_share` [bus: 3]:
----------------------------------------------------
-[Frankfurt]: +1 Generator-p[Frankfurt Wind, 2015-01-01 00:00:00] + ... ≥ 26038.102467283523
+Constraint `Bus-minimum_generation_share` [bus: 3, scenario: 1]:
+----------------------------------------------------------------
+[Frankfurt, base]: +1 Generator-p[Frankfurt Wind, base, 2015-01-01 00:00:00] + ... ≥ 26038.102467283523
 ```
 
 Once the custom constraints is registered, calling

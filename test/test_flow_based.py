@@ -260,7 +260,7 @@ def triangle(ram_overrides=None, snapshots=1, domain=True) -> pypsa.Network:
 
 def net_position(n) -> pd.DataFrame:
     """The net position of each zone bus, the buses where the variable has rows."""
-    var = n.model["FlowBased-net_position"]
+    var = n.model["FlowBased-net_position"].sel(scenario="base")
     return var.solution.where(var.labels != -1, drop=True).T.to_pandas()
 
 
@@ -907,7 +907,8 @@ def test_named_domain_validation(rows, attr, value, match):
 
 
 def _active_cnecs(n) -> pd.DataFrame:
-    return (n.model.constraints["GlobalConstraint-ram"].labels != -1).T.to_pandas()
+    labels = n.model.constraints["GlobalConstraint-ram"].labels.sel(scenario="base")
+    return (labels != -1).T.to_pandas()
 
 
 def _nan_ram_triangle(drops, snapshots=3) -> pypsa.Network:
