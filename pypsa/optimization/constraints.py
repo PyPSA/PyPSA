@@ -27,6 +27,7 @@ from numpy import (
 )
 from xarray import DataArray, where
 
+from pypsa._future import future_flag
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import as_components, invariant
 from pypsa.constants import PYPSA_DATA_DIR
@@ -407,12 +408,21 @@ def define_operational_constraints_for_committables(
     min_up_time_set = c.da.min_up_time.sel(name=com_i)
     min_down_time_set = c.da.min_down_time.sel(name=com_i)
 
-    ramp_up_limit = nominal * c.da.ramp_limit_up.sel(name=com_i, snapshot=sns).fillna(1)
-    ramp_down_limit = nominal * c.da.ramp_limit_down.sel(
-        name=com_i, snapshot=sns
-    ).fillna(1)
-    ramp_start_up = nominal * c.da.ramp_limit_start_up.sel(name=com_i).fillna(1)
-    ramp_shut_down = nominal * c.da.ramp_limit_shut_down.sel(name=com_i).fillna(1)
+    weightings = _ramp_limit_weightings(n, sns)
+    ramp_up = c.da.ramp_limit_up.sel(name=com_i, snapshot=sns)
+    ramp_down = c.da.ramp_limit_down.sel(name=com_i, snapshot=sns)
+    ramp_start = c.da.ramp_limit_start_up.sel(name=com_i)
+    ramp_shut = c.da.ramp_limit_shut_down.sel(name=com_i)
+    if weightings is not None:
+        # Scale before filling NaN, as in define_ramp_limit_constraints.
+        ramp_up = ramp_up * weightings
+        ramp_down = ramp_down * weightings
+        ramp_start = ramp_start * weightings
+        ramp_shut = ramp_shut * weightings
+    ramp_up_limit = nominal * ramp_up.fillna(1)
+    ramp_down_limit = nominal * ramp_down.fillna(1)
+    ramp_start_up = nominal * ramp_start.fillna(1)
+    ramp_shut_down = nominal * ramp_shut.fillna(1)
     max_time = max(int(min_up_time_set.max()), int(min_down_time_set.max()), 1)
     history = _status_history(n, c, com_i, sns, max_time + 1)
     status_before = history.sel(lag=1, drop=True)
@@ -1052,6 +1062,20 @@ def _define_ramp_limit_big_m(
     )
 
 
+def _ramp_limit_weightings(n: Network, sns: pd.Index) -> DataArray | None:
+    """Snapshot weightings to scale ramp limits with, if opted in.
+
+    Ramp limits are given per hour. With the ``future.weighted_ramp_limits``
+    flag, they are scaled by the duration of each snapshot, so a rate
+    applies over the full snapshot instead of per snapshot step.
+    Returns None unless the flag is on (keep current behaviour).
+    """
+    if not future_flag("weighted_ramp_limits"):
+        return None
+    window = n.optimize._window.subset(sns)
+    return window.snapshot_weightings("generators")
+
+
 def define_ramp_limit_constraints(
     n: Network, sns: pd.Index, component: str, attr: str
 ) -> None:
@@ -1086,6 +1110,11 @@ def define_ramp_limit_constraints(
     For extendable components, ramp constraints are defined relative to the
     variable capacity, ensuring consistency in the optimization.
 
+    Ramp limits are given per hour. With the ``future.weighted_ramp_limits``
+    flag, they are scaled by the snapshot weightings, so a rate applies over
+    the full duration of each snapshot; without the flag, they apply per
+    snapshot step as before.
+
     """
     m = n.model
     c = n.c[component]
@@ -1118,6 +1147,15 @@ def define_ramp_limit_constraints(
     all_null = (no_up_limit & no_down_limit).all()
     if all_null:
         return
+
+    weightings = _ramp_limit_weightings(n, sns)
+    if weightings is not None:
+        # Scale before filling NaN: a missing limit stays missing (fillna(1.0)
+        # below), so "no limit" is not turned into a limit on sub-hourly steps.
+        limit_up = limit_up * weightings
+        limit_down = limit_down * weightings
+        limit_start = limit_start * weightings
+        limit_shut = limit_shut * weightings
 
     limit_up = limit_up.fillna(1.0)
     limit_down = limit_down.fillna(1.0)

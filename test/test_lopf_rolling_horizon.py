@@ -670,3 +670,60 @@ def test_rolling_horizon_storage_standing_loss(component, level, kwargs):
     pd.testing.assert_frame_equal(
         rolling.c[component].dynamic[level], full.c[component].dynamic[level]
     )
+
+
+def test_rolling_horizon_weighted_ramp_limits():
+    # https://github.com/PyPSA/PyPSA/issues/1273: same setup as
+    # test_rolling_horizon_committable_ramp_limits, but with 2h snapshots
+    # and a weighting of 2. With the flag, the 50% run limit allows 100%
+    # of p_nom per step, so coal covers the full 5000 MW at the second
+    # snapshot; without it, coal is capped at 4500 MW and gas covers 500 MW.
+    # (Under linearized unit commitment the status is fractional, so coal
+    # at 1500 MW with p_min_pu=0.3 is consistent: status 0.5 at t=0.)
+    n = pypsa.Network()
+    n.snapshots = pd.date_range("2020-01-01", periods=4, freq="2h")
+    n.snapshot_weightings.loc[:] = 2
+
+    n.add("Bus", "bus")
+
+    n.add(
+        "Generator",
+        "coal",
+        bus="bus",
+        committable=True,
+        p_min_pu=0.3,
+        marginal_cost=20,
+        p_nom=10000,
+        ramp_limit_up=0.5,
+        ramp_limit_start_up=0.1,
+    )
+
+    n.add(
+        "Generator",
+        "gas",
+        bus="bus",
+        committable=False,
+        marginal_cost=70,
+        p_nom=1000,
+    )
+
+    n.add("Load", "load", bus="bus", p_set=[1500, 5000, 5000, 800])
+
+    with pypsa.option_context("future.weighted_ramp_limits", True):
+        n.optimize.optimize_with_rolling_horizon(
+            linearized_unit_commitment=True,
+            horizon=2,
+        )
+
+    assert n.generators_t.p.loc[n.snapshots[0], "coal"] == 1500.0
+    assert n.generators_t.p.loc[n.snapshots[1], "coal"] == 5000.0
+    assert (n.generators_t.p["gas"].abs() < 1e-6).all()
+
+    with pypsa.option_context("future.weighted_ramp_limits", False):
+        n.optimize.optimize_with_rolling_horizon(
+            linearized_unit_commitment=True,
+            horizon=2,
+        )
+
+    assert n.generators_t.p.loc[n.snapshots[1], "coal"] == 4500.0
+    assert n.generators_t.p.loc[n.snapshots[1], "gas"] == 500.0

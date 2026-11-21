@@ -594,6 +594,15 @@ options._add_future_flag(
     "keeps duplicates and raises a `KeyError` for unknown names. Unique, known "
     "names in component order give the same result in both.",
 )
+options._add_future_flag(
+    "weighted_ramp_limits",
+    "Ramp limits (up, down, start-up, shut-down) are scaled by snapshot "
+    "weightings, so a rate given per hour applies over the full duration of "
+    "each snapshot.",
+    "From PyPSA 2.0 on, ramp limits are scaled by snapshot weightings. "
+    "A ramp limit given per hour then allows a proportionally larger change "
+    "over multi-hour snapshots (and a smaller change over sub-hourly ones).",
+)
 
 # Debugging category
 options._add_option(
