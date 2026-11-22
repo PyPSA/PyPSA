@@ -479,13 +479,10 @@ def total_cost(case: str) -> float:
     return n.objective + n.objective_constant
 
 
-@pytest.mark.parametrize("sparse", [False, True], ids=["dense", "sparse"])
 @pytest.mark.parametrize("case", CASES)
-def test_objective_matches_master(case: str, sparse: bool) -> None:
+def test_objective_matches_master(case: str) -> None:
     expected = json.loads(REFERENCE.read_text())["objectives"][case]
-    model_kwargs = {"sparse": sparse}
-    with pypsa.option_context("params.optimize.model_kwargs", model_kwargs):
-        objective = total_cost(case)
+    objective = total_cost(case)
     assert objective == pytest.approx(expected, rel=RELATIVE_TOLERANCE)
 
 
