@@ -37,23 +37,43 @@ jobs:
       with:
         token: ${{ steps.app-token.outputs.token }}
 
+    # Everyone in the vouched list and all collaborators can vouch.
     - uses: mitchellh/vouch/action/manage-by-issue@d66fa29a64600490892131ad87597c30c91fcac4 # v1.5.0
-      id: vouch
+      if: startsWith(github.event.comment.body, 'vouch')
       with:
         repo: ${{ github.repository }}
         issue-id: ${{ github.event.issue.number }}
         comment-id: ${{ github.event.comment.id }}
+        allow-denounce: false
+        allow-unvouch: false
+        vouched-managers-file: .github/VOUCHED.td
+      env:
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+    # Only admins and the named managers can denounce and unvouch.
+    - uses: mitchellh/vouch/action/manage-by-issue@d66fa29a64600490892131ad87597c30c91fcac4 # v1.5.0
+      id: denounce
+      if: ${{ !startsWith(github.event.comment.body, 'vouch') }}
+      with:
+        repo: ${{ github.repository }}
+        issue-id: ${{ github.event.issue.number }}
+        comment-id: ${{ github.event.comment.id }}
+        allow-vouch: false
+        roles: admin
+        vouched-managers-file: .github/VOUCHED-managers.td
       env:
         GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
     # Blocked users cannot comment, open issues or open pull requests.
-    - name: Block denounced users in the organization
-      if: steps.vouch.outputs.status == 'denounced'
+    - name: Block denounced and unblock unvouched users in the organization
+      if: contains(fromJSON('["denounced", "unvouched"]'), steps.denounce.outputs.status)
       run: |
-        denounced=$(sed -nE 's/^-(github:)?([^ ]+).*/\2/p' .github/VOUCHED.td)
-        blocked=$(gh api --paginate "orgs/$ORG/blocks" --jq '.[].login')
-        for user in $(grep -vixFf <(echo "$blocked") <<< "$denounced"); do
+        diff=$(git diff HEAD~1 -- .github/VOUCHED.td)
+        for user in $(sed -nE 's/^\+-(github:)?([^- ][^ ]*).*/\2/p' <<< "$diff"); do
           gh api --method PUT "orgs/$ORG/blocks/$user"
+        done
+        for user in $(sed -nE 's/^--(github:)?([^- ][^ ]*).*/\2/p' <<< "$diff"); do
+          gh api --method DELETE "orgs/$ORG/blocks/$user"
         done
       env:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}

@@ -1,13 +1,4 @@
-# Vouched contributors of PyPSA.
-#
-# Maintainers add and remove entries by commenting `vouch`, `denounce` or
-# `unvouch` on an issue or pull request.
-# See https://github.com/mitchellh/vouch for details.
-#
-# Syntax:
-#   - One handle per line (without @), sorted alphabetically.
-#   - Denounce with minus prefix: -username.
-#   - Optional details after a space following the handle.
+# Vouched contributors, see https://github.com/mitchellh/vouch
 AdamRJensen
 afuetterer
 aleks-g
