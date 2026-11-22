@@ -486,7 +486,6 @@ def build_model(
         **model_kwargs,
     )
     _relabel(m, snapshots=model_index, network_index=network_index)
-    m.constraints.sanitize_zeros()
     rules = _rules(spec_scalings(linearized_unit_commitment), rename)
     _scale(m, n, sources, rules, objective_scaling)
     return m
