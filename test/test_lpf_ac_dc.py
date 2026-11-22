@@ -106,3 +106,24 @@ def test_lpf_contingency_unaffected_subnetwork():
     p0 = n.lpf_contingency(n.snapshots[0], branch_outages=[("Line", "al0")])
     assert not p0[("Line", "al0")].isna().any()
     equal(p0[("Line", "al0")].to_numpy(), [0.0, 100.0, 30.0, 30.0])
+
+
+def test_lpf_contingency_radial_branch():
+    # https://github.com/PyPSA/PyPSA/issues/2085
+    # both lines are bridges (radial): their outage disconnects the
+    # sub-network, so PTDF_ii == 1 and calculate_BODF used to produce
+    # NaN/inf, which broke lpf_contingency and optimize_security_constrained.
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2026-01-01", periods=1, freq="h"))
+    n.add("Bus", ["a0", "a1", "a2"], v_nom=110)
+    n.add("Generator", "g", bus="a0", control="Slack", p_nom=1000)
+    n.add("Load", "d1", bus="a1", p_set=60)
+    n.add("Load", "d2", bus="a2", p_set=30)
+    n.add("Line", "l0", bus0="a0", bus1="a1", r=0.01, x=0.1, s_nom=200)
+    n.add("Line", "l1", bus0="a1", bus1="a2", r=0.01, x=0.1, s_nom=200)
+
+    p0 = n.lpf_contingency(n.snapshots[0])
+    assert not p0.isna().any().any()
+    # outage of a radial branch leaves the other branch flow unchanged
+    equal(p0[("Line", "l0")].to_numpy(), [0.0, 30.0])
+    equal(p0[("Line", "l1")].to_numpy(), [90.0, 0.0])
