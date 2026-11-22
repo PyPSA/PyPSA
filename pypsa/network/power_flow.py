@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 from abc import abstractmethod
-from collections.abc import Sequence
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any
 
@@ -18,6 +17,7 @@ import pandas as pd
 from deprecation import deprecated
 from numpy import ones, r_
 from numpy.linalg import norm
+from pandas.api.types import is_list_like
 from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, issparse
 from scipy.sparse import hstack as shstack
 from scipy.sparse import vstack as svstack
@@ -36,7 +36,7 @@ from pypsa.network.graph import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
     from components import Network, SubNetwork
     from scipy.sparse import spmatrix
@@ -960,7 +960,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
             NB: currently this only works for a single snapshot
         branch_outages : list-like
             A list of passive branches which are to be tested for outages.
-            If None, it's take as all n.passive_branches_i()
+            If None, it's take as all n.passive_branches()
 
         Returns
         -------
@@ -971,7 +971,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
         if snapshots is None:
             snapshots = self.snapshots
 
-        if isinstance(snapshots, Sequence):
+        if is_list_like(snapshots):
             logger.warning(
                 "Apologies LPF contingency, this only works for single snapshots at the moment, taking the first snapshot."
             )
@@ -999,6 +999,8 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         for sub_network in self.c.sub_networks.static.obj:
             sub_network._branches = sub_network.branches()
+            if sub_network._branches.empty:
+                continue
             sub_network.calculate_BODF()
 
         for branch in branch_outages:
