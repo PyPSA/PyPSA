@@ -167,6 +167,9 @@ exclude_objective_constant:
 inds_order:
     Default: ...
     Description: `get_switchable_as_dense` with `inds` returns columns in `inds` order, keeps duplicates and raises a `KeyError` for unknown names.
+weighted_ramp_limits:
+    Default: ...
+    Description: Ramp limits (up, down, start-up, shut-down) are scaled by snapshot weightings, so a rate given per hour applies over the full duration of each snapshot.
 ```
 
 ### Debug options
