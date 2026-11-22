@@ -1058,8 +1058,9 @@ class TestPortEfficiency:
         pd.testing.assert_frame_equal(result, default_dynamic_eff)
 
     def test_mixed_link_port3_static_request(self, mixed_link_eff, component):
+        """A time-varying port returns the weighted mean of its series."""
         result = port_efficiency(mixed_link_eff, component, port=3, dynamic=False)
-        assert result.item() == 1
+        assert result.item() == pytest.approx(0.2)
 
     def test_mixed_link_port3_dynamic_dynamic(
         self, mixed_link_eff, component, eff_param
@@ -1067,6 +1068,38 @@ class TestPortEfficiency:
         result = port_efficiency(mixed_link_eff, component, port=3, dynamic=True)
         expected = mixed_link_eff.components[component].dynamic[f"{eff_param}3"]
         pd.testing.assert_frame_equal(result, expected)
+
+    @pytest.fixture(scope="class")
+    @staticmethod
+    def shadowed_link_eff(base_network, eff1, component):
+        """Network whose static efficiency is overridden by a later series."""
+        n = base_network.copy()
+        n.snapshot_weightings.loc[:, "generators"] = [1.0, 1.0, 2.0]
+        name = f"{component.lower()}_shadow"
+        n.add(component, name, bus0="bus0", bus1="bus1", p_nom=100, **{eff1: 0.5})
+        n.c[component].dynamic[eff1] = pd.DataFrame(
+            {name: [0.7, 0.8, 0.9]}, index=n.snapshots
+        )
+        return n
+
+    # Weighted by snapshot_weightings.generators: (0.7 + 0.8 + 2 * 0.9) / 4
+    shadowed_mean = 0.825
+
+    def test_shadowed_static_returns_weighted_mean(self, shadowed_link_eff, component):
+        result = port_efficiency(shadowed_link_eff, component, port=1)
+        assert result.item() == pytest.approx(self.shadowed_mean)
+
+    def test_shadowed_static_xarray_returns_weighted_mean(
+        self, shadowed_link_eff, component
+    ):
+        result = port_efficiency(shadowed_link_eff, component, port=1, as_xarray=True)
+        assert result.item() == pytest.approx(self.shadowed_mean)
+
+    def test_shadowed_static_installed_capacity(self, shadowed_link_eff, component):
+        result = shadowed_link_eff.statistics.installed_capacity(
+            components=component, at_port=1
+        )
+        assert result.item() == pytest.approx(100 * self.shadowed_mean)
 
 
 def test_1144():

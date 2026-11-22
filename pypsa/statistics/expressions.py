@@ -91,6 +91,13 @@ def port_efficiency(
         if dynamic and key in c.static:
             return c.da[key] if as_xarray else n.get_switchable_as_dense(c.name, key)
         res = c.static.get(key, ones)
+        if key in c.dynamic and not c.dynamic[key].empty:
+            # The series overrides the static value, so use its weighted mean
+            w = n.snapshot_weightings.generators
+            series = c.dynamic[key].reindex(w.index)
+            mean = series.mul(w, axis=0).sum() / w.sum()
+            res = res.astype(float)
+            res.loc[mean.index] = mean
     else:
         msg = f"port_efficiency has not been implemented for: {c.name}"
         raise NotImplementedError(msg)
