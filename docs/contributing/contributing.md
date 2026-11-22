@@ -154,6 +154,15 @@ For simple changes, you can also edit the documentation directly on GitHub:
 2. Make your changes in the file.
 3. Commit your changes and create a pull request.
 
+## First-time Contributors
+
+We receive many pull requests from autonomous AI agents.
+Therefore, a previous contributor must vouch for you before your first pull request; otherwise it is closed automatically.
+To get vouched, say in your own words who you are and what you want to work on, in an issue or in the closed pull request.
+Authors of merged pull requests are already vouched. Issues need no vouching.
+
+Vouched contributors comment `vouch` and [managers](https://github.com/PyPSA/PyPSA/blob/master/.github/VOUCHED-managers.td) comment `denounce` or `unvouch` to update the [list of vouched contributors](https://github.com/PyPSA/PyPSA/blob/master/.github/VOUCHED.td) with [Vouch](https://github.com/mitchellh/vouch).
+
 ## AI-based Contributions
 
 We do not impose general restrictions on the use of AI for contributions.

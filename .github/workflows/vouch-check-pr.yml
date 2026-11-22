@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+name: Vouch check
+
+# Runs with the permissions of the base repository. Never check out or run
+# code of the pull request here.
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-pr:
+    name: Check pull request author
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: mitchellh/vouch/action/check-pr@d66fa29a64600490892131ad87597c30c91fcac4 # v1.5.0
+      with:
+        pr-number: ${{ github.event.pull_request.number }}
+        auto-close: true
+        dry-run: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

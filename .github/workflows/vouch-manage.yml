@@ -1,0 +1,80 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+name: Vouch manage
+
+on:
+  issue_comment:
+    types: [created]
+
+# Serialize updates to the VOUCHED file.
+concurrency:
+  group: vouch-manage
+  cancel-in-progress: false
+
+# The GitHub App token carries the permissions.
+permissions: {}
+
+jobs:
+  manage:
+    name: Vouch, denounce or unvouch
+    if: >-
+      startsWith(github.event.comment.body, 'vouch') ||
+      startsWith(github.event.comment.body, 'denounce') ||
+      startsWith(github.event.comment.body, 'unvouch')
+    runs-on: ubuntu-latest
+
+    steps:
+    # The default token cannot bypass the rulesets of the default branch.
+    - uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+      id: app-token
+      with:
+        app-id: ${{ secrets.VOUCH_ID }}
+        private-key: ${{ secrets.VOUCH_PRIVATE_KEY }}
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        token: ${{ steps.app-token.outputs.token }}
+
+    # Everyone in the vouched list and all collaborators can vouch.
+    - uses: mitchellh/vouch/action/manage-by-issue@d66fa29a64600490892131ad87597c30c91fcac4 # v1.5.0
+      if: startsWith(github.event.comment.body, 'vouch')
+      with:
+        repo: ${{ github.repository }}
+        issue-id: ${{ github.event.issue.number }}
+        comment-id: ${{ github.event.comment.id }}
+        allow-denounce: false
+        allow-unvouch: false
+        vouched-managers-file: .github/VOUCHED.td
+      env:
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+    # Only admins and the named managers can denounce and unvouch.
+    - uses: mitchellh/vouch/action/manage-by-issue@d66fa29a64600490892131ad87597c30c91fcac4 # v1.5.0
+      id: denounce
+      if: ${{ !startsWith(github.event.comment.body, 'vouch') }}
+      with:
+        repo: ${{ github.repository }}
+        issue-id: ${{ github.event.issue.number }}
+        comment-id: ${{ github.event.comment.id }}
+        allow-vouch: false
+        roles: admin
+        vouched-managers-file: .github/VOUCHED-managers.td
+      env:
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+    # Blocked users cannot comment, open issues or open pull requests.
+    - name: Block denounced and unblock unvouched users in the organization
+      if: contains(fromJSON('["denounced", "unvouched"]'), steps.denounce.outputs.status)
+      run: |
+        diff=$(git diff HEAD~1 -- .github/VOUCHED.td)
+        for user in $(sed -nE 's/^\+-(github:)?([^- ][^ ]*).*/\2/p' <<< "$diff"); do
+          gh api --method PUT "orgs/$ORG/blocks/$user"
+        done
+        for user in $(sed -nE 's/^--(github:)?([^- ][^ ]*).*/\2/p' <<< "$diff"); do
+          gh api --method DELETE "orgs/$ORG/blocks/$user"
+        done
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        ORG: ${{ github.repository_owner }}
