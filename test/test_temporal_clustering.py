@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -279,22 +281,6 @@ class TestAggregationRules:
         assert "p_max_pu" in result.n.c.generators.dynamic
 
 
-class TestAccessorFullResults:
-    def test_get_resample_result(self, simple_network):
-        n = simple_network
-        result = n.cluster.temporal.get_resample_result("3h")
-
-        assert isinstance(result, TemporalClustering)
-        assert isinstance(result.n, pypsa.Network)
-        assert isinstance(result.snapshot_map, pd.Series)
-
-    def test_get_downsample_result(self, simple_network):
-        n = simple_network
-        result = n.cluster.temporal.get_downsample_result(4)
-
-        assert isinstance(result, TemporalClustering)
-
-
 class TestMultiperiod:
     def test_resample_multiperiod(self, multiperiod_network):
         n = multiperiod_network
@@ -306,6 +292,29 @@ class TestMultiperiod:
             result.n.snapshot_weightings["objective"].sum(),
             n.snapshot_weightings["objective"].sum(),
         )
+
+    def test_resample_multiperiod_time_series(self):
+        """Time series are aggregated within each period, never across periods."""
+        n = pypsa.Network()
+        timesteps = pd.date_range("2030-01-01", periods=6, freq="h")
+        n.set_snapshots(pd.MultiIndex.from_product([[2030, 2040], timesteps]))
+        n.set_investment_periods([2030, 2040])
+        n.add("Bus", "bus")
+        values = [0, 1, 2, 3, 4, 5, 100, 101, 102, 103, 104, 105]
+        n.add("Load", "load", bus="bus", p_set=pd.Series(values, n.snapshots))
+        n.add("Generator", "gen", bus="bus", p_max_pu=pd.Series(values, n.snapshots))
+
+        result = resample(n, "3h", aggregation_rules={"p_max_pu": "max"})
+
+        m = result.n
+        new_snapshots = pd.MultiIndex.from_product([[2030, 2040], timesteps[::3]])
+        assert m.snapshots.equals(new_snapshots)
+        assert (m.snapshot_weightings == 3.0).all().all()
+        np.testing.assert_allclose(m.c.loads.dynamic.p_set["load"], [1, 4, 101, 104])
+        np.testing.assert_allclose(
+            m.c.generators.dynamic.p_max_pu["gen"], [2, 5, 102, 105]
+        )
+        assert result.snapshot_map[(2040, timesteps[4])] == (2040, timesteps[3])
 
 
 class TestSegment:
@@ -466,20 +475,6 @@ class TestAggregationRulesDetailed:
         assert (clustered_min <= clustered_max).all()
 
 
-class TestAccessorFullResultsExtended:
-    def test_get_from_snapshot_map_result(self, simple_network):
-        n = simple_network
-        snapshot_map = pd.Series(
-            np.repeat(n.snapshots[::24], 24)[: len(n.snapshots)], index=n.snapshots
-        )
-
-        result = n.cluster.temporal.get_from_snapshot_map_result(snapshot_map)
-
-        assert isinstance(result, TemporalClustering)
-        assert isinstance(result.n, pypsa.Network)
-        assert isinstance(result.snapshot_map, pd.Series)
-
-
 class TestSegmentErrors:
     def test_segment_invalid_num_segments(self, simple_network):
 
@@ -487,22 +482,26 @@ class TestSegmentErrors:
         with pytest.raises(ValueError, match="num_segments must be >= 1"):
             segment(n, 0)
 
-    def test_segment_multiperiod_raises(self, multiperiod_network):
-        pytest.importorskip("tsam")
-        n = multiperiod_network
-        n.add(
-            "Generator",
-            "gen_vary",
-            bus="bus0",
-            p_nom=50,
-            p_max_pu=np.random.default_rng(42).uniform(0.5, 1.0, 48),
-        )
+    def test_segment_map_too_many_segments(self, simple_network):
+        pytest.importorskip("tsam", minversion="3")
+        with pytest.raises(
+            ValueError, match=r"cannot exceed number of snapshots \(168\)"
+        ):
+            simple_network.cluster.temporal.get_segment_map(169)
 
-        with pytest.raises(NotImplementedError, match="does not yet support"):
-            segment(n, 5)
+    def test_segment_map_requires_tsam_3(self, simple_network, monkeypatch):
+        pytest.importorskip("tsam", minversion="3")
+        monkeypatch.setattr("pypsa.clustering.temporal.version", lambda _: "2.3.9")
+        with pytest.raises(ImportError, match=r"tsam >= 3 is required.*2\.3\.9"):
+            simple_network.cluster.temporal.get_segment_map(10)
+
+    def test_segment_map_no_dynamic_data_with_periods(self, multiperiod_network):
+        pytest.importorskip("tsam", minversion="3")
+        with pytest.raises(ValueError, match="No time-varying data"):
+            multiperiod_network.cluster.temporal.get_segment_map(5)
 
     def test_segment_no_dynamic_data(self):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         n = pypsa.Network()
         n.set_snapshots(pd.date_range("2021-01-01", periods=24, freq="h"))
         n.add("Bus", "bus0")
@@ -514,7 +513,7 @@ class TestSegmentErrors:
 
 class TestSegmentFunctionality:
     def test_segment_basic(self, simple_network):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         n = simple_network
 
         result = segment(n, 10)
@@ -527,7 +526,7 @@ class TestSegmentFunctionality:
         )
 
     def test_segment_accessor(self, simple_network):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         n = simple_network
 
         m = n.cluster.temporal.segment(10)
@@ -536,7 +535,7 @@ class TestSegmentFunctionality:
         assert len(m.snapshots) == 10
 
     def test_segment_p_min_pu_not_above_p_max_pu(self, simple_network):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
         n = simple_network
 
         rng = np.random.default_rng(0)
@@ -560,15 +559,289 @@ class TestSegmentFunctionality:
         clustered_max = m.c.generators.dynamic["p_max_pu"]["gen_eq"]
         assert (clustered_min <= clustered_max).all()
 
-    def test_get_segment_result(self, simple_network):
-        pytest.importorskip("tsam")
-        n = simple_network
 
-        result = n.cluster.temporal.get_segment_result(10)
+def _run_starts(mapping: pd.Series) -> np.ndarray:
+    values = mapping.to_numpy()
+    return np.r_[True, values[1:] != values[:-1]]
+
+
+class TestSegmentMap:
+    @pytest.mark.parametrize("num_segments", [1, 10, 168])
+    def test_segment_map_runs(self, simple_network, num_segments):
+        pytest.importorskip("tsam", minversion="3")
+        mapping = simple_network.cluster.temporal.get_segment_map(num_segments)
+        starts = _run_starts(mapping)
+
+        assert mapping.index.equals(simple_network.snapshots)
+        assert starts.sum() == mapping.nunique() == num_segments
+        assert (mapping[starts] == mapping.index[starts]).all()
+
+    @pytest.mark.parametrize("varying", [True, False])
+    @pytest.mark.parametrize("num_segments", [1, 5, 24])
+    def test_segment_map_within_periods(
+        self, multiperiod_network, num_segments, varying
+    ):
+        pytest.importorskip("tsam", minversion="3")
+        n = multiperiod_network
+        rng = np.random.default_rng(42)
+        p_max_pu = rng.uniform(size=48) if varying else np.full(48, 0.5)
+        n.add("Generator", "gen_vary", bus="bus0", p_max_pu=p_max_pu)
+        mapping = n.cluster.temporal.get_segment_map(num_segments)
+        periods = mapping.index.get_level_values("period")
+
+        assert mapping.index.equals(n.snapshots)
+        assert (mapping.map(lambda s: s[0]) == periods).all()
+        assert (mapping.groupby(periods).nunique() == num_segments).all()
+
+    @pytest.mark.parametrize(
+        ("p_max_pu", "drop_duplicates"),
+        [("duplicate", True), ("constant", True), ("constant", False)],
+    )
+    def test_segment_map_ignores_redundant_series(
+        self, simple_network, p_max_pu, drop_duplicates
+    ):
+        pytest.importorskip("tsam", minversion="3")
+        n = simple_network
+        expected = n.cluster.temporal.get_segment_map(
+            20, drop_duplicates=drop_duplicates
+        )
+        series = {
+            "duplicate": n.c.generators.dynamic["p_max_pu"]["gen1"].to_numpy(),
+            "constant": np.full(168, 0.7),
+        }[p_max_pu]
+        for name in ["copy0", "copy1"]:
+            n.add("Generator", name, bus="bus1", p_max_pu=series)
+
+        pd.testing.assert_series_equal(
+            n.cluster.temporal.get_segment_map(20, drop_duplicates=drop_duplicates),
+            expected,
+        )
+
+
+def _timestep(label: pd.Timestamp | tuple) -> pd.Timestamp:
+    return label[1] if isinstance(label, tuple) else label
+
+
+def _leap_week_network(periods: bool, hours: int = 96) -> pypsa.Network:
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2020-02-27", periods=hours, freq="h"))
+    if periods:
+        n.set_investment_periods([2020, 2030])
+    n.add("Bus", "bus0")
+    rng = np.random.default_rng(0)
+    n.add("Generator", "gen0", bus="bus0", p_max_pu=rng.uniform(size=len(n.snapshots)))
+    return n
+
+
+def _with_varying_generator(n: pypsa.Network) -> pypsa.Network:
+    rng = np.random.default_rng(1)
+    n.add(
+        "Generator", "gen_vary", bus="bus0", p_max_pu=rng.uniform(size=len(n.snapshots))
+    )
+    return n
+
+
+class TestSnapshotMaps:
+    @pytest.mark.parametrize("network", ["simple_network", "multiperiod_network"])
+    @pytest.mark.parametrize("method", ["resample", "downsample", "segment"])
+    def test_method_applies_map(self, network, method, request):
+        if method == "segment":
+            pytest.importorskip("tsam", minversion="3")
+        n = _with_varying_generator(request.getfixturevalue(network))
+        t = n.cluster.temporal
+        first = {attr: "first" for c in n.components for attr in c.dynamic}
+        mapping, clustered, rules = {
+            "resample": lambda: (t.get_resample_map("3h"), t.resample("3h"), None),
+            "downsample": lambda: (t.get_downsample_map(5), t.downsample(5), first),
+            "segment": lambda: (t.get_segment_map(6), t.segment(6), None),
+        }[method]()
+
+        assert clustered.equals(t.from_snapshot_map(mapping, aggregation_rules=rules))
+
+    @pytest.mark.parametrize("network", ["simple_network", "multiperiod_network"])
+    @pytest.mark.parametrize(("method", "size"), [("resample", 3), ("downsample", 5)])
+    def test_block_maps_stay_within_periods(self, network, method, size, request):
+        n = request.getfixturevalue(network)
+        mapping = {
+            "resample": lambda: n.cluster.temporal.get_resample_map(f"{size}h"),
+            "downsample": lambda: n.cluster.temporal.get_downsample_map(size),
+        }[method]()
+        groups = (
+            mapping.index.get_level_values("period")
+            if n.has_periods
+            else np.zeros(len(mapping))
+        )
+        per_group = len(n.snapshots) // len(np.unique(groups))
+
+        assert mapping.index.equals(n.snapshots)
+        assert (
+            mapping[_run_starts(mapping)] == mapping.index[_run_starts(mapping)]
+        ).all()
+        assert (mapping.groupby(groups).nunique() == -(-per_group // size)).all()
+        if n.has_periods:
+            assert (mapping.map(lambda s: s[0]) == groups).all()
+
+    @pytest.mark.parametrize("periods", [False, True])
+    @pytest.mark.parametrize("offset", ["5h", "24h"])
+    def test_drop_leap_day_moves_feb_29_to_march_1(self, periods, offset):
+        n = _leap_week_network(periods)
+        kept = resample(n, offset)
+        result = resample(n, offset, drop_leap_day=True)
+        snapshots = result.n.snapshots
+        timesteps = pd.DatetimeIndex([_timestep(s) for s in snapshots])
+        mapped = pd.DatetimeIndex([_timestep(s) for s in result.snapshot_map])
+
+        assert not ((timesteps.month == 2) & (timesteps.day == 29)).any()
+        assert result.snapshot_map.isin(snapshots).all()
+        assert not ((mapped.month == 2) & (mapped.day == 29)).any()
+        assert np.isclose(
+            result.n.snapshot_weightings["objective"].sum(),
+            n.snapshot_weightings["objective"].sum(),
+        )
+        pd.testing.assert_frame_equal(
+            result.n.generators_t.p_max_pu, kept.n.generators_t.p_max_pu.loc[snapshots]
+        )
+
+    def test_drop_leap_day_aggregates_march_1_alone(self):
+        n = pypsa.Network()
+        n.set_snapshots(pd.date_range("2024-02-26", "2024-03-03 23:00", freq="h"))
+        n.add("Bus", "b")
+        n.add("Load", "l", bus="b", p_set=np.arange(168.0))
+        t = n.cluster.temporal
+        m = t.resample("D", drop_leap_day=True)
+        march_1 = pd.Timestamp("2024-03-01")
+
+        assert m.loads_t.p_set.loc[march_1, "l"] == 107.5
+        assert m.snapshot_weightings.loc[march_1, "objective"] == 48
+        with pytest.raises(TypeError, match="drop_leap_day"):
+            t.get_resample_map("D", drop_leap_day=True)
+
+    @pytest.mark.parametrize("stride", [2, 3])
+    def test_downsample_segmented_network_keeps_hours(self, simple_network, stride):
+        pytest.importorskip("tsam", minversion="3")
+        m = segment(simple_network, 40).n
+        result = downsample(m, stride)
+
+        assert np.isclose(
+            result.n.snapshot_weightings["objective"].sum(),
+            simple_network.snapshot_weightings["objective"].sum(),
+        )
+
+    @pytest.mark.parametrize("periods", [False, True])
+    @pytest.mark.parametrize("offset", ["5h", "24h"])
+    def test_drop_leap_day_requires_march_1(self, periods, offset):
+        t = _leap_week_network(periods, hours=72)
+        with pytest.raises(ValueError, match="requires a snapshot on March 1"):
+            t.cluster.temporal.resample(offset, drop_leap_day=True)
+
+    @pytest.mark.parametrize(
+        ("cluster", "kept"),
+        [
+            (lambda t: t.downsample(4), 0),
+            (lambda t: t.resample("4h", aggregation_rules={"p_max_pu": "first"}), 1),
+            (
+                lambda t: t.from_snapshot_map(
+                    t.get_downsample_map(4), aggregation_rules={"p_max_pu": "first"}
+                ),
+                1,
+            ),
+        ],
+    )
+    def test_first_value_with_missing_start(self, simple_network, cluster, kept):
+        n = simple_network
+        p_max_pu = np.random.default_rng(2).uniform(size=168)
+        p_max_pu[0] = np.nan
+        n.add("Generator", "gen_nan", bus="bus0", p_max_pu=p_max_pu)
+        m = cluster(n.cluster.temporal)
+
+        np.testing.assert_equal(
+            m.generators_t.p_max_pu["gen_nan"].iloc[0], p_max_pu[kept]
+        )
+
+    @pytest.mark.parametrize(
+        "method", ["resample", "downsample", "segment", "from_snapshot_map"]
+    )
+    def test_solved_network_warning_points_at_caller(self, simple_network, method):
+        if method == "segment":
+            pytest.importorskip("tsam", minversion="3")
+        n = simple_network
+        n.optimize(solver_name="highs")
+        n.model.solver_model = None
+        t = n.cluster.temporal
+        mapping = t.get_downsample_map(4)
+        cluster = {
+            "resample": lambda: t.resample("3h"),
+            "downsample": lambda: t.downsample(4),
+            "segment": lambda: t.segment(6),
+            "from_snapshot_map": lambda: t.from_snapshot_map(mapping),
+        }[method]
+        with pytest.warns(UserWarning, match="solved network") as record:
+            cluster()
+
+        assert {w.filename for w in record if "solved network" in str(w.message)} == {
+            __file__
+        }
+
+
+class TestDeprecations:
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "get_resample_result",
+            "get_downsample_result",
+            "get_segment_result",
+            "get_from_snapshot_map_result",
+        ],
+    )
+    def test_result_methods_warn_and_match_main_path(self, simple_network, method):
+        if method == "get_segment_result":
+            pytest.importorskip("tsam", minversion="3")
+        t = simple_network.cluster.temporal
+        mapping, clustered, deprecated = {
+            "get_resample_result": lambda: (
+                t.get_resample_map("3h"),
+                t.resample("3h"),
+                lambda: t.get_resample_result("3h"),
+            ),
+            "get_downsample_result": lambda: (
+                t.get_downsample_map(4),
+                t.downsample(4),
+                lambda: t.get_downsample_result(4),
+            ),
+            "get_segment_result": lambda: (
+                t.get_segment_map(10),
+                t.segment(10),
+                lambda: t.get_segment_result(10),
+            ),
+            "get_from_snapshot_map_result": lambda: (
+                t.get_downsample_map(4),
+                t.from_snapshot_map(t.get_downsample_map(4)),
+                lambda: t.get_from_snapshot_map_result(t.get_downsample_map(4)),
+            ),
+        }[method]()
+        with pytest.warns(DeprecationWarning, match=f"{method} is deprecated"):
+            result = deprecated()
 
         assert isinstance(result, TemporalClustering)
-        assert isinstance(result.n, pypsa.Network)
-        assert isinstance(result.snapshot_map, pd.Series)
+        pd.testing.assert_series_equal(result.snapshot_map, mapping)
+        assert result.n.equals(clustered)
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            lambda n: n.cluster.temporal.segment(6, solver="highs"),
+            lambda n: segment(n, 6, solver="highs"),
+            lambda n: n.cluster.temporal.get_segment_result(6, solver="highs"),
+        ],
+        ids=["segment", "module_segment", "get_segment_result"],
+    )
+    def test_solver_is_deprecated(self, simple_network, call):
+        pytest.importorskip("tsam", minversion="3")
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            call(simple_network)
+
+        assert any("`solver` is deprecated" in str(w.message) for w in record)
 
 
 class TestStochasticNotSupported:
@@ -596,7 +869,7 @@ class TestStochasticNotSupported:
             downsample(stochastic_network, 4)
 
     def test_segment_stochastic_raises(self, stochastic_network):
-        pytest.importorskip("tsam")
+        pytest.importorskip("tsam", minversion="3")
 
         with pytest.raises(NotImplementedError, match="stochastic networks"):
             segment(stochastic_network, 10)

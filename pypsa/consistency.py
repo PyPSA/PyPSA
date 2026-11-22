@@ -762,7 +762,7 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
     dtypes_is = component.static.dtypes[dtypes_expected.index]
     unmatched = dtypes_is != dtypes_expected
     # String attributes are either object or pandas' `str` dtype, depending on
-    # `pypsa.options.api.legacy_string_dtype`
+    # `pypsa.options.future.string_dtype`
     is_string_attr = component.defaults.loc[dtypes_expected.index, "type"] == "string"
     unmatched &= ~(is_string_attr & dtypes_is.map(pd.api.types.is_string_dtype))
 
@@ -1072,6 +1072,8 @@ class NetworkConsistencyMixin(_NetworkABC):
             check_cost_consistency(c)
             # Checks dispatch delay attributes
             check_dispatch_delays(self, c, "dispatch_delays" in strict)
+            # Checks unit commitment support
+            check_committable_supported(self, c)
 
             if check_dtypes:
                 check_dtypes_(c, "dtypes" in strict)
@@ -1583,6 +1585,62 @@ def check_maintenance_attributes(
             component.list_name,
             bad_max.index,
         )
+
+
+def check_committable_supported(n: NetworkType, component: Components) -> None:
+    """Check that only components supporting unit commitment are committable.
+
+    Raises if a component whose defaults do not declare `committable` carries a
+    true `committable` value, e.g. a column set on the static table or imported
+    from a file. False, NaN or non-boolean values are ignored.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    component : pypsa.Components
+        The component to check.
+
+    Raises
+    ------
+    ConsistencyError
+        If any asset of an unsupported component is committable.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][]
+
+    """
+    static = component.static
+    if (
+        "committable" in component.defaults.index
+        or "committable" not in static
+        or static.empty
+    ):
+        return
+
+    bad = static.index[static["committable"].eq(True)]
+    if bad.empty:
+        return
+
+    if isinstance(bad, pd.MultiIndex):
+        bad = bad.get_level_values("name")
+    names = bad.drop_duplicates().astype(str).tolist()
+    assets = ", ".join(names[:5])
+    if len(names) > 5:
+        assets += f", ... ({len(names)} total)"
+
+    supported = [
+        c.name for c in n.components.values() if "committable" in c.defaults.index
+    ]
+    supported_str = " or ".join(
+        [", ".join(supported[:-1]), supported[-1]] if len(supported) > 1 else supported
+    )
+    msg = (
+        f"Unit commitment is not supported for {component.name} (assets: {assets}). "
+        f"Set 'committable' only on {supported_str}, or remove the column."
+    )
+    raise ConsistencyError(msg)
 
 
 def check_no_modular_committables(n: Network) -> None:

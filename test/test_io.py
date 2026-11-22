@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from geopandas.testing import assert_geodataframe_equal
 from numpy.testing import assert_array_almost_equal as equal
+from packaging.version import Version
 
 import pypsa
 
@@ -74,8 +75,9 @@ class TestCSVDir:
         fn = tmpdir / "csv_export"
         scipy_network.meta = meta
         scipy_network.export_to_csv_folder(fn)
-        pypsa.Network(fn)
-        reloaded = pypsa.Network(fn)
+        with pypsa.option_context("future.string_dtype", False):
+            pypsa.Network(fn)
+            reloaded = pypsa.Network(fn)
         assert reloaded.meta == scipy_network.meta
 
     @pytest.mark.parametrize(
@@ -183,7 +185,8 @@ class TestNetcdf:
         fn = tmpdir / "netcdf_export.nc"
         scipy_network.meta = meta
         scipy_network.export_to_netcdf(fn)
-        reloaded = pypsa.Network(fn)
+        with pypsa.option_context("future.string_dtype", False):
+            reloaded = pypsa.Network(fn)
         assert reloaded.meta == scipy_network.meta
 
     def test_netcdf_io_Path(self, scipy_network, tmpdir):
@@ -319,9 +322,9 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=True)
         pypsa.Network(fn)
 
-    @pytest.mark.parametrize("legacy", [True, False])
-    def test_netcdf_io_string_dtypes(self, tmpdir, legacy):
-        """String data follows `api.legacy_string_dtype` (#1585)."""
+    @pytest.mark.parametrize("flag", [True, False, None])
+    def test_netcdf_io_string_dtypes(self, tmpdir, flag):
+        """String data follows `future.string_dtype` (#1585)."""
         fn = tmpdir / "string_dtypes.nc"
 
         n = pypsa.Network()
@@ -331,17 +334,22 @@ class TestNetcdf:
         n.add("Load", "load0", bus="bus0", p_set=50)
         n.export_to_netcdf(fn)
 
-        with pypsa.option_context("api.legacy_string_dtype", legacy):
-            m = pypsa.Network(fn)
+        with pypsa.option_context("future.string_dtype", flag):
+            if flag is None:
+                with pytest.warns(pypsa.PyPSA2Warning, match="string_dtype"):
+                    m = pypsa.Network(fn)
+            else:
+                m = pypsa.Network(fn)
 
+        as_object = flag is not True
         for c in m.components:
             df = c.static
-            assert pd.api.types.is_object_dtype(df.index.dtype) == legacy, (
+            assert pd.api.types.is_object_dtype(df.index.dtype) == as_object, (
                 f"{c.name}.static.index is {df.index.dtype}"
             )
             for col, dtype in df.dtypes.items():
                 if c.defaults.at[col, "type"] == "string":
-                    assert pd.api.types.is_object_dtype(dtype) == legacy, (
+                    assert pd.api.types.is_object_dtype(dtype) == as_object, (
                         f"{c.name}.static[{col!r}] is {dtype}"
                     )
 
@@ -356,7 +364,7 @@ class TestNetcdf:
 
         import pypsa.examples  # noqa: PLC0415
 
-        with pypsa.option_context("api.legacy_string_dtype", False):
+        with pypsa.option_context("future.string_dtype", True):
             n = pypsa.examples.ac_dc_meshed()
 
         bus = n.c.generators.static.bus
@@ -747,8 +755,91 @@ def test_examples_consistency(tmp_path, example_network):
     assert n.equals(n2, log_mode="strict")
 
 
+requires_excel = pytest.mark.skipif(
+    not excel_installed, reason="openpyxl not installed"
+)
+
+
+@pytest.mark.parametrize("fmt", ["csv", pytest.param("xlsx", marks=requires_excel)])
+def test_reexport_drops_removed_components(ac_dc_network, tmp_path, fmt):
+    n = ac_dc_network.copy()
+    fn = tmp_path / ("network.xlsx" if fmt == "xlsx" else "network")
+
+    def export():
+        if fmt == "xlsx":
+            n.export_to_excel(fn)
+        else:
+            n.export_to_csv_folder(fn)
+
+    export()
+    n.remove("Generator", n.c.generators.static.index)
+    export()
+
+    assert pypsa.Network(fn).generators.empty
+
+
+@pytest.mark.parametrize(
+    ("importer", "path", "error", "match"),
+    [
+        (
+            pypsa.Network.import_from_csv_folder,
+            "missing",
+            FileNotFoundError,
+            "does not exist",
+        ),
+        pytest.param(
+            pypsa.Network.import_from_excel,
+            "missing.xlsx",
+            FileNotFoundError,
+            "does not exist",
+            marks=requires_excel,
+        ),
+        (
+            pypsa.Network.import_from_netcdf,
+            "ftp://example.com/n.nc",
+            ValueError,
+            "Invalid URL",
+        ),
+    ],
+)
+def test_import_invalid_path_raises(importer, path, error, match):
+    with pypsa.option_context("general.allow_network_requests", True):
+        with pytest.raises(error, match=match):
+            importer(pypsa.Network(), path)
+
+
+@requires_excel
+def test_excel_from_url(ac_dc_network, tmp_path, monkeypatch):
+    import shutil
+
+    local = tmp_path / "network.xlsx"
+    ac_dc_network.export_to_excel(local)
+    monkeypatch.setattr(
+        pypsa.network.io, "urlretrieve", lambda url, fn: shutil.copy(local, fn)
+    )
+
+    with pypsa.option_context("general.allow_network_requests", True):
+        n = pypsa.Network("https://example.com/network.xlsx")
+
+    assert n.c.generators.static.index.equals(ac_dc_network.c.generators.static.index)
+
+
+def test_failed_url_retrieval_raises(monkeypatch):
+    def fail(url, fn):
+        raise OSError("unreachable")
+
+    monkeypatch.setattr(pypsa.network.io, "urlretrieve", fail)
+    with pypsa.option_context("general.allow_network_requests", True):
+        with pytest.raises(ValueError, match="Failed to retrieve.*unreachable"):
+            pypsa.Network("https://example.com/unreachable.nc")
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 12), reason="Test requires Python 3.12 or higher"
+)
+@pytest.mark.skipif(
+    Version(pd.__version__) >= Version("3.1"),
+    reason="pandapower does not yet support pandas>=3.1",
 )
 @pytest.mark.parametrize("use_pandapower_index", [True, False])
 @pytest.mark.parametrize("extra_line_data", [True, False])

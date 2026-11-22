@@ -93,20 +93,20 @@ class Buses(Components):
         """
         # Collect all unknown buses from all components
         all_buses = set()
-        for c in self.n_save.c.values():
+        for c in self.n.c.values():
             if c.static.empty:
                 continue
             bus_cols = c.static.columns[c.static.columns.str.contains(RE_PORTS_FILTER)]
             for attr in bus_cols:
                 buses = c.static[attr].astype(str)
                 # Filter empty strings for branch components (bus2, bus3 can be empty)
-                if c.name in self.n_save.branch_components and int(attr[-1]) > 1:
+                if c.name in self.n.branch_components and int(attr[-1]) > 1:
                     buses = buses[buses != ""]
                 # Filter empty strings for global constraints
                 if c.name == "GlobalConstraint":
                     buses = buses[buses != ""]
 
-                missing = ~buses.isin(self.n_save.c.buses.names)
+                missing = ~buses.isin(self.n.c.buses.names)
                 all_buses.update(buses[missing & (buses != "") & (buses != "nan")])
 
         missing_buses = sorted(all_buses)

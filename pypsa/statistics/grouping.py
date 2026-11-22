@@ -265,11 +265,8 @@ class Groupers:
         carrier_series = static.get("carrier", fall_back).rename("carrier")
         if nice_names:
             carrier_nice_name = n.c.carriers.static.nice_name[lambda ds: ds != ""]
-            carrier_series = (
-                self._map_with_multiindex(carrier_series, carrier_nice_name)
-                .fillna(carrier_series)
-                .replace("", "-")
-            )
+            nice = self._map_with_multiindex(carrier_series, carrier_nice_name)
+            carrier_series = carrier_series.mask(nice.notna(), nice).replace("", "-")
         return carrier_series
 
     def bus_carrier(

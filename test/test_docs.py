@@ -23,7 +23,7 @@ try:
 except ImportError:
     cartopy_available = False
 
-new_api = pypsa.options.api.new_components_api
+new_api = pypsa.options.future.components_api
 
 
 rng = np.random.default_rng(42)

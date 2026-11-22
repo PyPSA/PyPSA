@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import inspect
+import warnings
 from abc import ABC
 from typing import TYPE_CHECKING, Any
 
@@ -360,20 +361,23 @@ def map_dataframe_pandas_plot(
                 if available_cols:  # Only reorder if we have columns
                     pivoted = pivoted[available_cols]
 
-            # Weird behavior in pandas plotting, have to correct the ylim if None
-            # https://github.com/pandas-dev/pandas/blob/c0371cedf3a9682596481dab87b43653a48da186/pandas/plotting/_matplotlib/core.py#L1817
-            if y == "value" and ylim is None and len(list(ax.get_shared_y_axes())) == 0:
-                ax._shared_axes["y"].join(ax, ax)  # type: ignore
-
-            # Plot with pandas - no legend to avoid duplicates
-            pivoted.plot(
-                kind=kind,
-                ax=ax,
-                stacked=stacked,
-                legend=False,
-                color=color_dict,
-                **kwargs,
-            )
+            # Plot with pandas - no legend to avoid duplicates. Pandas pins the y-axis
+            # of area plots at zero, so autoscaling is restored afterwards.
+            # https://github.com/pandas-dev/pandas/blob/v3.1.1/pandas/plotting/_matplotlib/core.py#L1902
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", "Attempting to set identical low and high ylims"
+                )
+                pivoted.plot(
+                    kind=kind,
+                    ax=ax,
+                    stacked=stacked,
+                    legend=False,
+                    color=color_dict,
+                    **kwargs,
+                )
+            if y == "value" and ylim is None:
+                ax.autoscale(axis="y")
             g._update_legend_data(ax)
         g._finalize_grid([x, y])
 

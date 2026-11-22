@@ -65,3 +65,16 @@ def test_optimize_v_ang_zero_at_slack(ac_dc_network, case):
         equal(residual[:, theta.abs().max().to_numpy() > 0], 0, decimal=8)
     if case == "losses":
         assert not np.allclose(p.sum(axis=1), 0)
+
+
+def test_optimize_link_only_network_skips_topology():
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", ["a", "b"])
+    n.add("Link", "ab", bus0="a", bus1="b", p_nom=100, p_min_pu=-1)
+    n.add("Generator", "ga", bus="a", p_nom=100, marginal_cost=1)
+    n.add("Load", "lb", bus="b", p_set=30)
+    n.optimize()
+
+    assert n.c.sub_networks.static.empty
+    assert (n.c.buses.dynamic.v_ang == 0).all().all()
+    assert list(n.c.buses.dynamic.v_ang.columns) == ["a", "b"]

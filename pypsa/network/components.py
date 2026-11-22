@@ -18,10 +18,11 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from deprecation import deprecated
 
+from pypsa._future import future_flag
 from pypsa._options import options
 from pypsa.components.legacy import Component
 from pypsa.components.store import ComponentsStore
@@ -36,6 +37,8 @@ from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
     import pandas as pd
+
+    from pypsa import Network
 logger = logging.getLogger(__name__)
 
 # TODO Change to UserWarning when they are all resolved and raised
@@ -105,14 +108,14 @@ class NetworkComponentsMixin(_NetworkABC):
 
         Which is the same reference when accessing the component directly:
         >>> n.generators # doctest: +ELLIPSIS
-                                bus control  ...    p_nom_opt  capital_cost_piecewise_opt
-        name                                 ...
-        Manchester Wind  Manchester   Slack  ...  4090.809778                         0.0
-        Manchester Gas   Manchester      PQ  ...     0.000000                         0.0
-        Norway Wind          Norway      PQ  ...  1533.599858                         0.0
-        Norway Gas           Norway      PQ  ...     0.000000                         0.0
-        Frankfurt Wind    Frankfurt   Slack  ...  1667.724420                         0.0
-        Frankfurt Gas     Frankfurt      PQ  ...   982.034483                         0.0
+                                bus  ...  capital_cost_piecewise_opt
+        name                         ...
+        Manchester Wind  Manchester  ...                         0.0
+        Manchester Gas   Manchester  ...                         0.0
+        Norway Wind          Norway  ...                         0.0
+        Norway Gas           Norway  ...                         0.0
+        Frankfurt Wind    Frankfurt  ...                         0.0
+        Frankfurt Gas     Frankfurt  ...                         0.0
         <BLANKLINE>
         [6 rows x 47 columns]
         >>> n.generators is n.components.generators.static
@@ -130,8 +133,21 @@ class NetworkComponentsMixin(_NetworkABC):
             for c_name in components:
                 ctype = get_component_type(c_name)
 
-                self._components[ctype.list_name] = Component(ctype=ctype, n=self)
+                self._components[ctype.list_name] = Component(
+                    ctype=ctype, n=cast("Network", self)
+                )
         return self._components
+
+    def _static_or_components(self, list_name: str) -> Any:
+        """Return static data (legacy API) or the `Components` object (new API)."""
+        if future_flag("components_api"):
+            return getattr(self.c, list_name)
+        return getattr(self.c, list_name).static
+
+    def _check_static_setter(self) -> None:
+        """Raise if the new components API is active."""
+        if future_flag("components_api"):
+            raise AttributeError(_STATIC_SETTER_WARNING)
 
     @property
     def c(self) -> ComponentsStore:
@@ -150,239 +166,167 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def sub_networks(self) -> Any:
         """Access to static data of [pypsa.components.SubNetworks][]."""
-        return (
-            self.c.sub_networks.static
-            if not options.api.new_components_api
-            else self.c.sub_networks
-        )
+        return self._static_or_components("sub_networks")
 
     @sub_networks.setter
     def sub_networks(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.sub_networks.static = value
 
     @property
     def buses(self) -> Any:
         """Access to static data of [pypsa.components.Buses][]."""
-        return (
-            self.c.buses.static if not options.api.new_components_api else self.c.buses
-        )
+        return self._static_or_components("buses")
 
     @buses.setter
     def buses(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.buses.static = value
 
     @property
     def carriers(self) -> Any:
         """Access to static data of [pypsa.components.Carriers][]."""
-        return (
-            self.c.carriers.static
-            if not options.api.new_components_api
-            else self.c.carriers
-        )
+        return self._static_or_components("carriers")
 
     @carriers.setter
     def carriers(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.carriers.static = value
 
     @property
     def global_constraints(self) -> Any:
         """Access to static data of [pypsa.components.GlobalConstraints][]."""
-        return (
-            self.c.global_constraints.static
-            if not options.api.new_components_api
-            else self.c.global_constraints
-        )
+        return self._static_or_components("global_constraints")
 
     @global_constraints.setter
     def global_constraints(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.global_constraints.static = value
 
     @property
     def lines(self) -> Any:
         """Access to static data of [pypsa.components.Lines][]."""
-        return (
-            self.c.lines.static if not options.api.new_components_api else self.c.lines
-        )
+        return self._static_or_components("lines")
 
     @lines.setter
     def lines(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.lines.static = value
 
     @property
     def line_types(self) -> Any:
         """Access to static data of [pypsa.components.LineTypes][]."""
-        return (
-            self.c.line_types.static
-            if not options.api.new_components_api
-            else self.c.line_types
-        )
+        return self._static_or_components("line_types")
 
     @line_types.setter
     def line_types(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.line_types.static = value
 
     @property
     def transformers(self) -> Any:
         """Access to static data of [pypsa.components.Transformers][]."""
-        return (
-            self.c.transformers.static
-            if not options.api.new_components_api
-            else self.c.transformers
-        )
+        return self._static_or_components("transformers")
 
     @transformers.setter
     def transformers(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.transformers.static = value
 
     @property
     def transformer_types(self) -> Any:
         """Access to static data of [pypsa.components.TransformerTypes][]."""
-        return (
-            self.c.transformer_types.static
-            if not options.api.new_components_api
-            else self.c.transformer_types
-        )
+        return self._static_or_components("transformer_types")
 
     @transformer_types.setter
     def transformer_types(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.transformer_types.static = value
 
     @property
     def links(self) -> Any:
         """Access to static data of [pypsa.components.Links][]."""
-        return (
-            self.c.links.static if not options.api.new_components_api else self.c.links
-        )
+        return self._static_or_components("links")
 
     @links.setter
     def links(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.links.static = value
 
     @property
     def processes(self) -> Any:
         """Access to static data of [pypsa.components.Processes][]."""
-        return (
-            self.c.processes.static
-            if not options.api.new_components_api
-            else self.c.processes
-        )
+        return self._static_or_components("processes")
 
     @processes.setter
     def processes(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.processes.static = value
 
     @property
     def loads(self) -> Any:
         """Access to static data of [pypsa.components.Loads][]."""
-        return (
-            self.c.loads.static if not options.api.new_components_api else self.c.loads
-        )
+        return self._static_or_components("loads")
 
     @loads.setter
     def loads(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.loads.static = value
 
     @property
     def generators(self) -> Any:
         """Access to static data of [pypsa.components.Generators][]."""
-        return (
-            self.c.generators.static
-            if not options.api.new_components_api
-            else self.c.generators
-        )
+        return self._static_or_components("generators")
 
     @generators.setter
     def generators(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.generators.static = value
 
     @property
     def storage_units(self) -> Any:
         """Access to static data of [pypsa.components.StorageUnits][]."""
-        return (
-            self.c.storage_units.static
-            if not options.api.new_components_api
-            else self.c.storage_units
-        )
+        return self._static_or_components("storage_units")
 
     @storage_units.setter
     def storage_units(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.storage_units.static = value
 
     @property
     def stores(self) -> Any:
         """Access to static data of [pypsa.components.Stores][]."""
-        return (
-            self.c.stores.static
-            if not options.api.new_components_api
-            else self.c.stores
-        )
+        return self._static_or_components("stores")
 
     @stores.setter
     def stores(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.stores.static = value
 
     @property
     def shunt_impedances(self) -> Any:
         """Access to static data of [pypsa.components.ShuntImpedances][]."""
-        return (
-            self.c.shunt_impedances.static
-            if not options.api.new_components_api
-            else self.c.shunt_impedances
-        )
+        return self._static_or_components("shunt_impedances")
 
     @shunt_impedances.setter
     def shunt_impedances(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.shunt_impedances.static = value
 
     @property
     def shapes(self) -> Any:
         """Access to static data of [pypsa.components.Shapes][]."""
-        return (
-            self.c.shapes.static
-            if not options.api.new_components_api
-            else self.c.shapes
-        )
+        return self._static_or_components("shapes")
 
     @shapes.setter
     def shapes(self, value: pd.DataFrame) -> None:
-        if options.api.new_components_api:
-            raise AttributeError(_STATIC_SETTER_WARNING)
+        self._check_static_setter()
         self.c.shapes.static = value
 
     @property
     def sub_networks_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.SubNetworks][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("sub_networks"),
                 DeprecationWarning,
@@ -392,7 +336,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @sub_networks_t.setter
     def sub_networks_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("sub_networks"),
                 DeprecationWarning,
@@ -403,7 +347,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def buses_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.Buses][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("buses"),
                 DeprecationWarning,
@@ -413,7 +357,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @buses_t.setter
     def buses_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("buses"),
                 DeprecationWarning,
@@ -424,7 +368,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def carriers_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.Carriers][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("carriers"),
                 DeprecationWarning,
@@ -434,7 +378,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @carriers_t.setter
     def carriers_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("carriers"),
                 DeprecationWarning,
@@ -445,7 +389,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def global_constraints_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.GlobalConstraints][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("global_constraints"),
                 DeprecationWarning,
@@ -455,7 +399,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @global_constraints_t.setter
     def global_constraints_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("global_constraints"),
                 DeprecationWarning,
@@ -466,7 +410,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def lines_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.Lines][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("lines"),
                 DeprecationWarning,
@@ -476,7 +420,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @lines_t.setter
     def lines_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("lines"),
                 DeprecationWarning,
@@ -487,7 +431,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def line_types_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.LineTypes][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("line_types"),
                 DeprecationWarning,
@@ -497,7 +441,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @line_types_t.setter
     def line_types_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("line_types"),
                 DeprecationWarning,
@@ -508,7 +452,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def transformers_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.Transformers][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("transformers"),
                 DeprecationWarning,
@@ -518,7 +462,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @transformers_t.setter
     def transformers_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("transformers"),
                 DeprecationWarning,
@@ -529,7 +473,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def transformer_types_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.TransformerTypes][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("transformer_types"),
                 DeprecationWarning,
@@ -539,7 +483,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @transformer_types_t.setter
     def transformer_types_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("transformer_types"),
                 DeprecationWarning,
@@ -550,7 +494,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def links_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.Links][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("links"),
                 DeprecationWarning,
@@ -560,7 +504,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @links_t.setter
     def links_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("links"),
                 DeprecationWarning,
@@ -571,7 +515,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def loads_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.Loads][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("loads"),
                 DeprecationWarning,
@@ -581,7 +525,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @loads_t.setter
     def loads_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("loads"),
                 DeprecationWarning,
@@ -592,7 +536,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def generators_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.Generators][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("generators"),
                 DeprecationWarning,
@@ -602,7 +546,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @generators_t.setter
     def generators_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("generators"),
                 DeprecationWarning,
@@ -613,7 +557,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def storage_units_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.StorageUnits][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("storage_units"),
                 DeprecationWarning,
@@ -623,7 +567,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @storage_units_t.setter
     def storage_units_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("storage_units"),
                 DeprecationWarning,
@@ -634,7 +578,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def stores_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.Stores][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("stores"),
                 DeprecationWarning,
@@ -644,7 +588,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @stores_t.setter
     def stores_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("stores"),
                 DeprecationWarning,
@@ -655,7 +599,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def shunt_impedances_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.ShuntImpedances][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("shunt_impedances"),
                 DeprecationWarning,
@@ -665,7 +609,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @shunt_impedances_t.setter
     def shunt_impedances_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("shunt_impedances"),
                 DeprecationWarning,
@@ -676,7 +620,7 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def shapes_t(self) -> Dict:
         """Access to dynamic data of [pypsa.components.Shapes][]."""
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("shapes"),
                 DeprecationWarning,
@@ -686,7 +630,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @shapes_t.setter
     def shapes_t(self, value: Dict) -> None:
-        if options.api.new_components_api:
+        if options.future.components_api:
             warnings.warn(
                 _DYNAMIC_SETTER_WARNING.format("shapes"),
                 DeprecationWarning,

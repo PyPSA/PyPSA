@@ -145,7 +145,7 @@ class Network(
         # Snapshots
         cols = ["objective", "stores", "generators"]
         index = pd.Index([DEFAULT_TIMESTAMP], name="snapshot")
-        self._snapshots_data = pd.DataFrame(1, index=index, columns=cols)
+        self._snapshots_data = pd.DataFrame(1.0, index=index, columns=cols)
 
         # Investment periods coordinate
         cols = ["objective", "years"]
@@ -1113,22 +1113,21 @@ class Network(
         Examples
         --------
         >>> n.branches() # doctest: +ELLIPSIS
-                                 active    b  b_pu  ...         x      x_pu  x_pu_eff
-        component name                                  ...
-
-        Line      0                    True  0.0   0.0  ...  0.796878  0.000006  0.000006
-                  1                    True  0.0   0.0  ...  0.391560  0.000003  0.000003
-                  2                    True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                  3                    True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                  4                    True  0.0   0.0  ...  0.000000  0.000000  0.000000
-                  5                    True  0.0   0.0  ...  0.238800  0.000002  0.000002
-                  6                    True  0.0   0.0  ...  0.400000  0.000003  0.000003
-        Link      Norwich Converter    True  NaN   NaN  ...       NaN       NaN      NaN
-                  Norway Converter     True  NaN   NaN  ...       NaN       NaN      NaN
-                  Bremen Converter     True  NaN   NaN  ...       NaN       NaN      NaN
-                  DC link              True  NaN   NaN  ...       NaN       NaN      NaN
+                                 active    b  ...      x_pu  x_pu_eff
+        component name                            ...
+        Line      0                    True  0.0  ...  0.000006  0.000006
+                  1                    True  0.0  ...  0.000003  0.000003
+                  2                    True  0.0  ...  0.000000  0.000000
+                  3                    True  0.0  ...  0.000000  0.000000
+                  4                    True  0.0  ...  0.000000  0.000000
+                  5                    True  0.0  ...  0.000002  0.000002
+                  6                    True  0.0  ...  0.000003  0.000003
+        Link      Norwich Converter    True  NaN  ...       NaN       NaN
+                  Norway Converter     True  NaN  ...       NaN       NaN
+                  Bremen Converter     True  NaN  ...       NaN       NaN
+                  DC link              True  NaN  ...       NaN       NaN
         <BLANKLINE>
-        [11 rows x 65 columns]
+        [11 rows x 84 columns]
 
         See Also
         --------
@@ -1136,7 +1135,7 @@ class Network(
         [pypsa.Network.controllable_branches][]
 
         """
-        comps = list(set(self.branch_components) - set(self._empty_components()))
+        comps = sorted(set(self.branch_components) - set(self._empty_components()))
         names = (
             ["component", "scenario", "name"]
             if self.has_scenarios

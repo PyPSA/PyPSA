@@ -5,10 +5,12 @@
 """Tests for include_objective_constant parameter in optimization."""
 
 import warnings
+from typing import Any
 
 import pytest
 
 import pypsa
+from pypsa import PyPSA2Warning
 
 
 @pytest.fixture
@@ -68,18 +70,19 @@ def test_include_objective_constant_false(
     assert "objective_constant" not in n.model.variables
 
 
-def test_include_objective_constant_none_raises_future_warning(
-    network_with_extendable_assets: pypsa.Network,
+@pytest.mark.parametrize("build", ["optimize", "create_model"])
+def test_none_warns_and_keeps_constant(
+    network_with_extendable_assets: pypsa.Network, build: str
 ) -> None:
-    """Test that include_objective_constant=None raises FutureWarning."""
+    """Test that the None flag warns and keeps the objective constant."""
     n = network_with_extendable_assets
-    pypsa.options.reset_option("params.optimize.include_objective_constant")
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        n.optimize(log_to_console=False)
-        future_warnings = [x for x in w if issubclass(x.category, FutureWarning)]
-        assert len(future_warnings) == 1
-        assert "include_objective_constant" in str(future_warnings[0].message)
+    run = n.optimize if build == "optimize" else n.optimize.create_model
+    kwargs: dict[str, Any] = {"log_to_console": False} if build == "optimize" else {}
+    with pypsa.option_context("future.exclude_objective_constant", None):
+        with pytest.warns(PyPSA2Warning, match="exclude_objective_constant") as record:
+            run(**kwargs)
+    assert record[0].filename == __file__
+    assert "objective_constant" in n.model.variables
 
 
 def test_include_objective_constant_true_suppresses_warning(
@@ -171,60 +174,46 @@ def test_no_objective_constant_when_no_extendables(
     assert "objective_constant" not in n.model.variables
 
 
-def test_create_model_raises_future_warning(
+@pytest.mark.parametrize("flag", [True, False, None])
+def test_flag_and_old_key_agree(
+    network_with_extendable_assets: pypsa.Network, flag: bool | None
+) -> None:
+    """Test that the old key is the inverted alias of the new flag."""
+    n_new = network_with_extendable_assets
+    n_old = n_new.copy()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", PyPSA2Warning)
+        with pypsa.option_context("future.exclude_objective_constant", flag):
+            n_new.optimize(log_to_console=False)
+            expected = None if flag is None else not flag
+            with pytest.warns(DeprecationWarning, match="deprecated"):
+                pypsa.options.params.optimize.include_objective_constant = expected
+            assert pypsa.options.future.exclude_objective_constant is flag
+            n_old.optimize(log_to_console=False)
+    assert n_old.objective == pytest.approx(n_new.objective)
+    assert n_old.objective_constant == pytest.approx(n_new.objective_constant)
+    if flag:
+        assert n_new.objective_constant == 0.0
+    else:
+        assert n_new.objective_constant != 0.0
+
+
+def test_keyword_overrides_flag(
     network_with_extendable_assets: pypsa.Network,
 ) -> None:
-    """Test that create_model raises FutureWarning when parameter not set."""
+    """Test that an explicit keyword wins over the flag without warning."""
     n = network_with_extendable_assets
-    pypsa.options.reset_option("params.optimize.include_objective_constant")
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        n.optimize.create_model()
-        future_warnings = [x for x in w if issubclass(x.category, FutureWarning)]
-        assert len(future_warnings) == 1
-        assert "include_objective_constant" in str(future_warnings[0].message)
-
-
-def test_options_include_objective_constant(
-    network_with_extendable_assets: pypsa.Network,
-) -> None:
-    """Test that pypsa.options.params.optimize.include_objective_constant works."""
-    n = network_with_extendable_assets
-
-    # Set the option to False
-    pypsa.options.params.optimize.include_objective_constant = False
-    try:
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            n.optimize(log_to_console=False)
-            # No FutureWarning since option is set
-            future_warnings = [x for x in w if issubclass(x.category, FutureWarning)]
-            assert len(future_warnings) == 0
-        # Constant should not be calculated
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", PyPSA2Warning)
+        with pypsa.option_context("future.exclude_objective_constant", True):
+            n.optimize(include_objective_constant=True, log_to_console=False)
+        assert n.objective_constant != 0.0
+        with pypsa.option_context("future.exclude_objective_constant", None):
+            n.optimize(include_objective_constant=False, log_to_console=False)
         assert n.objective_constant == 0.0
-        assert "objective_constant" not in n.model.variables
-    finally:
-        # Reset to default
-        pypsa.options.reset_option("params.optimize.include_objective_constant")
-
-
-def test_options_include_objective_constant_create_model(
-    network_with_extendable_assets: pypsa.Network,
-) -> None:
-    """Test that options work with create_model."""
-    n = network_with_extendable_assets
-
-    # Set the option to True
-    pypsa.options.params.optimize.include_objective_constant = True
-    try:
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            n.optimize.create_model()
-            future_warnings = [x for x in w if issubclass(x.category, FutureWarning)]
-            assert len(future_warnings) == 0
-        assert "objective_constant" in n.model.variables
-    finally:
-        pypsa.options.reset_option("params.optimize.include_objective_constant")
+        with pypsa.option_context("future.exclude_objective_constant", False):
+            n.optimize.create_model(include_objective_constant=False)
+        assert n.objective_constant == 0.0
 
 
 @pytest.mark.parametrize(

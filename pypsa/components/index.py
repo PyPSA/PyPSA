@@ -94,7 +94,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         [pypsa.Network.snapshots][]
 
         """
-        return self.n_save.snapshots
+        return self.n.snapshots
 
     @property
     def timesteps(self) -> pd.Index:
@@ -107,7 +107,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         [pypsa.Network.timesteps][]
 
         """
-        return self.n_save.timesteps
+        return self.n.timesteps
 
     @property
     def investment_periods(self) -> pd.Index:
@@ -120,7 +120,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         [pypsa.Network.investment_periods][]
 
         """
-        return self.n_save.investment_periods
+        return self.n.investment_periods
 
     @property
     def has_investment_periods(self) -> bool:
@@ -133,7 +133,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         [pypsa.Network.has_investment_periods][]
 
         """
-        return self.n_save.has_investment_periods
+        return self.n.has_investment_periods
 
     @property
     def periods(self) -> pd.Index:
@@ -146,7 +146,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         [pypsa.Network.periods][]
 
         """
-        return self.n_save.periods
+        return self.n.periods
 
     @property
     def has_periods(self) -> bool:
@@ -154,7 +154,7 @@ class ComponentsIndexMixin(_ComponentsABC):
 
         <!-- md:badge-version v0.34.0 -->
         """
-        return self.n_save.has_periods
+        return self.n.has_periods
 
     @property
     def scenarios(self) -> pd.Index:
@@ -162,7 +162,7 @@ class ComponentsIndexMixin(_ComponentsABC):
 
         <!-- md:badge-version v1.0.0 -->
         """
-        return self.n_save.scenarios
+        return self.n.scenarios
 
     @property
     def has_scenarios(self) -> bool:
