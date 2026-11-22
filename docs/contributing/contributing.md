@@ -154,6 +154,27 @@ For simple changes, you can also edit the documentation directly on GitHub:
 2. Make your changes in the file.
 3. Commit your changes and create a pull request.
 
+## First-time Contributors
+
+We receive many pull requests from autonomous AI agents.
+To keep reviews for humans, a maintainer must vouch for you before your first pull request.
+We use [Vouch](https://github.com/mitchellh/vouch) for this.
+
+1. Open an issue, or comment on an existing one, and say in your own words who you are and what you want to work on.
+2. A maintainer replies with `vouch`. This adds you to the [list of vouched contributors](https://github.com/PyPSA/PyPSA/blob/master/.github/VOUCHED.td).
+3. From then on, you can open pull requests as usual.
+
+If you open a pull request before you are vouched, it is closed automatically.
+Nothing is lost: introduce yourself in a comment on the pull request, and a maintainer will vouch for you and reopen it.
+
+Everyone with a merged pull request is already vouched. Bug reports and feature requests need no vouching.
+
+!!! note "For maintainers"
+
+    Comment `vouch`, `denounce <reason>` or `unvouch` on an issue or pull request to change the status of its author, or add `@user` to name someone else.
+    Wait for the 👍 reaction before you reopen a pull request.
+    Denounced users are blocked from the PyPSA organisation and cannot comment anymore.
+
 ## AI-based Contributions
 
 We do not impose general restrictions on the use of AI for contributions.

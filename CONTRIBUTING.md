@@ -12,3 +12,6 @@ For detailed instructions on how to contribute, please refer to the [Contributin
 
 To handle the influx of AI-assisted contributions, we have established some basic principles.
 See the [AI-based Contributions](https://docs.pypsa.org/latest/contributing/contributing/#ai-based-contributions) section in our documentation for more details.
+
+Before your first pull request, a maintainer must vouch for you.
+See the [First-time Contributors](https://docs.pypsa.org/latest/contributing/contributing/#first-time-contributors) section for how to get vouched.
