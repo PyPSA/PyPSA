@@ -848,7 +848,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             # TODO This should go to an actual custom constraint
             if (
                 c.name == "GlobalConstraint"
-                and suffix not in c.static.index
+                and suffix not in c.static.index.get_level_values("name")
                 and "name" not in constraint.dims
                 and assign_all_duals
             ):
@@ -907,16 +907,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
                 # Assign dynamic duals to component
                 _set_dynamic_data(self._n, c.name, dual_attr_name, dual_df)
-
-            # Duals per global constraint, of one type and sense
-            elif (
-                c.name == "GlobalConstraint"
-                and "name" in constraint.dims
-                and not c.has_scenarios
-            ):
-                built = constraint.labels != -1
-                dual = _from_xarray(constraint.dual.where(built, drop=True), c)
-                c.static.loc[dual.index, "mu"] = dual
 
             # SCALAR DUALS (constraints without snapshot dimension)
             elif c.name == "GlobalConstraint" and suffix in c.static.index:

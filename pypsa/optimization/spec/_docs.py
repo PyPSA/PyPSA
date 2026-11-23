@@ -388,23 +388,7 @@ def _files(root: Traversable) -> tuple[list[Entry], dict[str, Groups]]:
         ]
         for c in formulated(pypsa.Network())
     }
-    declared = {e.key for g in groups.values() for _, group in g for e in group}
-    return [*system, *_sums(root / "system.yaml", declared)], groups
-
-
-def _sums(path: Traversable, declared: set[str]) -> list[Entry]:
-    """Return the sums the system file at *path* reads under `given:`, as definitions, where no other file declares them.
-
-    The components add their terms to these sums with `adds_to:`, so no file
-    holds their body.
-    """
-    if not path.is_file():
-        return []
-    data, _, _ = _load(path, lambda name: name)
-    given = data.get("given", {}).get("expressions", {})
-    return [
-        Entry(k, "expressions", v, INDEX) for k, v in given.items() if k not in declared
-    ]
+    return system, groups
 
 
 def _every(root: Traversable) -> list[Entry]:

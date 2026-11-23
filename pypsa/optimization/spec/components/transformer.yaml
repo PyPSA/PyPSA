@@ -2,12 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-given:
-  expressions:
-    Cycle_angle_sum: {dims: [scenario, snapshot, cycle]}
-  parameters:
-    deg2rad: {dims: []}
-
 parameters:
   Transformer_phase_shift_varying:
     description: whether the phase shift is a decision, `phase_shift_min < phase_shift_max`
@@ -51,7 +45,6 @@ expressions:
       sum(Transformer_s * at(Transformer_cycle_weight, by=snapshot_period[period]), over=Transformer)
       + sum(Transformer_phase_shift_weight, over=Transformer)
       + sum(Transformer_phase_shift * at(Transformer_phase_shift_cycle_weight, by=snapshot_period[period]), over=Transformer)
-    adds_to: Cycle_angle_sum
 
 constraints:
   Transformer_v_ang_lower:

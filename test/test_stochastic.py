@@ -1537,9 +1537,14 @@ def test_primary_energy_constraint_stochastic(ac_dc_stochastic):
     assert ("low", "co2_limit") in n.c.global_constraints.static.index
     assert ("high", "co2_limit") in n.c.global_constraints.static.index
     n.optimize.create_model()
-    constraint = n.model.constraints["GlobalConstraint-upper"]
-    assert constraint.indexes["name"].tolist() == ["co2_limit"]
+    constraint = n.model.constraints["GlobalConstraint-co2_limit"]
     assert "scenario" in constraint.dims
+
+
+def test_assign_all_duals_keeps_global_constraints_stochastic(ac_dc_stochastic):
+    """A global constraint's own row is not taken for a custom constraint, which raises with scenarios."""
+    status, _ = ac_dc_stochastic.optimize(assign_all_duals=True)
+    assert status == "ok"
 
 
 def test_operational_limit_constraint_stochastic():
@@ -1580,8 +1585,7 @@ def test_operational_limit_constraint_stochastic():
 
     # Create model to verify constraints are properly added
     n.optimize.create_model()
-    constraint = n.model.constraints["GlobalConstraint-upper"]
-    assert constraint.indexes["name"].tolist() == ["solar_limit"]
+    constraint = n.model.constraints["GlobalConstraint-solar_limit"]
     assert "scenario" in constraint.dims
 
 
@@ -1730,8 +1734,7 @@ def test_transmission_volume_expansion_limit_constraint_stochastic():
 
     # Build model and verify a single constraint with scenario dimension
     n.optimize.create_model()
-    constraint = n.model.constraints["GlobalConstraint-upper"]
-    assert constraint.indexes["name"].tolist() == ["tx_vol"]
+    constraint = n.model.constraints["GlobalConstraint-tx_vol"]
     assert "scenario" in constraint.dims
 
 
@@ -2148,7 +2151,7 @@ def test_transmission_global_constraints_stochastic(multi_investment_periods):
         assert status == "ok"
 
     glcs = [c for c in n.model.constraints if c.startswith("GlobalConstraint")]
-    assert glcs == ["GlobalConstraint-upper"]
+    assert len(glcs) == 3
     for name in glcs:
         con = n_stoch.model.constraints[name]
         assert con.ncons == 2 * n.model.constraints[name].ncons

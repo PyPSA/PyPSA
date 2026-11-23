@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: MIT
 
 given:
-  expressions:
-    scenario_opex: {dims: [scenario]}
   parameters:
     CVaR_omega: {dims: []}
     COMPONENT_NOM: {dims: [scenario, UNIT]}
@@ -64,7 +62,6 @@ expressions:
     expression: >-
       COMPONENT_operating_cost(COMPONENT_running_cost)
       + COMPONENT_operating_cost((COMPONENT_POWER * COMPONENT_POWER) * COMPONENT_marginal_cost_quadratic)
-    adds_to: scenario_opex
 
 conditions:
   COMPONENT_marginal_cost_curve:

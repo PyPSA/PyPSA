@@ -234,6 +234,32 @@ def _constraint(m: Model, lhs: LinearExpression, con: Constraint) -> Constraint:
     return Constraint(lhs, model=m, name=con.name, attrs=dict(con.attrs), **fields)
 
 
+#: The global constraints the spec states by sense, which PyPSA names by label.
+BY_SENSE = ("GlobalConstraint-upper", "GlobalConstraint-lower", "GlobalConstraint-fix")
+
+
+def _split_by_label(m: Model) -> None:
+    """Replace each constraint of `BY_SENSE` with one constraint `GlobalConstraint-{label}` per built row label."""
+    for name in BY_SENSE:
+        if name not in m.constraints:
+            continue
+        con = m.constraints[name]
+        m.remove_constraints(name)
+        for label in con.indexes["name"]:
+            part = con.sel(name=label, drop=True)
+            built = part.labels != -1
+            if not built.any():
+                continue
+            m.add_constraints(
+                part.lhs,
+                part.sign,
+                part.rhs,
+                name=f"GlobalConstraint-{label}",
+                mask=built,
+                scaling=part.scaling,
+            )
+
+
 def _relabel(
     m: Model,
     *,
@@ -488,4 +514,5 @@ def build_model(
     _relabel(m, snapshots=model_index, network_index=network_index)
     rules = _rules(spec_scalings(linearized_unit_commitment), rename)
     _scale(m, n, sources, rules, objective_scaling)
+    _split_by_label(m)
     return m

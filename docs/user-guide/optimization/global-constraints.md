@@ -13,7 +13,7 @@ By default, global constraints span across all investment periods. For models wi
 
 !!! note "Naming Convention"
 
-    The global constraints of every type but `flow_based` share one constraint per sense in the Linopy model: `GlobalConstraint-upper` (`<=`), `GlobalConstraint-lower` (`>=`) and `GlobalConstraint-fix` (`==`). Each is indexed by `name`, the global constraints of that sense. All `flow_based` rows share the one constraint `GlobalConstraint-ram`, indexed by `name`. Their net positions and the balance of the net positions are `FlowBased-net_position` and `FlowBased-balance`.
+    Each global constraint `{name}` of every type but `flow_based` carries the name `GlobalConstraint-{name}` in the Linopy model, as `GlobalConstraint-co2_limit`. All `flow_based` rows share the one constraint `GlobalConstraint-ram`, indexed by `name`. Their net positions and the balance of the net positions are `FlowBased-net_position` and `FlowBased-balance`.
 
 Each global constraint $\gamma$ bounds the sum of its type by its `constant` $\Gamma_{\gamma,s}$. The `sense` selects one of three rows: `GlobalConstraint_ub` for `"<="`, `GlobalConstraint_lb` for `">="` and `GlobalConstraint_eq` for `"=="`. The [formulation reference](formulation/index.md#GlobalConstraint_ub) lists all of them. The sections below show the sum of each type.
 

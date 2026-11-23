@@ -11,37 +11,6 @@ description: >-
   at its conditional value at risk (CVaR). A plain run has one scenario, one
   period, unit weights and no outage.
 
-given:
-  expressions:
-    primary_energy:
-      description: the primary energy of generation, plus that of the energy taken out of storage
-      dims: [scenario, global_constraint]
-    operational_limit:
-      description: the energy generated, plus the energy taken out of storage
-      dims: [scenario, global_constraint]
-    transmission_volume_expansion:
-      description: length times chosen build of the row's branches
-      dims: [scenario, global_constraint]
-    transmission_expansion_cost:
-      description: capital cost times chosen build of the row's branches
-      dims: [scenario, global_constraint]
-    tech_capacity_expansion:
-      description: the chosen build of the row's carrier-and-bus set
-      dims: [global_constraint]
-    scenario_opex:
-      description: the operating cost of a scenario, weighted by hours and period
-      dims: [scenario]
-    Carrier_additions:
-      description: the capacity a carrier adds in a period; a transformer has no carrier
-      dims: [period, carrier]
-    Cycle_angle_sum:
-      description: the voltage angle differences around a cycle, phase shifts included
-      dims: [scenario, snapshot, cycle]
-    Line_s_monitored: {dims: [scenario, snapshot, Line]}
-    Transformer_s_monitored: {dims: [scenario, snapshot, Transformer]}
-  variables:
-    Link_p: {dims: [scenario, snapshot, Link]}
-
 dimensions:
   scenario:
     description: the futures dispatch is chosen in, each with a weight
@@ -247,28 +216,84 @@ expressions:
     cases:
       counted: { when: GlobalConstraint_counts_snapshot, expression: energy_limit_weight }
     otherwise: 0
+  primary_energy:
+    description: the primary energy of generation, plus that of the energy taken out of storage
+    dims: [scenario, global_constraint]
+    expression: Generator_primary_energy + StorageUnit_primary_energy + Store_primary_energy
+  operational_limit:
+    description: the energy generated, plus the energy taken out of storage
+    dims: [scenario, global_constraint]
+    expression: >-
+      Generator_operational_limit
+      + StorageUnit_operational_limit
+      + Store_operational_limit
+  transmission_volume_expansion:
+    description: length times chosen build of the row's branches
+    dims: [scenario, global_constraint]
+    expression: Line_transmission_volume_expansion + Link_transmission_volume_expansion
+  transmission_expansion_cost:
+    description: capital cost times chosen build of the row's branches
+    dims: [scenario, global_constraint]
+    expression: Line_transmission_expansion_cost + Link_transmission_expansion_cost
+  tech_capacity_expansion:
+    description: the chosen build of the row's carrier-and-bus set
+    dims: [global_constraint]
+    expression: >-
+      Generator_tech_capacity_expansion
+      + Line_tech_capacity_expansion
+      + Link_tech_capacity_expansion
+      + Process_tech_capacity_expansion
+      + StorageUnit_tech_capacity_expansion
+      + Store_tech_capacity_expansion
+  scenario_opex:
+    description: the operating cost of a scenario, weighted by hours and period
+    dims: [scenario]
+    expression: >-
+      Generator_opex
+      + Generator_commitment_opex
+      + Link_opex
+      + Link_commitment_opex
+      + Process_opex
+      + Process_commitment_opex
+      + StorageUnit_opex
+      + StorageUnit_storage_opex
+      + Store_opex
+      + Store_storage_opex
+      + Store_charge_opex
   risk_weighted_opex:
     expression: (1 - CVaR_omega) * sum(scenario_weight * scenario_opex, over=scenario) + CVaR_omega * CVaR
   total_cost:
-    description: the risk-weighted operating cost, plus the capital cost each component adds
+    description: capital cost of every component, plus the risk-weighted operating cost
     dims: []
-    expression: risk_weighted_opex
+    expression: >-
+      Generator_capex
+      + Link_capex
+      + StorageUnit_capex
+      + Store_capex
+      + Line_capex
+      + Process_capex
+      + Transformer_capex
+      + risk_weighted_opex
   GlobalConstraint_total:
     description: the sum a row of the type bounds
     dims: [scenario, global_constraint]
     cases:
       primary_energy: { when: GlobalConstraint_type == 'primary_energy', expression: primary_energy }
       operational_limit: { when: GlobalConstraint_type == 'operational_limit', expression: operational_limit }
-      transmission_volume_expansion_limit:
-        when: GlobalConstraint_type == 'transmission_volume_expansion_limit'
-        expression: transmission_volume_expansion
-      transmission_expansion_cost_limit:
-        when: GlobalConstraint_type == 'transmission_expansion_cost_limit'
-        expression: transmission_expansion_cost
-      tech_capacity_expansion_limit:
-        when: GlobalConstraint_type == 'tech_capacity_expansion_limit'
-        expression: tech_capacity_expansion
+      transmission_volume_expansion_limit: { when: GlobalConstraint_type == 'transmission_volume_expansion_limit', expression: transmission_volume_expansion }
+      transmission_expansion_cost_limit: { when: GlobalConstraint_type == 'transmission_expansion_cost_limit', expression: transmission_expansion_cost }
+      tech_capacity_expansion_limit: { when: GlobalConstraint_type == 'tech_capacity_expansion_limit', expression: tech_capacity_expansion }
     otherwise: 0
+  Carrier_additions:
+    description: the capacity a carrier adds in a period; a transformer has no carrier
+    dims: [period, carrier]
+    expression: >-
+      Generator_additions
+      + Line_additions
+      + Link_additions
+      + Process_additions
+      + StorageUnit_additions
+      + Store_additions
   Carrier_relative_growth:
     description: "`max_relative_growth`, clipped at zero"
     dims: [carrier]
@@ -286,9 +311,22 @@ expressions:
     dims: [scenario, snapshot, bus]
     expression: -FlowBased_net_position
   Bus_injection:
-    description: the flow-based injection, plus what each component puts into a bus, less what it takes out
+    description: what every component puts into a bus, less what it takes out
     dims: [scenario, snapshot, bus]
-    expression: FlowBased_injection
+    expression: >-
+      FlowBased_injection
+      + Generator_injection
+      + Line_injection
+      + Link_injection
+      + Load_injection
+      + Process_injection
+      + StorageUnit_injection
+      + Store_injection
+      + Transformer_injection
+  Cycle_angle_sum:
+    description: the voltage angle differences around a cycle, phase shifts included
+    dims: [scenario, snapshot, cycle]
+    expression: Line_angle_sum + Transformer_angle_sum
 
 conditions:
   GlobalConstraint_sums:

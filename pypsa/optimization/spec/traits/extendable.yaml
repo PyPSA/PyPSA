@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: MIT
 
 given:
-  expressions:
-    total_cost: {dims: []}
   parameters:
     scenario_weight: {dims: [scenario]}
 
@@ -116,7 +114,6 @@ expressions:
     otherwise: COMPONENT_NOM_ext * COMPONENT_capital_cost
   COMPONENT_capex:
     expression: sum(scenario_weight * COMPONENT_build_cost * COMPONENT_capital_weight)
-    adds_to: total_cost
 
 conditions:
   COMPONENT_capital_cost_curve:

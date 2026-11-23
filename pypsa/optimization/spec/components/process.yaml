@@ -2,10 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-given:
-  expressions:
-    Bus_injection: {dims: [scenario, snapshot, bus]}
-
 parameters:
   Process_rate_curve_transfer:
     description: >-
@@ -18,7 +14,6 @@ expressions:
   Process_injection:
     expression: >-
       sum(Process_port_arrival, over=[Process, port], by=Process_port_bus[bus])
-    adds_to: Bus_injection
 
 piecewise:
   Process_rate_incremental:

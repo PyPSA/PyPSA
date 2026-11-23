@@ -3,9 +3,6 @@
 # SPDX-License-Identifier: MIT
 
 given:
-  expressions:
-    transmission_volume_expansion: {dims: [scenario, global_constraint]}
-    transmission_expansion_cost: {dims: [scenario, global_constraint]}
   variables:
     COMPONENT_NOM_ext: {dims: [UNIT]}
 
@@ -33,7 +30,5 @@ parameters:
 expressions:
   COMPONENT_transmission_volume_expansion:
     expression: sum(COMPONENT_NOM_ext * COMPONENT_volume_weight, over=UNIT)
-    adds_to: transmission_volume_expansion
   COMPONENT_transmission_expansion_cost:
     expression: sum(COMPONENT_NOM_ext * COMPONENT_expansion_cost_weight, over=UNIT)
-    adds_to: transmission_expansion_cost

@@ -524,8 +524,8 @@ def test_global_constraint_primary_energy_storage_stochastic(n_sus):
 
     status, cond = n_sus.optimize(multi_investment_periods=True)
     assert status == "ok"
-    co2 = n_sus.model.constraints["GlobalConstraint-fix"]
-    assert co2.rhs.sel(name="co2limit")[0] == -77000.0
+    co2 = n_sus.model.constraints["GlobalConstraint-co2limit"]
+    assert co2.rhs[0] == -77000.0
 
 
 def test_global_constraint_transmission_expansion_limit(n):
