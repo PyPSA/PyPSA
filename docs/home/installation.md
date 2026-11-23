@@ -160,5 +160,5 @@ where `<feature>` can be one of the following:
 
 **Development**
 
-- `pypsa[dev]`: for installing all development dependencies, including pytest and pre-commit
-- `pypsa[docs]`: for installing all dependencies needed to build the documentation
+The test, linting and documentation tools are not pip extras.
+To set them up with pixi, see [Contributing](../contributing/contributing.md#code).

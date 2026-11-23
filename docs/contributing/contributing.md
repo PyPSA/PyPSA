@@ -30,11 +30,16 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 1. Fork the repository on GitHub
 2. Clone your fork: `git clone https://github.com/<your-username>/PyPSA.git`
 3. Fetch the upstream tags `git fetch --tags https://github.com/PyPSA/PyPSA.git`
-4. Install with dependencies in editable mode: `pip install -e '.[dev]'`
-5. Setup linter and formatter, e.g `pre-commit install` (see [Code Style](#style))
+4. Install [pixi](https://pixi.sh) and set up the development environment: `pixi install`
+5. Setup linter and formatter, e.g `pixi run pre-commit install` (see [Code Style](#style))
 6. Write your code (preferably on a new branch)
-7. Run tests: `pytest` (see [Testing](#testing))
+7. Run tests: `pixi run test` (see [Testing](#testing)), or run every check that CI runs on a pull request with `pixi run ci`
 8. Push your changes to your fork and create a pull request on GitHub
+
+The `default` environment installs PyPSA in editable mode, together with the test, linting and documentation tools.
+It also installs the system libraries these tools need, such as HiGHS, Gurobi, Cairo and pandoc, from conda-forge and the Gurobi channel.
+The smaller `test` and `docs` environments hold only the tools for testing or for the documentation.
+To run any command below, prefix it with `pixi run`, or open a shell in the environment with `pixi shell`.
 
 <!-- TODO: What to work on, TODO, which issues, labeling etc. -->
 
@@ -47,7 +52,7 @@ consistent code style and to catch common programming errors or bad practices be
 they are committed. Don't worry, you can just start coding and the pre-commit will
 tell you if something is not right.
 
-It is already installed with the development dependencies, but you can also install it
+It is already installed in the `dev` environment, but you can also install it
 manually via `pip install pre-commit` or `conda install -c conda-forge pre-commit`.
 
 To use it automatically before every commit (recommended), just run once:
@@ -74,7 +79,7 @@ Besides pre-commit, you can also run it via your CLI (see [Ruff installation](ht
 or IDE (e.g. VSCode [plugin](https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff)).
 This will help you to keep your code clean and consistent already during development.
 
-Ruff is also already installed with the development dependencies, but you can also install it
+Ruff is also already installed in the `dev` environment, but you can also install it
 manually using `pip install ruff`.
 
 To use the linter in your CLI, run:
@@ -103,7 +108,7 @@ as Black.
 
 ### Testing
 
-Unit testing is performed with pytest which is installed with the development dependencies.
+Unit testing is performed with pytest, which is installed in the `test` and `dev` environments.
 
 The tests can be found in the `test/` folder and can be run with:
 
@@ -138,9 +143,9 @@ very much welcome your contribution.
 For bigger changes, we recommend to draft them locally. Just follow the steps in
 [Code Contributions](#code) to set up your local environment. In addition you can:
 
-1. Also install the documentation dependencies via `pip install -e .[docs]`.
-2. Make your changes in the corresponding `.md` file in the `docs` directory.
-3. Compile your changes by running the following command in your terminal in the `doc` folder: `mkdocs serve`
+1. Make your changes in the corresponding `.md` file in the `docs` directory.
+2. Build and serve the documentation locally with `pixi run docs-serve`.
+   The `docs` environment includes Cairo for the social cards and pandoc for the notebooks, so you do not need to install them yourself.
 
 !!! info
 

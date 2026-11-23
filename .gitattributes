@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+pixi.lock merge=binary linguist-language=YAML linguist-generated=true

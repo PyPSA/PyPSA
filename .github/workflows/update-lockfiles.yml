@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+# Needed until https://github.com/dependabot/dependabot-core/issues/16870 is closed as completed
+
+name: Update lockfiles
+
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: 0 5 1 * *
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+      with:
+        pixi-version: v0.84.2
+        run-install: false
+
+    - name: Update lockfile
+      run: pixi update --json | pixi exec pixi-diff-to-markdown >> diff.md
+
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: lockfile
+        path: |
+          pixi.lock
+          diff.md
+        retention-days: 1
+
+  pull-request:
+    needs: update
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: lockfile
+
+    - name: Create pull request
+      id: cpr
+      uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "build(deps): update the pixi lockfile"
+        title: "build(deps): update the pixi lockfile"
+        body-path: diff.md
+        branch: update-pixi
+        base: master
+        labels: dependencies
+        delete-branch: true
+        add-paths: pixi.lock
+
+    - name: Run tests on the pull request branch
+      if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh workflow run test.yml --repo "$GITHUB_REPOSITORY" --ref update-pixi
