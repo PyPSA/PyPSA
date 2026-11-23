@@ -32,18 +32,15 @@ def restore_options_module():
     """Re-import `_options` after each test and rebind pypsa's references.
 
     Opt-in for tests that reload the module (env var tests), which would
-    otherwise leak their state. The session-wide options set in
-    `pytest_configure` (`--new-components-api`, `--linopy-dense`) are carried
-    over.
+    otherwise leak their state. The session-wide option set in
+    `pytest_configure` (`--new-components-api`) is carried over.
     """
     components_api = pypsa.options.future.components_api
-    model_kwargs = pypsa.options.params.optimize.model_kwargs
     yield
     from pypsa import _options
 
     importlib.reload(_options)
     _options.options.future.components_api = components_api
-    _options.options.params.optimize.model_kwargs = model_kwargs
 
     pypsa.options = _options.options
     pypsa.get_option = _options.options.get_option

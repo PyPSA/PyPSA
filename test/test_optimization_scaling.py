@@ -587,9 +587,7 @@ def build_model(n: pypsa.Network, mode: str, kwargs: dict) -> linopy.Model:
     if mode == "rolling":
         n.optimize.optimize_with_rolling_horizon(horizon=3, objective_scaling=OBJ)
     elif mode == "sclopf":
-        n.optimize.optimize_security_constrained(
-            objective_scaling=OBJ, model_kwargs={"sparse": True}
-        )
+        n.optimize.optimize_security_constrained(objective_scaling=OBJ)
     elif mode == "mga":
         n.optimize(objective_scaling=OBJ)
         weights = {"Generator": {"p_nom": {"Manchester Wind": 1}}}
