@@ -4,7 +4,7 @@
 
 name: Documentation Improvement
 description: Report wrong or missing documentation
-labels: ["needs triage", "documentation"]
+labels: ["documentation"]
 type: 'Docs'
 
 body:
