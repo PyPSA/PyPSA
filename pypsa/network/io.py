@@ -29,6 +29,7 @@ from packaging.version import parse as parse_version
 from pandas.errors import ParserError
 from pyproj import CRS
 
+from pypsa._future import future_flag
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.consistency import check_for_unknown_buses
@@ -52,36 +53,13 @@ if TYPE_CHECKING:
     from pypsa import Network
 logger = logging.getLogger(__name__)
 
-_legacy_string_dtype_warned = False
-
-
-def _use_legacy_string_dtype() -> bool:
-    """Resolve whether string data is converted to object dtype on import."""
-    global _legacy_string_dtype_warned  # noqa: PLW0603
-
-    value = options.api.legacy_string_dtype
-    if value is None:
-        if not _legacy_string_dtype_warned:
-            warnings.warn(
-                "pandas infers the `str` dtype for string data since its version 3.0. "
-                "PyPSA still converts it back to numpy object dtype on import, but will "
-                "keep it from PyPSA 2.0 on. Set "
-                "`pypsa.options.api.legacy_string_dtype` explicitly to suppress this "
-                "warning.",
-                FutureWarning,
-                stacklevel=3,
-            )
-            _legacy_string_dtype_warned = True
-        return True
-    return value
-
 
 def _coerce_string_dtypes(df: pd.DataFrame) -> pd.DataFrame:
     """Coerce `StringDtype` indices, columns and values to `object` dtype.
 
-    Pre-1.3 behaviour, kept behind `options.api.legacy_string_dtype` until 2.0.
+    Pre-1.3 behaviour, kept behind `options.future.string_dtype` until 2.0.
     """
-    if not _use_legacy_string_dtype():
+    if future_flag("string_dtype"):
         return df
 
     def _coerce_axis(axis: pd.Index) -> pd.Index:
@@ -488,10 +466,16 @@ class _ExporterCSV(_Exporter):
 
         Needed to not have stale sheets for empty components.
         """
-        if fns := list(self.path.joinpath(list_name).glob("*.csv")):
+        fns = [
+            *self.path.glob(f"{list_name}.csv"),
+            *self.path.glob(f"{list_name}-*.csv"),
+        ]
+        if fns:
             for fn in fns:
                 fn.unlink()
-            logger.warning("Stale csv file(s) %s removed", ", ".join(fns))
+            logger.warning(
+                "Stale csv file(s) %s removed", ", ".join(fn.name for fn in fns)
+            )
 
     def remove_series(self, list_name: str, attr: str) -> None:
         """Remove dynamic components data.
@@ -540,16 +524,16 @@ class _ImporterExcel(_Importer):
             msg = f"Invalid path type. Expected str or Path, got {type(path)}."
             raise TypeError(msg)
 
-        path = Path(path)
-        if not path.is_file():
-            msg = f"Excel file {path} does not exist."
-            raise FileNotFoundError(msg)
         self.engine = engine
 
         reader = partial(pd.read_excel, sheet_name=None, engine=self.engine)
         if validators.url(str(path)):
             self.sheets = _retrieve_from_url(str(path), reader)
         else:
+            path = Path(path)
+            if not path.is_file():
+                msg = f"Excel file {path} does not exist."
+                raise FileNotFoundError(msg)
             self.sheets = reader(path)
         self.index: dict = {}
 
@@ -1647,7 +1631,7 @@ class NetworkIOMixin(_NetworkABC):
             for attr, df in importer.get_piecewise(list_name):
                 self._import_piecewise_from_df(df, component, attr)
 
-            logger.debug(getattr(self, list_name))
+            logger.debug(getattr(self.c, list_name).static)
 
             imported_components.append(list_name)
 

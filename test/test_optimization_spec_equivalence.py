@@ -490,7 +490,7 @@ def test_objective_matches_master(case: str, sparse: bool) -> None:
 
 
 if __name__ == "__main__":
-    pypsa.options.params.optimize.include_objective_constant = True
+    pypsa.options.future.exclude_objective_constant = False
     objectives = {}
     for case in CASES:
         start = time.perf_counter()

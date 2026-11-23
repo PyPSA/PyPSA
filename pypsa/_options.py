@@ -5,6 +5,7 @@
 import ast
 import logging
 import os
+import warnings
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
@@ -57,6 +58,57 @@ class Option:
     def docs(self) -> str:
         """Get the documentation for this option."""
         return self._docs
+
+
+class FutureOption(Option):
+    """Flag for a PyPSA 2.0 behaviour change: None (unset), True or False."""
+
+    def __init__(self, docs: str = "", warning: str | None = None) -> None:
+        super().__init__(None, None, docs)
+        self.warning = warning
+
+    @property
+    def value(self) -> bool | None:
+        return self._value
+
+    @value.setter
+    def value(self, value: Any) -> None:
+        if value is not None and not isinstance(value, bool):
+            msg = f"Future flags accept only True, False or None, got {value!r}."
+            raise ValueError(msg)
+        self._value = value
+
+
+class AliasOption(Option):
+    """Deprecated key that reads and writes another option, optionally inverted."""
+
+    def __init__(
+        self, root: "OptionsNode", old_path: str, new_path: str, invert: bool
+    ) -> None:
+        super().__init__(None, None, f"Deprecated alias of '{new_path}'.")
+        self._root = root
+        self._old_path = old_path
+        self._new_path = new_path
+        self._invert = invert
+
+    def _map(self, value: Any) -> Any:
+        return (not value) if self._invert and isinstance(value, bool) else value
+
+    @property
+    def value(self) -> Any:
+        return self._map(self._root.get_option(self._new_path))
+
+    @value.setter
+    def value(self, value: Any) -> None:
+        warnings.warn(
+            f"'{self._old_path}' is deprecated, use '{self._new_path}' instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        self._root.set_option(self._new_path, self._map(value))
+
+    def reset(self) -> None:
+        self._root.reset_option(self._new_path)
 
 
 class OptionsNode:
@@ -144,6 +196,42 @@ class OptionsNode:
 
         node._children[leaf_name] = Option(default, default, docs)
 
+    def _get_node(self, path: str) -> Option:
+        """Return the `Option` object stored at `path`."""
+        node = self
+        parts = path.split(".")
+        for part in parts[:-1]:
+            if part not in node._children or not isinstance(
+                node._children[part], OptionsNode
+            ):
+                raise InvalidOptionError(option_path=part)
+            node = node._children[part]
+        leaf = node._children.get(parts[-1])
+        if not isinstance(leaf, Option):
+            raise InvalidOptionError(option_path=parts[-1])
+        return leaf
+
+    def _replace_leaf(self, path: str, option: Option) -> None:
+        self._add_option(path)
+        parent, _, name = path.rpartition(".")
+        node = self
+        for part in parent.split("."):
+            node = node._children[part]
+        node._children[name] = option
+
+    def _add_future_flag(self, name: str, docs: str, warning: str | None) -> None:
+        """Register the flag `future.<name>`, unset (None) by default.
+
+        `warning` is shown while the flag is unset: what changes in 2.0 and how to
+        prepare for it. With `warning=None` the unset flag stays silent.
+        """
+        self._replace_leaf(f"future.{name}", FutureOption(docs, warning))
+
+    def _add_alias(self, old_path: str, new_path: str, *, invert: bool) -> None:
+        """Register `old_path` as a deprecated alias of `new_path`."""
+        self._get_node(new_path)  # target must exist
+        self._replace_leaf(old_path, AliasOption(self, old_path, new_path, invert))
+
     def get_option(self, path: str) -> Any:
         """Get the value of an option at the specified path.
 
@@ -165,25 +253,7 @@ class OptionsNode:
         5
 
         """
-        parts = path.split(".")
-        node = self
-
-        # Navigate to the parent
-        for part in parts[:-1]:
-            if part not in node._children or not isinstance(
-                node._children[part], OptionsNode
-            ):
-                raise InvalidOptionError(option_path=part)
-            node = node._children[part]
-
-        # Get the option value
-        leaf_name = parts[-1]
-        if leaf_name not in node._children or isinstance(
-            node._children[leaf_name], OptionsNode
-        ):
-            raise InvalidOptionError(option_path=leaf_name)
-
-        return node._children[leaf_name].value
+        return self._get_node(path).value
 
     def set_option(self, path: str, value: Any) -> None:
         """Set the value of an option at the specified path.
@@ -208,25 +278,7 @@ class OptionsNode:
         True
 
         """
-        parts = path.split(".")
-        node = self
-
-        # Navigate to the parent
-        for part in parts[:-1]:
-            if part not in node._children or not isinstance(
-                node._children[part], OptionsNode
-            ):
-                raise InvalidOptionError(option_path=part)
-            node = node._children[part]
-
-        # Set the option value
-        leaf_name = parts[-1]
-        if leaf_name not in node._children or isinstance(
-            node._children[leaf_name], OptionsNode
-        ):
-            raise InvalidOptionError(option_path=leaf_name)
-
-        node._children[leaf_name].value = value
+        self._get_node(path).value = value
 
     def reset_option(self, path: str) -> None:
         """Reset a single option to its default value.
@@ -249,25 +301,7 @@ class OptionsNode:
         True
 
         """
-        parts = path.split(".")
-        node = self
-
-        # Navigate to the parent
-        for part in parts[:-1]:
-            if part not in node._children or not isinstance(
-                node._children[part], OptionsNode
-            ):
-                raise InvalidOptionError(option_path=part)
-            node = node._children[part]
-
-        # Reset the option value
-        leaf_name = parts[-1]
-        if leaf_name not in node._children or isinstance(
-            node._children[leaf_name], OptionsNode
-        ):
-            raise InvalidOptionError(option_path=leaf_name)
-
-        node._children[leaf_name].reset()
+        self._get_node(path).reset()
 
     def reset_all(self) -> None:
         """Reset all options to their default values.
@@ -293,13 +327,18 @@ class OptionsNode:
                 child.reset_all()
 
     def _load_from_env(self) -> None:
-        """Load options from PYPSA_* environment variables."""
+        """Load options from PYPSA_* environment variables.
+
+        `PYPSA_FUTURE` sets the default of every `future.*` flag. It is read first
+        and `PYPSA_FUTURE__<NAME>` last, so a per-flag variable wins.
+        """
         prefix = "PYPSA_"
+        env = sorted(
+            (item for item in os.environ.items() if item[0].startswith(prefix)),
+            key=lambda item: (item[0] != "PYPSA_FUTURE", "FUTURE__" in item[0]),
+        )
 
-        for env_var, env_value in os.environ.items():
-            if not env_var.startswith(prefix):
-                continue
-
+        for env_var, env_value in env:
             # PYPSA_GENERAL__ALLOW_NETWORK_REQUESTS -> general.allow_network_requests
             option_path = env_var.removeprefix(prefix).replace("__", ".").lower()
 
@@ -319,6 +358,18 @@ class OptionsNode:
                         "Could not parse '%s' as literal, using string", env_var
                     )
 
+            if env_var == "PYPSA_FUTURE":
+                if isinstance(parsed_value, bool):
+                    for flag in self._children["future"]._children.values():
+                        flag._default = flag._value = parsed_value
+                elif env_value.strip():
+                    logger.warning(
+                        "Invalid value '%s' for env var 'PYPSA_FUTURE', "
+                        "use true or false.",
+                        env_value,
+                    )
+                continue
+
             try:
                 self.set_option(option_path, parsed_value)
                 logger.debug("Set option '%s' from env var '%s'", option_path, env_var)
@@ -329,6 +380,8 @@ class OptionsNode:
                     option_path,
                     env_var,
                 )
+            except ValueError as e:
+                logger.warning("Invalid value from env var '%s': %s", env_var, e)
 
     def _describe_options(self, prefix: str = "") -> None:
         """Print documentation for options via path.
@@ -348,6 +401,8 @@ class OptionsNode:
         for name, child in self._children.items():
             path = f"{prefix}.{name}" if prefix else name
 
+            if isinstance(child, AliasOption):
+                continue
             if isinstance(child, Option):
                 print(f"{path}:")  # noqa: T201
                 print(f"    Default: {child._default}")  # noqa: T201
@@ -470,13 +525,6 @@ options._add_option(
     "to linopy's Model.solve(). When None, solver default behavior is used.\n\t"
     "Note: not all solvers support this option (e.g. HiGHS does, CPLEX does not).",
 )
-options._add_option(
-    "params.optimize.include_objective_constant",
-    None,
-    "Include capital costs of existing capacity on extendable assets in the objective. "
-    "Setting False sets n.objective_constant to zero and improves LP numerical "
-    "conditioning. None defaults to True with a FutureWarning (changes to False in v2.0).",
-)
 
 options._add_option(
     "params.consistency.numerical_tolerance",
@@ -509,24 +557,43 @@ options._add_option(
     "will still be shown.",
 )
 
-# API
-options._add_option(
-    "api.legacy_string_dtype",
+# Future flags: None keeps the current behaviour and warns, True adopts 2.0
+options._add_future_flag(
+    "string_dtype",
+    "Keep pandas' `str` dtype for string data on import instead of converting it to object.",
+    "pandas reads strings as `str` dtype since 3.0. PyPSA converts them back to "
+    "object dtype on import, but keeps `str` from PyPSA 2.0 on.",
+)
+options._add_alias("api.legacy_string_dtype", "future.string_dtype", invert=True)
+options._add_future_flag(
+    "components_api",
+    "`n.<name>` returns the `Components` object instead of the static DataFrame, "
+    "and `n.<name>_t` is deprecated. See `https://go.pypsa.org/new-components-api`.",
+    # Silent while unset, since `n.<name>` is the most common access path.
     None,
-    "Whether to convert string data to numpy `object` dtype on import. pandas 3\n\t"
-    "reads strings as `str` dtype, which PyPSA undoes by default to stay\n\t"
-    "compatible with earlier versions. Set to False to keep the `str` dtype.\n\t"
-    "PyPSA v2 will always keep it and drop this option.",
 )
-options._add_option(
-    "api.new_components_api",
-    False,
-    "Activate the new components API, which replaces the static components data access\n\t"
-    "with the more flexible components class. This will just change the api and not any\n\t"
-    "functionality. Components class features are always available.\n\t"
-    "See `https://go.pypsa.org/new-components-api` for more details.",
+options._add_alias("api.new_components_api", "future.components_api", invert=False)
+options._add_future_flag(
+    "exclude_objective_constant",
+    "Leave the capital costs of existing capacity on extendable assets out of the "
+    "objective, so `n.objective_constant` is zero and the LP is better conditioned.",
+    "From PyPSA 2.0 on, the objective leaves out the capital costs of existing "
+    "capacity on extendable assets, which improves LP conditioning. Pass "
+    "`include_objective_constant` to `n.optimize` to choose per call.",
 )
-
+options._add_alias(
+    "params.optimize.include_objective_constant",
+    "future.exclude_objective_constant",
+    invert=True,
+)
+options._add_future_flag(
+    "inds_order",
+    "`get_switchable_as_dense` with `inds` returns columns in `inds` order, keeps "
+    "duplicates and raises a `KeyError` for unknown names.",
+    "From PyPSA 2.0 on, `get_switchable_as_dense` returns columns in `inds` order, "
+    "keeps duplicates and raises a `KeyError` for unknown names. Unique, known "
+    "names in component order give the same result in both.",
+)
 
 # Debugging category
 options._add_option(

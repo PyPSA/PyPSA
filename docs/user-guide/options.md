@@ -119,12 +119,6 @@ optimize.log_to_console:
     Description: Whether to print solver output to console. Passed as a solver option
     	to linopy's Model.solve(). When None, solver default behavior is used.
     	Note: not all solvers support this option (e.g. HiGHS does, CPLEX does not).
-optimize.include_objective_constant:
-    Default: None
-    Description: Include capital costs of existing capacity on extendable assets in the
-        objective. Setting False sets n.objective_constant to zero and improves LP
-        numerical conditioning. None defaults to True with a FutureWarning (changes to
-        False in v2.0).
 consistency.numerical_tolerance:
     Default: 1e-09
     Description: Tolerance for numerical comparisons in consistency checks (e.g. p_min_pu > p_max_pu).
@@ -148,28 +142,32 @@ attribute_typos:
     Description: If False, suppresses warnings about potential typos in component attribute names. Note: warnings about unintended attributes (standard attributes for other components) will still be shown.
 ```
 
-### API
+### Future flags { #future-flags }
 
-Make changes to the PyPSA API. See <!-- md:guide components.md#new-components-class-api -->.
+Opt in to behaviour that changes in PyPSA 2.0. A flag left at `None` keeps the
+current behaviour and warns once, except `components_api`, which stays silent. Set
+it to `True` to adopt the 2.0 behaviour or to `False` to keep the current one.
+`PYPSA_FUTURE=true` sets all flags at once. The old options
+`api.legacy_string_dtype`, `api.new_components_api` and
+`params.optimize.include_objective_constant` are deprecated aliases.
 
 ``` py
->>> pypsa.options.api.describe()  # doctest: +NORMALIZE_WHITESPACE
+>>> pypsa.options.future.describe()  # doctest: +ELLIPSIS
 PyPSA Options
 =============
-legacy_string_dtype:
-    Default: None
-    Description: Whether to convert string data to numpy `object` dtype on import. pandas 3
-    	reads strings as `str` dtype, which PyPSA undoes by default to stay
-    	compatible with earlier versions. Set to False to keep the `str` dtype.
-    	PyPSA v2 will always keep it and drop this option.
-new_components_api:
-    Default: False
-    Description: Activate the new components API, which replaces the static components data access
-    	with the more flexible components class. This will just change the api and not any
-    	functionality. Components class features are always available.
-    	See `https://go.pypsa.org/new-components-api` for more details.
+string_dtype:
+    Default: ...
+    Description: Keep pandas' `str` dtype for string data on import instead of converting it to object.
+components_api:
+    Default: ...
+    Description: `n.<name>` returns the `Components` object instead of the static DataFrame, and `n.<name>_t` is deprecated. See `https://go.pypsa.org/new-components-api`.
+exclude_objective_constant:
+    Default: ...
+    Description: Leave the capital costs of existing capacity on extendable assets out of the objective, so `n.objective_constant` is zero and the LP is better conditioned.
+inds_order:
+    Default: ...
+    Description: `get_switchable_as_dense` with `inds` returns columns in `inds` order, keeps duplicates and raises a `KeyError` for unknown names.
 ```
-
 
 ### Debug options
 

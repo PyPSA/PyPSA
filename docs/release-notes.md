@@ -44,10 +44,19 @@ SPDX-License-Identifier: CC-BY-4.0
     - **Behavior change**: In a stochastic network, the capacity bounds `{Component}-ext-{attr}-lower`, `-upper` and `{Component}-{attr}_set` (e.g. `Generator-ext-p_nom-lower`) run over `name` only, with one row per asset instead of one per asset and scenario. The bound that binds the shared build is the largest `p_nom_min` and the smallest `p_nom_max` over the scenarios, so the optimum is unchanged, but their duals in `n.model` are one value per asset. A `p_nom_set` that differs across scenarios raises a `ValueError` also with `consistency_check=False`.
     - **Behavior change**: The model of a network without scenarios carries a `scenario` dimension with the one label `"base"` on every variable and constraint that depends on the scenario, as `Generator-p` over `(name, scenario, snapshot)`. Entries shared by all scenarios, as `Generator-p_nom`, have no `scenario` dimension. Before, the model of such a network had no `scenario` dimension. Optimization expressions from `n.optimize.expressions` carry the dimension too. The results written to the network are unchanged. Code that reads model entries as pandas objects, e.g. `n.model["Generator-p"].solution.to_pandas()`, or custom constraints that rely on the old dimensions need `.sel(scenario="base")` or `.squeeze("scenario")`. See [#2139](https://github.com/PyPSA/PyPSA/issues/2139).
 - Add the argument `consistency_check` to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] to skip the consistency check before building the model.
+- Add [`get_segment_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.get_segment_map], [`get_resample_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.get_resample_map] and [`get_downsample_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.get_downsample_map] to `n.cluster.temporal`. Each returns the snapshot map without building the clustered network. [`segment()`][pypsa.clustering.temporal.TemporalClusteringMixin.segment], [`resample()`][pypsa.clustering.temporal.TemporalClusteringMixin.resample] and [`downsample()`][pypsa.clustering.temporal.TemporalClusteringMixin.downsample] now apply their map with [`from_snapshot_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.from_snapshot_map]. `segment()` also supports investment periods and takes `drop_duplicates=True`, which counts identical time series once. On 3030 series with 330 distinct ones, this cut the tsam run time from 94 s to 10 s.
+
+### Deprecations
+
+- Deprecate `get_segment_result()`, `get_resample_result()`, `get_downsample_result()` and `get_from_snapshot_map_result()` of `n.cluster.temporal`, and the argument `solver` of `segment()`. They will be removed in PyPSA 2.0. Call a `get_*_map()` method and `from_snapshot_map()` instead.
+    - **Behavior change**: `segment()` requires tsam 3 or later, and the optional dependency is pinned to `tsam>=3`.
 
 ### Enhancements
 
+- Deprecation: [`n.plot.iplot()`][pypsa.plot.accessor.PlotAccessor.iplot] is deprecated and will be removed in PyPSA 2.0. Use [`n.plot.explore()`][pypsa.plot.accessor.PlotAccessor.explore] instead. The interactive statistics plots `n.statistics.*.iplot()` are not affected. (<!-- md:pr 2158 -->)
+- Deprecation: `pypsa.network.power_flow.aggregate_multi_graph` is deprecated and will be removed in PyPSA 2.0 without replacement. (<!-- md:pr 2158 -->)
 - Deprecation: `c.n_save` and `c.attached` of [`Components`][pypsa.Components] are deprecated and will be removed in PyPSA 2.0. Components are attached to a network, use `c.n`. (<!-- md:pr 2106 -->)
+- Deprecation: `api.legacy_string_dtype`, `api.new_components_api` and `params.optimize.include_objective_constant` are renamed to `future.string_dtype`, `future.components_api` and `future.exclude_objective_constant` (first and last inverted), joined by the new `future.inds_order`. Unset flags emit a `PyPSA2Warning` where the 2.0 behaviour applies, except `future.components_api`, which stays silent. `PYPSA_FUTURE=true` opts in to all 2.0 behaviour at once. See <!-- md:guide options.md -->. (<!-- md:pr 2163 -->)
 
 ### Documentation
 
@@ -57,6 +66,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix modelling-to-generate-alternatives (MGA) objectives that combine weights across component types with different names under linopy v1 semantics.
+- Fix building multi-period models with [`n.optimize(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.__call__] when a link is inactive in some investment periods, which raised a `ValueError` about NaN constants with the stricter arithmetic of upcoming linopy releases. (<!-- md:pr 2180 -->)
+- Re-exporting a network to an existing CSV folder now removes the files of components that no longer exist. Before, the stale files were kept and the removed components reappeared on import. (<!-- md:pr 2158 -->)
+- Fix importing networks from Excel files given as a URL, which raised a `FileNotFoundError`. (<!-- md:pr 2158 -->)
 - Fix ramp limits raising an error with linopy versions after 0.9.1 when optimizing only part of the snapshots of a network with investment periods, e.g. in [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon]. (<!-- md:pr 2079 -->)
 - Re-adding an existing component with piecewise data via `n.add()` without `overwrite=True` no longer appends a second curve to it. (<!-- md:pr 2153 -->)
 - Fix [`n.pf(distribute_slack=True)`][pypsa.Network.pf] on single-bus sub-networks with `slack_weights` `"p_nom"`, `"p_nom_opt"` or custom weights. (<!-- md:pr 2152 -->)
@@ -67,6 +80,9 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix [`n.add()`][pypsa.Network.add] leaving `NaN` in attributes that a later call introduces, such as `efficiency2` on links added before the first link with a third bus. Existing components now get the attribute default, so the consistency check no longer warns about missing values for ports they do not have. (<!-- md:pr 2105 -->)
 - **Behavior change**: The `{Component}-{attr}_set` constraints (e.g. `Generator-p_nom_set`) use the dimension `name` instead of `{Component}-{attr}_set_i`, like all other constraints. Custom constraints in `extra_functionality` that select on the old dimension need updating. (<!-- md:pr 2052 -->)
 - Fix maintenance of modular committable components that are not extendable returning status `('ok', 'unknown')` without a solution. (<!-- md:pr 2100 -->)
+- Fix the snapshot weightings and labels of temporal clustering. `segment()` and `downsample()` now sum the weightings of each block, so the total modelled hours stay the same. `segment()` now treats each snapshot as one time step, keeps the labels of non-datetime snapshots and applies `aggregation_rules`.
+    - **Behavior change**: The clustered network changes for uneven weightings, non-hourly or non-datetime snapshots, `e_max_pu` and `e_min_pu`, and missing values, which `segment()` no longer counts as zero.
+    - **Behavior change**: The snapshot map of `resample()` changes with `drop_leap_day=True` and for offsets labelled at the bin end, such as `"W"`. With `drop_leap_day=True` and no snapshot on March 1, `resample()` raises a `ValueError`. Bins whose objective weighting is zero are kept.
 - Fix [`n.statistics.prices()`][pypsa.statistics.StatisticsAccessor.prices] with `groupby` dropping the `scenario` level of stochastic networks and the `network` level of network collections, averaging their prices together. Grouped prices now keep these levels like the ungrouped prices. (<!-- md:pr 2103 -->)
 - Fix stochastic networks silently using the first scenario's branch impedances in all scenarios. The consistency check now raises if `v_nom`, `x_pu_eff` or `r_pu_eff` vary across scenarios. (<!-- md:pr 2104 -->)
 - Fix `KeyError` in `primary_energy` global constraints with `investment_period` and per-period initial storage levels on networks without scenarios. Only the stated period's storage change is counted. (<!-- md:pr 2099 -->)

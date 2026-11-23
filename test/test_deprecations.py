@@ -122,3 +122,18 @@ def test_aggregate_across_components_warning_is_readable(ac_dc_network):
     message = str(record[0].message)
     assert "<!--" not in message
     assert message.count("`") % 2 == 0
+
+
+def test_aggregate_multi_graph_deprecated(ac_dc_network):
+    from pypsa.network.power_flow import aggregate_multi_graph
+
+    n = ac_dc_network.copy()
+    n.determine_network_topology()
+    sub_network = n.c.sub_networks.static.obj.iloc[0]
+    with pytest.warns(DeprecationWarning, match="removed without replacement"):
+        aggregate_multi_graph(sub_network)
+
+
+def test_network_iplot_deprecated(ac_dc_network):
+    with pytest.warns(DeprecationWarning, match="explore"):
+        ac_dc_network.plot.iplot(iplot=False)

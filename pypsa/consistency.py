@@ -762,7 +762,7 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
     dtypes_is = component.static.dtypes[dtypes_expected.index]
     unmatched = dtypes_is != dtypes_expected
     # String attributes are either object or pandas' `str` dtype, depending on
-    # `pypsa.options.api.legacy_string_dtype`
+    # `pypsa.options.future.string_dtype`
     is_string_attr = component.defaults.loc[dtypes_expected.index, "type"] == "string"
     unmatched &= ~(is_string_attr & dtypes_is.map(pd.api.types.is_string_dtype))
 

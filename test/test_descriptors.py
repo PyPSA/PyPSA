@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import pypsa
+from pypsa._future import PyPSA2Warning
 from pypsa.common import expand_series
 from pypsa.descriptors import (
     get_bounds_pu,
@@ -37,7 +38,7 @@ def test_get_switchable_as_dense(network):
         assert (df == val).all().all()
 
 
-DENSE_INDS_WARNING = "In PyPSA 2.0, `get_switchable_as_dense` will return columns"
+DENSE_INDS_WARNING = "pypsa.options.future.inds_order"
 
 
 @pytest.fixture
@@ -54,6 +55,7 @@ def dense_network(network: pypsa.Network) -> pypsa.Network:
         (["g3", "g1"], ["g1", "g3"]),
         (["g1", "missing"], ["g1"]),
         (["g1", "g1"], ["g1"]),
+        (["g1", "g3"], ["g1", "g3"]),
     ],
 )
 def test_get_switchable_as_dense_warns_on_inds(
@@ -65,21 +67,54 @@ def test_get_switchable_as_dense_warns_on_inds(
     n = dense_network
     if scenarios:
         n.set_scenarios(scenarios)
-    with pytest.warns(FutureWarning, match=DENSE_INDS_WARNING):
+    with (
+        pypsa.option_context("future.inds_order", None),
+        pytest.warns(PyPSA2Warning, match=DENSE_INDS_WARNING) as record,
+    ):
         res = n.get_switchable_as_dense("Generator", "p_max_pu", inds=pd.Index(inds))
+    assert record[0].filename == __file__
     assert res.columns.unique("name").tolist() == expected
 
 
 @pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
-@pytest.mark.parametrize("inds", [["g1", "g3"], [], ["g1", "g2", "g3"]])
-def test_get_switchable_as_dense_inds_no_warning(
-    dense_network: pypsa.Network, scenarios: list[str] | None, inds: list[str]
+def test_get_switchable_as_dense_inds_order_true(
+    dense_network: pypsa.Network, scenarios: list[str] | None
 ) -> None:
     n = dense_network
     if scenarios:
         n.set_scenarios(scenarios)
-    res = n.get_switchable_as_dense("Generator", "p_max_pu", inds=pd.Index(inds))
-    assert res.columns.unique("name").tolist() == inds
+    with pypsa.option_context("future.inds_order", True):
+        res = n.get_switchable_as_dense(
+            "Generator", "p_max_pu", inds=pd.Index(["g3", "g1", "g3"])
+        )
+        assert res.columns.get_level_values("name").tolist() == (
+            ["g3", "g1", "g3"] * len(scenarios or [None])
+        )
+        if scenarios:
+            assert res.columns.get_level_values(0).unique().tolist() == scenarios
+        assert res.iloc[0].tolist() == [0.3, 0.1, 0.3] * len(scenarios or [None])
+        with pytest.raises(KeyError, match="missing"):
+            n.get_switchable_as_dense(
+                "Generator", "p_max_pu", inds=pd.Index(["g1", "missing"])
+            )
+
+
+@pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
+def test_get_switchable_as_dense_inds_order_false(
+    dense_network: pypsa.Network, scenarios: list[str] | None
+) -> None:
+    n = dense_network
+    if scenarios:
+        n.set_scenarios(scenarios)
+    with (
+        pypsa.option_context("future.inds_order", False),
+        warnings.catch_warnings(),
+    ):
+        warnings.simplefilter("error")
+        res = n.get_switchable_as_dense(
+            "Generator", "p_max_pu", inds=pd.Index(["g3", "g1", "missing"])
+        )
+    assert res.columns.unique("name").tolist() == ["g1", "g3"]
 
 
 def test_get_switchable_as_iter(network):
@@ -124,11 +159,13 @@ def test_get_switchable_order(
         expected = expected.loc[keys]
 
     args = ("Generator", "p_max_pu", n.snapshots, inds)
-    if method == "dense" and inds:
-        with pytest.warns(FutureWarning, match=DENSE_INDS_WARNING):
-            result = n.get_switchable_as_dense(*args).iloc[0]
-    elif method == "dense":
-        result = n.get_switchable_as_dense(*args).iloc[0]
+    if method == "dense":
+        with pypsa.option_context("future.inds_order", None):
+            if inds:
+                with pytest.warns(PyPSA2Warning, match=DENSE_INDS_WARNING):
+                    result = n.get_switchable_as_dense(*args).iloc[0]
+            else:
+                result = n.get_switchable_as_dense(*args).iloc[0]
     else:
         result = next(n.get_switchable_as_iter(*args))
 

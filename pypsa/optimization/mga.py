@@ -224,7 +224,7 @@ class OptimizationAbstractMGAMixin:
                         columns=self._n.c[c].static.index, index=self._n.snapshots
                     )
                 expr.append(var * coeffs)
-        return merge(expr)
+        return merge(expr, join="outer")
 
     def _add_near_opt_constraint(
         self,
@@ -565,10 +565,13 @@ class OptimizationAbstractMGAMixin:
         # dimensions. Flip the sign in order to maximize in the given
         # direction.
         m.add_objective(
-            -sum(
-                direction[key]
-                * self.build_linexpr_from_weights(dimensions[key], model=m)
-                for key in direction.keys()
+            -merge(
+                [
+                    direction[key]
+                    * self.build_linexpr_from_weights(dimensions[key], model=m)
+                    for key in direction
+                ],
+                join="outer",
             ),
             overwrite=True,
             scaling=m.objective.scaling,

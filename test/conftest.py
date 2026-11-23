@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: MIT
 
+import importlib
 import logging
+import sys
 import warnings
 from pathlib import Path
 
@@ -15,6 +17,42 @@ from shapely.geometry import Polygon
 
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
+
+
+@pytest.fixture(autouse=True)
+def reset_future_warnings():
+    """Let the once-per-process future flag warnings fire again in every test."""
+    from pypsa import _future
+
+    _future._warned.clear()
+
+
+@pytest.fixture
+def restore_options_module():
+    """Re-import `_options` after each test and rebind pypsa's references.
+
+    Opt-in for tests that reload the module (env var tests), which would
+    otherwise leak their state. The session-wide options set in
+    `pytest_configure` (`--new-components-api`, `--linopy-dense`) are carried
+    over.
+    """
+    components_api = pypsa.options.future.components_api
+    model_kwargs = pypsa.options.params.optimize.model_kwargs
+    yield
+    from pypsa import _options
+
+    importlib.reload(_options)
+    _options.options.future.components_api = components_api
+    _options.options.params.optimize.model_kwargs = model_kwargs
+
+    pypsa.options = _options.options
+    pypsa.get_option = _options.options.get_option
+    pypsa.set_option = _options.options.set_option
+    pypsa.reset_option = _options.options.reset_option
+    pypsa.option_context = _options.option_context
+    for mod_name, mod in sys.modules.items():
+        if mod_name.startswith("pypsa.") and hasattr(mod, "options"):
+            mod.options = _options.options
 
 
 @pytest.fixture
@@ -53,7 +91,10 @@ def no_warnings():
 def _set_test_options():
     """Ensure test-specific options are set before each test."""
     pypsa.options.debug.runtime_verification = True
-    pypsa.options.params.optimize.include_objective_constant = True
+    # Unset future flags keep the current behaviour without warning
+    for name in pypsa.options.future._children:
+        if pypsa.options.get_option(f"future.{name}") is None:
+            pypsa.options.set_option(f"future.{name}", False)
     return
 
 
@@ -71,7 +112,7 @@ def pytest_addoption(parser):
         "--new-components-api",
         action="store_true",
         default=False,
-        help="Activate the new components API (options.api.new_components_api)",
+        help="Activate the new components API (options.future.components_api)",
     )
     parser.addoption(
         "--linopy-dense",
@@ -102,7 +143,7 @@ def pytest_addoption(parser):
 def pytest_configure(config):
     """Configure pytest session with custom options."""
     if config.getoption("--new-components-api"):
-        pypsa.options.api.new_components_api = True
+        pypsa.options.future.components_api = True
     if config.getoption("--linopy-dense"):
         pypsa.options.params.optimize.model_kwargs = {"sparse": False}
 

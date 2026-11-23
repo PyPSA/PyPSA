@@ -143,10 +143,10 @@ Series([], Name: p_nom_opt, dtype: float64)
 >>> n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7D").mean()  # doctest: +SKIP
 ```
 
-To switch to the new API, we just need to set the package option `api.new_components_api` to `True`.
+To switch to the new API, we just need to set the package option `future.components_api` to `True`.
 
 ``` py
-pypsa.options.api.new_components_api = True
+pypsa.options.future.components_api = True
 
 # Interconnector Capacities
 n.links.static.query("carrier == 'HVDC'").p_nom_opt.round(2)
@@ -162,13 +162,13 @@ n.links.additional_ports
 To migrate a script step by step, we can just set the option back again.
 
 ``` py
-pypsa.options.api.new_components_api = True
+pypsa.options.future.components_api = True
 
 # Interconnector Capacities
 n.links.static.query("carrier == 'HVDC'").p_nom_opt.round(2)
 
 # Switch back to old API
-pypsa.options.api.new_components_api = False
+pypsa.options.future.components_api = False
 
 # Interconnector Flows
 n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7D").mean()
@@ -177,7 +177,7 @@ n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7D").mean()
 Another way is to use the [`option_context`][pypsa.option_context] context manager to temporarily switch the API.
 
 ``` py
-with pypsa.options_context(api.new_components_api=True):
+with pypsa.options_context(future.components_api=True):
     # Interconnector Capacities
     n.links.static.query("carrier == 'HVDC'").p_nom_opt.round(2)
 
