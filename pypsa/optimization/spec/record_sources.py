@@ -27,6 +27,7 @@ from datarecord import Flags, settle
 from datarecord.schema.categories import matching
 from datarecord.schema.schema import unpacked
 from datarecord.tools.pypsa import (
+    _AXIS_TYPES,
     _PORT_SUFFIX,
     _WEIGHTINGS,
     BUS,
@@ -125,6 +126,27 @@ class _Component:
         """The ports of the type and of the record's units."""
         return [*self._meta.ports, *self.additional_ports]
 
+    @property
+    def static(self) -> pd.DataFrame:
+        """PyPSA's static frame of the type, read off the record."""
+        return self._s.static_frame(self._meta)
+
+    @property
+    def names(self) -> pd.Index:
+        """The labels of the record's members of the type."""
+        return self._s.members(self._meta.name).rename("name")
+
+    def _active_names(self, investment_period: Any = None) -> pd.Index:
+        """Return the members active in any scenario, and in any of the periods given."""
+        ctype = self._meta.name
+        active = self._s.grid(ctype, "active").any(SCENARIO)
+        if investment_period is not None and self._s.takes(self._meta, "build_year"):
+            periods = xr.DataArray(np.atleast_1d(investment_period), dims=PERIOD)
+            built = self._s.grid(ctype, "build_year").isel(scenario=0)
+            retired = built + self._s.grid(ctype, "lifetime").isel(scenario=0)
+            active = active & ((built <= periods) & (periods < retired)).any(PERIOD)
+        return self.names[active.to_numpy()]
+
     def __getattr__(self, attr: str) -> Any:
         if attr in COMPONENT_META:
             return getattr(self._meta, attr)
@@ -167,6 +189,14 @@ class _Network:
 
     c = components
 
+    @property
+    def snapshot_weightings(self) -> pd.DataFrame:
+        return self._s.weightings(SNAPSHOT, self._s.network_index)
+
+    @property
+    def investment_period_weightings(self) -> pd.DataFrame:
+        return self._s.weightings(PERIOD, self._s.periods)
+
     def __getattr__(self, attr: str) -> Any:
         if attr in NETWORK_META:
             return getattr(self._s.meta, attr)
@@ -207,8 +237,13 @@ class RecordSources(NetworkSources):
             else pd.Index(levels[SNAPSHOT], name=SNAPSHOT)
         )
         super().__init__(pypsa.Network(), spec, index, index, **options)
-        self.units = {c._unit_dim: _Component(self, c) for c in formulated(self.meta)}
+        tracked: Any = {c._unit_dim: _Component(self, c) for c in formulated(self.meta)}
+        self.units = tracked
         self._providers = _providers(self.units.values(), _SOURCES | _RECORD)
+        if not any(len(self.members(k)) for k in self.meta.passive_branch_components):
+            self._cache["cycles"] = {}
+        if "flow_based" not in set(self.entities["type"]):
+            self._cache["flow_based"] = None
 
     # -- the network --------------------------------------------------------
 
@@ -275,13 +310,20 @@ class RecordSources(NetworkSources):
         labels = [] if rel is None else [label for (label,) in rel.fetchall()]
         return pd.Index(labels, dtype=object)
 
-    @functools.cached_property
+    def properties(self, dim: str) -> pd.DataFrame:
+        """Return the properties of a record dim by label, in axis order."""
+        rel = self.record.properties[dim]
+        return self.memo(f"{dim} properties", lambda: rel.df().set_index(dim))
+
+    @property
     def entities(self) -> pd.DataFrame:
-        """Every entity with its type and carrier, in axis order."""
-        return self.record.properties[ENTITY].df().set_index(ENTITY)
+        """Every entity with its properties, its type among them, in axis order."""
+        return self.properties(ENTITY)
 
     def members(self, ctype: str) -> pd.Index:
-        """Return the entities of a type in axis order."""
+        """Return the labels of a type in axis order: its entities, or the labels of its own dim."""
+        if ctype in _AXIS_TYPES:
+            return self.axis(_AXIS_TYPES[ctype])
         entities = self.entities
         names = entities.index[entities[CTYPE] == ctype]
         return pd.Index(names.to_numpy(), dtype=object)
@@ -332,9 +374,11 @@ class RecordSources(NetworkSources):
         stem, port = self.port(ctype, attr)
         schema = self.record.schema
         names = self.members(ctype)
-        if stem in schema.properties[ENTITY]:
-            default = schema.default_for(f"{ENTITY}.{stem}", **{CTYPE: ctype})
-            stated = self.entities[stem].reindex(names)
+        key = _AXIS_TYPES.get(ctype, ENTITY)
+        if stem in schema.properties[key]:
+            default = schema.default_for(f"{key}.{stem}", **{CTYPE: ctype})
+            stated = self.properties(key)[stem].reindex(names)
+            default = "" if default is None else default
             values = stated.where(stated.notna(), default).to_numpy()[np.newaxis]
             coords = {SCENARIO: self.scenarios, "name": names}
             return xr.DataArray(np.repeat(values, len(self.scenarios), 0), coords)
@@ -355,7 +399,7 @@ class RecordSources(NetworkSources):
         scenario = np.zeros(len(rows), dtype=int)
         if by_scenario:
             scenario = self.scenarios.get_indexer(rows[SCENARIO])
-        name = names.get_indexer(rows[ENTITY])
+        name = names.get_indexer(rows[key])
         if SNAPSHOT in declared.dims:
             steps = pd.MultiIndex.from_frame(rows[self.network_index.names])
             if steps.nlevels == 1:
@@ -390,11 +434,14 @@ class RecordSources(NetworkSources):
     def rows(self, ctype: str, attr: str, port: int | None) -> pd.DataFrame:
         """Return the settled rows of a record attribute at a type's entities, at one port for an attribute over connections."""
         rel = self.record.attributes.get(attr)
-        members = matching(self.record.properties[ENTITY], {CTYPE: (ctype,)})
+        key = _AXIS_TYPES.get(ctype, ENTITY)
         if rel is None:
-            columns = [SCENARIO, *self.network_index.names, ENTITY, "value"]
+            columns = [SCENARIO, *self.network_index.names, key, "value"]
             return pd.DataFrame(columns=columns)
-        labels: dict[str, DuckDBPyRelation] = {ENTITY: members}
+        members = self.record.dims[key]
+        if key == ENTITY:
+            members = matching(self.record.properties[ENTITY], {CTYPE: (ctype,)})
+        labels: dict[str, DuckDBPyRelation] = {key: members}
         if port is not None:
             labels = {CONNECTION: _tuples_of(self.record.dims[CONNECTION], members)}
         if self.stochastic and SCENARIO in rel.columns:
@@ -403,6 +450,43 @@ class RecordSources(NetworkSources):
         schema = self.record.schema
         rows = unpacked(schema, CONNECTION, unpacked(schema, SNAPSHOT, settled)).df()
         return rows if port is None else rows[rows[PORT] == port]
+
+    def static_frame(self, c: Components) -> pd.DataFrame:
+        """Return PyPSA's static frame of a type, read off the record.
+
+        It holds every member, by scenario where the record has scenarios,
+        with its buses and each attribute the record holds static. An
+        attribute that may vary by snapshot is left out.
+        """
+        return self.memo(f"{c.name} frame", lambda: self._frame(c))
+
+    def _frame(self, c: Components) -> pd.DataFrame:
+        names = self.members(c.name).rename("name")
+        schema = self.record.schema
+        key = _AXIS_TYPES.get(c.name, ENTITY)
+        columns = {}
+        for attr in c.static.columns:
+            stem = self.port(c.name, attr)[0]
+            declared = schema.attributes.get(stem)
+            static = (
+                declared is not None
+                and schema.addresses(stem, key)
+                and SNAPSHOT not in declared.dims
+            )
+            if (static or stem in schema.properties[key]) and stem != BUS:
+                columns[attr] = self.grid(c.name, attr).to_numpy()
+        frames = {}
+        for i, scenario in enumerate(self.scenarios):
+            frame = pd.DataFrame({k: v[i] for k, v in columns.items()}, index=names)
+            if key == ENTITY:
+                table = _port_table(c.name)
+                for port, rows in self.connections(c.name).groupby(PORT):
+                    bus = rows.set_index(ENTITY)[BUS].reindex(names).fillna("")
+                    frame[table.column(BUS, port)] = bus.to_numpy(dtype=object)
+            frames[scenario] = frame
+        if not self.stochastic:
+            return frames[self.scenarios[0]]
+        return pd.concat(frames, names=[SCENARIO, "name"])
 
     def _static(self, c: Components) -> pd.DataFrame:
         """Return the buses, carrier and activity of a component's units, and the cyclic delay of each port."""
@@ -520,3 +604,75 @@ def _capital_cost(s: RecordSources, name: str, c: Components) -> xr.DataArray:
     cost = periodized_cost(**kwargs, nyears=nyears)
     labels = {SCENARIO: s.scenarios, c._unit_dim: s.names(c)}
     return cost.to_xarray().reindex(labels)  # type: ignore[union-attr]
+
+
+# -- activity stated in the spec ------------------------------------------
+
+#: The year of a snapshot's period, as a condition reads it.
+YEAR = "at(period_year, by=snapshot_period[period])"
+
+
+def activity_patch(spec: Spec) -> dict[str, dict[str, Any]]:
+    """Return the spec patch that states `<Component>_active` as a condition, not as data.
+
+    A unit is active where it is switched on and, in a run over investment
+    periods, built and not retired in the snapshot's period. The patch
+    removes the parameter and declares what the condition reads: the raw
+    `build_year` and `lifetime`, the year of each period and whether the
+    run is over periods.
+    """
+    import pypsa  # noqa: PLC0415
+
+    parameters: dict[str, Any] = {
+        "multi_period": {"dims": [], "dtype": "bool", "description": "over periods"},
+        "period_year": {"dims": ["period"], "description": "the year of a period"},
+    }
+    conditions = {}
+    for c in formulated(pypsa.Network()):
+        unit, on = c._unit_dim, f"{c.name}_active_asset"
+        built, life = f"{c.name}_build_year", f"{c.name}_lifetime"
+        parameters[f"{c.name}_active"] = None
+        parameters[on] = {"dims": [unit], "dtype": "bool", "description": "on"}
+        conditions[f"{c.name}_active"] = on
+        if "build_year" not in c.static:
+            continue
+        parameters[built] = {"dims": [unit], "description": "the year it is built"}
+        parameters[life] = {"dims": [unit], "description": "the years it stands"}
+        standing = f"{built} <= {YEAR} AND {YEAR} < {built} + {life}"
+        conditions[f"{c.name}_active"] = f"{on} AND (NOT multi_period OR ({standing}))"
+    return {"parameters": parameters, "conditions": conditions}
+
+
+@record_source("multi_period")
+def _multi_period(s: RecordSources, name: str) -> bool:
+    return s.multi_invest
+
+
+@record_source("period_year")
+def _period_year(s: RecordSources, name: str) -> xr.DataArray:
+    years = s.periods.to_numpy(dtype=float)
+    return xr.DataArray(years, coords={PERIOD: s.periods}, dims=PERIOD)
+
+
+# -- absent in a record ---------------------------------------------------
+
+
+@record_source("breakpoint")
+def _breakpoint(s: RecordSources, name: str) -> pd.Index:
+    """No breakpoint: `PyPSA.to_datarecord` writes no curve of `c.piecewise`."""
+    return pd.Index([], dtype=int)
+
+
+@record_source("CVaR_alpha", "CVaR_omega")
+def _cvar(s: RecordSources, name: str) -> xr.DataArray:
+    """No risk preference: `PyPSA.to_datarecord` does not write `n.risk_preference`."""
+    return xr.DataArray(np.nan)
+
+
+@record_source("COMPONENT_big_m")
+def _big_m(s: RecordSources, name: str, c: Components) -> xr.DataArray:
+    """Return PyPSA's big-M of a committable and extendable unit, which only a network states."""
+    extendable = s.da(c, c._operational_attrs["nom_extendable"]).astype(bool)
+    if not (s.da(c, "committable").astype(bool) & extendable).any():
+        return s.filled(name, np.nan)
+    return _SOURCES["COMPONENT_big_m"](s, name, c)
