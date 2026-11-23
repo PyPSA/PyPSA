@@ -16,6 +16,7 @@ from pypsa.optimization.spec._render import (
     WORD,
     _load,
     _merge,
+    _read_only,
     _snake,
     formulated,
     renamer,
@@ -109,10 +110,17 @@ def test_a_constraint_states_its_scaling_rule_apart_from_the_spec(
 SHARED = {"dimensions": {"bus": {"description": "nodes"}}, "parameters": {"p": {}}}
 
 
-def test_a_merge_drops_given_and_keeps_a_shared_entry_stated_alike():
+def test_a_merge_collects_given_and_keeps_a_shared_entry_stated_alike():
     spec = {k: dict(v) for k, v in SHARED.items()}
     _merge(spec, {"dimensions": {"bus": {}}, "given": {"parameters": {"q": {}}}}, "f")
-    assert spec == SHARED
+    assert spec == SHARED | {"given": {"parameters": {"q": {}}}}
+
+
+def test_a_fragment_reads_only_what_none_of_its_files_declare():
+    spec = SHARED | {
+        "given": {"parameters": {"p": {}, "q": {}}, "variables": {"p": {}}}
+    }
+    assert _read_only(spec) == SHARED | {"given": {"parameters": {"q": {}}}}
 
 
 @pytest.mark.parametrize(

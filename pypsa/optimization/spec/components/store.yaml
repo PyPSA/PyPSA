@@ -2,6 +2,11 @@
 #
 # SPDX-License-Identifier: MIT
 
+given:
+  expressions:
+    scenario_opex: {dims: [scenario]}
+    Bus_injection: {dims: [scenario, snapshot, bus]}
+
 parameters:
   Store_e_min_pu:
     description: least energy stored, per unit of nominal capacity; negative for a store that may go short
@@ -63,7 +68,10 @@ expressions:
     expression: >-
       Store_operating_cost((Store_p + Store_p_store) * Store_marginal_cost_dispatch)
       + Store_operating_cost(Store_p_store * Store_marginal_cost_store)
-  Store_injection: sum(Store_sign * Store_p, over=Store, by=Store_bus[bus])
+    adds_to: scenario_opex
+  Store_injection:
+    expression: sum(Store_sign * Store_p, over=Store, by=Store_bus[bus])
+    adds_to: Bus_injection
 
 constraints:
   Store_fix_e_lower:

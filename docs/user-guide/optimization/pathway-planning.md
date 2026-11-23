@@ -114,7 +114,7 @@ Global constraints can be defined as a budget over all investment periods, e.g.
 for CO~2~ emissions. The energy of each snapshot counts with the snapshot
 weighting $w^{\mathrm{g}}_t$ times the years $W^{\mathrm{y}}_a$ of its period:
 
-<!-- md:spec GlobalConstraint_primary_energy_ub GlobalConstraint_energy_weight -->
+<!-- md:spec GlobalConstraint_ub GlobalConstraint_energy_weight -->
 
 They can also be defined as a limit for each investment period, e.g. for CO~2~
 emissions. Then the global constraint names an `investment_period`, and only
@@ -124,7 +124,7 @@ generators and storage.
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend GlobalConstraint_primary_energy_ub GlobalConstraint_energy_weight -->
+    <!-- md:spec-legend GlobalConstraint_ub GlobalConstraint_energy_weight -->
 
     The dual variable $\mu$ of the constraint is stored in `n.global_constraints.mu`.
 

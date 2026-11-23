@@ -13,9 +13,11 @@ By default, global constraints span across all investment periods. For models wi
 
 !!! note "Naming Convention"
 
-    Global constraints carry the name scheme `GlobalConstraint-{type}-{sense}` in the Linopy model, with the sense `upper` (`<=`), `lower` (`>=`) or `fix` (`==`), as in `GlobalConstraint-primary_energy-upper`. Each is indexed by `name`, the global constraints of that type and sense. All `flow_based` rows share the one constraint `GlobalConstraint-ram`, indexed by `name`. Their net positions and the balance of the net positions are `FlowBased-net_position` and `FlowBased-balance`.
+    The global constraints of every type but `flow_based` share one constraint per sense in the Linopy model: `GlobalConstraint-upper` (`<=`), `GlobalConstraint-lower` (`>=`) and `GlobalConstraint-fix` (`==`). Each is indexed by `name`, the global constraints of that sense. All `flow_based` rows share the one constraint `GlobalConstraint-ram`, indexed by `name`. Their net positions and the balance of the net positions are `FlowBased-net_position` and `FlowBased-balance`.
 
-Each global constraint $\gamma$ bounds a sum over components by its `constant` $\Gamma_{\gamma,s}$. The `sense` selects one of three rows per type: `_ub` for `"<="`, `_lb` for `">="` and `_eq` for `"=="`. This page shows the `"<="` rows. The [formulation reference](formulation/index.md#GlobalConstraint_primary_energy_ub) lists all of them.
+Each global constraint $\gamma$ bounds the sum of its type by its `constant` $\Gamma_{\gamma,s}$. The `sense` selects one of three rows: `GlobalConstraint_ub` for `"<="`, `GlobalConstraint_lb` for `">="` and `GlobalConstraint_eq` for `"=="`. The [formulation reference](formulation/index.md#GlobalConstraint_ub) lists all of them. The sections below show the sum of each type.
+
+<!-- md:spec GlobalConstraint_ub GlobalConstraint_total -->
 
 ## Primary Energy
 
@@ -23,7 +25,7 @@ The primary energy constraints (`type="primary_energy"`) are used to limit bypro
 
 Suppose there is a global constraint defined for CO~2~ emissions (`carrier_attribute`) with sense "<=" (`sense`) and a limit $\Gamma$ (`constant`). Emissions can come from generators whose energy carriers have CO~2~ emissions, and from stores and storage units whose storage medium releases or absorbs CO~2~ when it is converted:
 
-<!-- md:spec GlobalConstraint_primary_energy_ub primary_energy GlobalConstraint_energy_weight -->
+<!-- md:spec primary_energy GlobalConstraint_energy_weight -->
 
 === "Generator"
 
@@ -45,7 +47,7 @@ The shadow price $\mu$ of the constraint would represent the CO~2~ price in this
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend GlobalConstraint_primary_energy_ub GlobalConstraint_energy_weight Generator_primary_energy Generator_primary_input StorageUnit_withdrawal Store_withdrawal -->
+    <!-- md:spec-legend GlobalConstraint_ub GlobalConstraint_energy_weight Generator_primary_energy Generator_primary_input StorageUnit_withdrawal Store_withdrawal -->
 
 ## Operational Limit
 
@@ -55,7 +57,7 @@ For example, this can be used to limit the usage of gas in the system to a
 certain amount $\Gamma$ (`constant` in MWh). With sense "<=" (`sense`), the
 constraint is given by
 
-<!-- md:spec GlobalConstraint_operational_limit_ub operational_limit Generator_operational_limit StorageUnit_operational_limit Store_operational_limit -->
+<!-- md:spec operational_limit Generator_operational_limit StorageUnit_operational_limit Store_operational_limit -->
 
 The weights `*_operational_limit_weight` are one for the components of the constraint's carrier (and bus, if given) and zero otherwise. The withdrawal of stores and storage units is the same as for the [primary energy limit](#primary-energy). Structurally, the constraint is similar to the primary energy limit, but
 without the consideration of specific emissions and efficiencies. The shadow
@@ -64,31 +66,31 @@ the operational limit were relaxed by one unit.
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend GlobalConstraint_operational_limit_ub Generator_operational_limit StorageUnit_operational_limit Store_operational_limit -->
+    <!-- md:spec-legend GlobalConstraint_ub Generator_operational_limit StorageUnit_operational_limit Store_operational_limit -->
 
 ## Volume Limit on Transmission Expansion
 
 This global constraint can be used to limit the expansion volume in MWkm of transmission lines and links (`type="transmission_volume_expansion_limit"`). The `carrier_attribute` specifies the subset of carriers to consider. These can be individual carriers or concatenated by commas, e.g. "AC", "DC", "AC,DC", or a [`Link`][pypsa.components.Links] carrier such as "H2 pipeline". With `sense="<="`, the constraint is defined as
 
-<!-- md:spec GlobalConstraint_transmission_volume_expansion_limit_ub transmission_volume_expansion Line_transmission_volume_expansion Link_transmission_volume_expansion -->
+<!-- md:spec transmission_volume_expansion Line_transmission_volume_expansion Link_transmission_volume_expansion -->
 
 where the weights `Line_volume_weight` and `Link_volume_weight` are the `length` in km of the extendable lines and links with the specified carriers (zero for all others), $P_l$ and $F_k$ are their capacities in MW and $\Gamma$ is the maximum allowed volume expansion in MWkm. The shadow price $\mu$ represents the marginal benefit of expanding the transmission capacity in currency/MWkm/a.
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend GlobalConstraint_transmission_volume_expansion_limit_ub Line_transmission_volume_expansion Link_transmission_volume_expansion -->
+    <!-- md:spec-legend GlobalConstraint_ub Line_transmission_volume_expansion Link_transmission_volume_expansion -->
 
 ## Cost Limit on Transmission Expansion
 
 This global constraint can be used to limit the total investment cost in currency/a of transmission lines and links (`type="transmission_expansion_cost_limit"`). The `carrier_attribute` specifies the subset of carriers to consider. These can be individual carriers or concatenated by commas, e.g. "AC", "DC", "AC,DC", or a [`Link`][pypsa.components.Links] carrier such as "H2 pipeline". With `sense="<="`, the constraint is defined as
 
-<!-- md:spec GlobalConstraint_transmission_expansion_cost_limit_ub transmission_expansion_cost Line_transmission_expansion_cost Link_transmission_expansion_cost -->
+<!-- md:spec transmission_expansion_cost Line_transmission_expansion_cost Link_transmission_expansion_cost -->
 
 where the weights `Line_expansion_cost_weight` and `Link_expansion_cost_weight` are the capital costs in currency/MW/a of the extendable lines and links with the specified carriers (zero for all others), and $\Gamma$ is the maximum allowed cost of line expansion in currency/a. The shadow price $\mu$ represents how much the total system cost could be reduced if the spending limit was increased by one currency/a.
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend GlobalConstraint_transmission_expansion_cost_limit_ub Line_transmission_expansion_cost Link_transmission_expansion_cost -->
+    <!-- md:spec-legend GlobalConstraint_ub Line_transmission_expansion_cost Link_transmission_expansion_cost -->
 
 ## Expansion Limit
 
@@ -100,7 +102,7 @@ This global constraint can be used to limit the total capacity of components of 
 
 For example, the capacities of all onshore wind generators (`carrier_attribute="onshore wind"`) at a certain bus (`bus="DE"`) should be smaller (`sense="<="`) than a hypothetical technical potential of 200 GW for onshore wind in the specific region (`constant=200e3`). Then the technology capacity expansion constraint across all *active* components is given by
 
-<!-- md:spec GlobalConstraint_tech_capacity_expansion_limit_ub tech_capacity_expansion -->
+<!-- md:spec tech_capacity_expansion -->
 
 === "Generator"
 
@@ -130,7 +132,7 @@ The weight `*_tech_capacity_weight` is one for an extendable component of the sp
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend GlobalConstraint_tech_capacity_expansion_limit_ub Generator_tech_capacity_expansion StorageUnit_tech_capacity_expansion Store_tech_capacity_expansion Link_tech_capacity_expansion Process_tech_capacity_expansion Line_tech_capacity_expansion -->
+    <!-- md:spec-legend GlobalConstraint_ub Generator_tech_capacity_expansion StorageUnit_tech_capacity_expansion Store_tech_capacity_expansion Link_tech_capacity_expansion Process_tech_capacity_expansion Line_tech_capacity_expansion -->
 
 ## Growth Limit per Carrier
 

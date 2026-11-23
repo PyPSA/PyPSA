@@ -2,6 +2,10 @@
 #
 # SPDX-License-Identifier: MIT
 
+given:
+  expressions:
+    Bus_injection: {dims: [scenario, snapshot, bus]}
+
 parameters:
   StorageUnit_p_min_pu:
     description: least power, per unit of nominal power
@@ -45,6 +49,7 @@ expressions:
   StorageUnit_injection:
     expression: >-
       sum(StorageUnit_sign * (StorageUnit_p_dispatch - StorageUnit_p_store), over=StorageUnit, by=StorageUnit_bus[bus])
+    adds_to: Bus_injection
 
 conditions:
   StorageUnit_fix:

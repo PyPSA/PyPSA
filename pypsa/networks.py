@@ -727,7 +727,7 @@ class Network(
          * Generator-ext-p-lower (name, scenario, snapshot)
          * Generator-ext-p_nom-lower (name)
          * Generator-ext-p-upper (name, scenario, snapshot)
-         * GlobalConstraint-primary_energy-upper (name, scenario)
+         * GlobalConstraint-upper (name, scenario)
          * Kirchhoff-Voltage-Law (cycle, scenario, snapshot)
          * Line-ext-s-lower (name, scenario, snapshot)
          * Line-ext-s_nom-lower (name)

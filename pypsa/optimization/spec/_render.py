@@ -152,7 +152,7 @@ def _claim(entry: dict[str, Any]) -> dict[str, Any]:
 
 
 def _merge(spec: dict[str, Any], fragment: dict[str, Any], origin: str) -> None:
-    """Add the entries of *fragment* to *spec*, but its `given:`.
+    """Add the entries of *fragment* to *spec*, and its `given:` entries to those of *spec*.
 
     A dimension or relation may repeat where it states what it stated before.
     """
@@ -161,6 +161,8 @@ def _merge(spec: dict[str, Any], fragment: dict[str, Any], origin: str) -> None:
             spec.setdefault(section, body)
             continue
         if section == "given":
+            for kind, entries in body.items():
+                spec.setdefault("given", {}).setdefault(kind, {}).update(entries)
             continue
         held = spec.setdefault(section, {})
         shared = section in ("dimensions", "relations")
@@ -173,6 +175,19 @@ def _merge(spec: dict[str, Any], fragment: dict[str, Any], origin: str) -> None:
             msg = f"{origin} declares {sorted(twice)} in `{section}`, which another file declares too."
             raise ValueError(msg)
         held |= {k: v for k, v in body.items() if k not in held}
+
+
+def _read_only(spec: dict[str, Any]) -> dict[str, Any]:
+    """Return *spec* with only the `given:` entries none of its own sections declare."""
+    given = spec.pop("given", {})
+    declared = {k for body in spec.values() if isinstance(body, dict) for k in body}
+    kept = {
+        kind: {k: v for k, v in entries.items() if k not in declared}
+        for kind, entries in given.items()
+    }
+    return spec | (
+        {"given": {k: v for k, v in kept.items() if v}} if any(kept.values()) else {}
+    )
 
 
 def _renamed(patch: Any, rename: Callable[[str], str]) -> Any:
@@ -201,51 +216,57 @@ def render(
 ) -> tuple[Spec, Names, Scalings]:
     """Return the spec *root* states, its PyPSA names and scaling rules, with the patch in *patch* laid over.
 
-    It is `system.yaml`, then for each component every trait file under
-    `traits/` it declares, renamed, and its own file under `components/`,
-    wherever *root* has one. A file under *patch* at one of these paths is
-    part of the patch. An entry of a variable, constraint or piecewise
-    curve may state its PyPSA name in `name:`, one per loss mode where
-    PyPSA names it by mode; one without keeps its key as name. A
+    It is `system.yaml`, merged with one fragment per component: every
+    trait file under `traits/` it declares, renamed, and its own file under
+    `components/`, wherever *root* has one. A fragment reads under `given:`
+    what `system.yaml` or another component declares, and adds its terms to
+    the sums of `system.yaml` with `adds_to:`. A file under *patch* at one
+    of these paths is part of the patch. An entry of a variable, constraint
+    or piecewise curve may state its PyPSA name in `name:`, one per loss
+    mode where PyPSA names it by mode; one without keeps its key as name. A
     constraint may name the rule of its row factors in `scaling:`, one of
     `SCALINGS`.
 
-    The files are joined as a dict, not by `mathspec.merge`, which needs
-    each file to load on its own: `system.yaml` and the component files
-    read what the traits declare.
-
     Raises:
-        ValueError: Two files declare one entry.
-        mathspec.errors.LanguageError: A trait does not load on its own.
+        ValueError: Two files of one fragment declare one entry.
+        mathspec.errors.LanguageError: A trait or fragment does not load on
+            its own, or two fragments declare one entry.
 
     """
     import mathspec  # noqa: PLC0415
 
     import pypsa  # noqa: PLC0415
 
-    paths: list[tuple[str, Callable[[str], str]]] = [("system.yaml", lambda n: n)]
+    groups: list[tuple[list[str], Callable[[str], str]]] = [
+        (["system.yaml"], lambda n: n)
+    ]
     for c in formulated(pypsa.Network()):
-        rename = renamer(c)
-        paths += [(f"traits/{t}.yaml", rename) for t in c._formulation]
-        paths.append((f"components/{_snake(c.name)}.yaml", rename))
-    spec: dict[str, Any] = {}
+        paths = [f"traits/{t}.yaml" for t in c._formulation]
+        groups.append(([*paths, f"components/{_snake(c.name)}.yaml"], renamer(c)))
+    fragments: list[dict[str, Any]] = []
     patched: dict[str, Any] = {}
     names: Names = {section: {} for section in NAMED}
     scalings: Scalings = {}
-    for path, rename in paths:
-        if (root / path).is_file():
-            fragment, found, scaled = _load(root / path, rename)
-            if path.startswith("traits/"):
-                renamed = mathspec.rename(fragment, rename).to_dict()
-                fragment = _described(renamed, rename)
-            _merge(spec, fragment, str(root / path))
-            names = {s: names[s] | found[s] for s in NAMED}
-            scalings |= scaled
-        if patch is not None and (patch / path).is_file():
-            fragment, found, scaled = _load(patch / path, rename)
-            _merge(patched, _renamed(fragment, rename), str(patch / path))
-            names = {s: names[s] | found[s] for s in NAMED}
-            scalings |= scaled
-    rendered = mathspec.to_spec(spec)
-    overridden = mathspec.override(rendered, [patched]) if patched else rendered
-    return overridden, names, scalings
+    for paths, rename in groups:
+        spec: dict[str, Any] = {}
+        for path in paths:
+            if (root / path).is_file():
+                fragment, found, scaled = _load(root / path, rename)
+                if path.startswith("traits/"):
+                    renamed = mathspec.rename(fragment, rename).to_dict()
+                    fragment = _described(renamed, rename)
+                _merge(spec, fragment, str(root / path))
+                names = {s: names[s] | found[s] for s in NAMED}
+                scalings |= scaled
+            if patch is not None and (patch / path).is_file():
+                fragment, found, scaled = _load(patch / path, rename)
+                _merge(patched, _renamed(fragment, rename), str(patch / path))
+                names = {s: names[s] | found[s] for s in NAMED}
+                scalings |= scaled
+        fragments.append(_read_only(spec))
+    merged = mathspec.merge(fragments)
+    return (
+        mathspec.override(merged, [patched]) if patched else merged,
+        names,
+        scalings,
+    )

@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: MIT
 
 given:
+  expressions:
+    tech_capacity_expansion: {dims: [global_constraint]}
+    Carrier_additions: {dims: [period, carrier]}
   variables:
     COMPONENT_NOM_ext: {dims: [UNIT]}
 
@@ -32,5 +35,7 @@ relations:
 expressions:
   COMPONENT_tech_capacity_expansion:
     expression: sum(COMPONENT_NOM_ext * COMPONENT_tech_capacity_weight, over=UNIT)
+    adds_to: tech_capacity_expansion
   COMPONENT_additions:
     expression: sum(COMPONENT_NOM_ext * COMPONENT_first_active, over=UNIT, by=COMPONENT_carrier[carrier])
+    adds_to: Carrier_additions

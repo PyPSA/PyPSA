@@ -3,6 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 given:
+  expressions:
+    scenario_opex: {dims: [scenario]}
+    primary_energy: {dims: [scenario, global_constraint]}
+    operational_limit: {dims: [scenario, global_constraint]}
   parameters:
     GlobalConstraint_counts_snapshot: {dims: [scenario, snapshot, global_constraint], dtype: bool}
     COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
@@ -182,14 +186,17 @@ expressions:
       + sum((COMPONENT_inflow - COMPONENT_spill) * snapshot_weightings_stores * COMPONENT_counted_years, over=snapshot)
   COMPONENT_primary_energy:
     expression: sum(COMPONENT_withdrawal * COMPONENT_primary_energy_weight, over=UNIT)
+    adds_to: primary_energy
   COMPONENT_operational_limit:
     expression: sum(COMPONENT_withdrawal * COMPONENT_operational_limit_weight, over=UNIT)
+    adds_to: operational_limit
   COMPONENT_storage_opex:
     expression: >-
       sum(sum((COMPONENT_LEVEL * COMPONENT_marginal_cost_storage * snapshot_weightings_objective)
       * at(period_weight_objective, by=snapshot_period[period]), over=UNIT), over=snapshot)
       + sum(sum((COMPONENT_spill * COMPONENT_spill_cost * snapshot_weightings_objective)
       * at(period_weight_objective, by=snapshot_period[period]), over=UNIT), over=snapshot)
+    adds_to: scenario_opex
 
 conditions:
   COMPONENT_level_opens:

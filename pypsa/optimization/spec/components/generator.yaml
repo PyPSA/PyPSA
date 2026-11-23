@@ -2,6 +2,15 @@
 #
 # SPDX-License-Identifier: MIT
 
+given:
+  expressions:
+    primary_energy: {dims: [scenario, global_constraint]}
+    operational_limit: {dims: [scenario, global_constraint]}
+    Bus_injection: {dims: [scenario, snapshot, bus]}
+    GlobalConstraint_energy_weight: {dims: [scenario, global_constraint, snapshot]}
+  parameters:
+    GlobalConstraint_type: {dims: [global_constraint], dtype: str}
+
 parameters:
   Generator_efficiency_curve_p:
     description: >-
@@ -40,11 +49,14 @@ expressions:
   Generator_primary_energy:
     expression: >-
       sum(sum((Generator_primary_input * GlobalConstraint_energy_weight) * Generator_primary_energy_weight, over=snapshot), over=Generator)
+    adds_to: primary_energy
   Generator_operational_limit:
     expression: >-
       sum(sum((Generator_p * GlobalConstraint_energy_weight) * Generator_operational_limit_weight, over=snapshot), over=Generator)
+    adds_to: operational_limit
   Generator_injection:
     expression: sum(Generator_sign * Generator_p, over=Generator, by=Generator_bus[bus])
+    adds_to: Bus_injection
 
 conditions:
   Generator_efficiency_curve:

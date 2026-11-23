@@ -11,6 +11,7 @@ given:
   variables:
     COMPONENT_NOM_ext: {dims: [UNIT]}
   expressions:
+    Bus_injection: {dims: [scenario, snapshot, bus]}
     Outage_s: {dims: [scenario, snapshot, outage]}
     COMPONENT_NOM_rated: {dims: [scenario, UNIT]}
 
@@ -107,6 +108,7 @@ expressions:
       + sum(COMPONENT_s, over=UNIT, by=COMPONENT_bus1[bus])
       - (0.5 * sum(COMPONENT_loss, over=UNIT, by=COMPONENT_bus0[bus]))
       - (0.5 * sum(COMPONENT_loss, over=UNIT, by=COMPONENT_bus1[bus]))
+    adds_to: Bus_injection
 
 conditions:
   COMPONENT_lossy:

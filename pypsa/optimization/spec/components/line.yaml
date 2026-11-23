@@ -2,8 +2,16 @@
 #
 # SPDX-License-Identifier: MIT
 
+given:
+  expressions:
+    Cycle_angle_sum: {dims: [scenario, snapshot, cycle]}
+  parameters:
+    deg2rad: {dims: []}
+
 expressions:
-  Line_angle_sum: sum(Line_s * at(Line_cycle_weight, by=snapshot_period[period]), over=Line)
+  Line_angle_sum:
+    expression: sum(Line_s * at(Line_cycle_weight, by=snapshot_period[period]), over=Line)
+    adds_to: Cycle_angle_sum
 
 constraints:
   Line_v_ang_lower:

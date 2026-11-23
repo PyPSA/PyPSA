@@ -22,6 +22,7 @@ given:
     COMPONENT_n_mod: {dims: [UNIT]}
     COMPONENT_p: {dims: [scenario, snapshot, UNIT]}
   expressions:
+    scenario_opex: {dims: [scenario]}
     COMPONENT_NOM_effective: {dims: [scenario, UNIT]}
     COMPONENT_NOM_rated: {dims: [scenario, UNIT]}
   conditions:
@@ -282,6 +283,7 @@ expressions:
       by=snapshot_period[period]), over=UNIT), over=snapshot)
       + sum(sum((COMPONENT_shut_down * COMPONENT_shut_down_cost) * at(period_weight_objective,
       by=snapshot_period[period]), over=UNIT), over=snapshot)
+    adds_to: scenario_opex
 
 conditions:
   COMPONENT_committed:

@@ -86,9 +86,7 @@ def test_optimize_link_only_network_skips_topology():
     [
         pytest.param("Generator-p", ("name", "scenario", "snapshot"), id="var"),
         pytest.param("Generator-p_nom", ("name",), id="shared-var"),
-        pytest.param(
-            "GlobalConstraint-primary_energy-upper", ("name", "scenario"), id="static"
-        ),
+        pytest.param("GlobalConstraint-upper", ("name", "scenario"), id="static"),
         pytest.param(
             "Kirchhoff-Voltage-Law", ("cycle", "scenario", "snapshot"), id="kvl"
         ),
