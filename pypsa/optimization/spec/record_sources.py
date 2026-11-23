@@ -83,6 +83,7 @@ COMPONENT_META = frozenset(
         "_port_suffix",
         "_port_coefficient_attr",
         "_unsuffixed_attrs",
+        "get_delay_source_indexer",
     }
 )
 #: What a network states of its component types, whatever it holds.
@@ -128,7 +129,9 @@ class _Component:
 
     @property
     def static(self) -> pd.DataFrame:
-        """PyPSA's static frame of the type, read off the record."""
+        """PyPSA's static frame of the type, read off the record; a SubNetwork's is the built network's."""
+        if self._meta.name == "SubNetwork":
+            return self.__getattr__("static")
         return self._s.static_frame(self._meta)
 
     @property
