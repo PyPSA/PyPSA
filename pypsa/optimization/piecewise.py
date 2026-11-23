@@ -309,7 +309,14 @@ def _get_breakpoints(
         x_breakpoints = breakpoints(x_da)
         if cumulative_attr:
             slopes = y_da.shift({BREAKPOINT_DIM: -1})
-            y_breakpoints = Slopes(slopes, y0=0).to_breakpoints(x_da)
+            # Anchor the integral at x = 0, not at the first breakpoint, so that
+            # curves starting below zero (e.g. Links with p_min_pu < 0) cost
+            # nothing at zero output.
+            widths_below_zero = x_da.clip(max=0).diff(BREAKPOINT_DIM, label="upper")
+            y0 = -(y_da.isel({BREAKPOINT_DIM: slice(1, None)}) * widths_below_zero).sum(
+                BREAKPOINT_DIM
+            )
+            y_breakpoints = Slopes(slopes, y0=y0).to_breakpoints(x_da)
         else:
             y_breakpoints = breakpoints(
                 (y_da * x_da).fillna(0).where(valid_breakpoints)

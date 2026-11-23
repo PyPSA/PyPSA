@@ -50,6 +50,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix piecewise `marginal_cost` curves starting below zero, e.g. on a [Link](./user-guide/components/links.md) with `p_min_pu < 0`. They now cost nothing at zero output. Before, they added a constant cost in every snapshot, which for committable components changed the optimum. See [#2119](https://github.com/PyPSA/PyPSA/issues/2119).
 - Fix building multi-period models with [`n.optimize(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.__call__] when a link is inactive in some investment periods, which raised a `ValueError` about NaN constants with the stricter arithmetic of upcoming linopy releases. (<!-- md:pr 2180 -->)
 - Re-exporting a network to an existing CSV folder now removes the files of components that no longer exist. Before, the stale files were kept and the removed components reappeared on import. (<!-- md:pr 2158 -->)
 - Fix importing networks from Excel files given as a URL, which raised a `FileNotFoundError`. (<!-- md:pr 2158 -->)
