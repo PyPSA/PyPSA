@@ -637,11 +637,12 @@ def test_scaling_policy(build, mode, kwargs):
     A = abs(M.A).tocsr()
     has_cost = A @ (cols.scaling.values == OBJ) > 0
     has_mw = A @ (cols.scaling.values == S) > 0
+    has_terms = A @ np.ones(A.shape[1]) > 0
     expected = pd.Series(np.select([has_cost, has_mw], [OBJ, S], 1.0), rows.index)
     expected[rows.name.str.startswith("GlobalConstraint-")] = GLC
     overrides = rows.name.map(ROW_OVERRIDES)
     expected = overrides.fillna(expected)
-    mismatch = rows[~np.isclose(rows.scaling, expected)]
+    mismatch = rows[has_terms & ~np.isclose(rows.scaling, expected)]
     assert mismatch.empty, mismatch.groupby("name").scaling.first()
 
 

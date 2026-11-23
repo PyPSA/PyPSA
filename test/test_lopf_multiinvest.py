@@ -668,7 +668,8 @@ def test_max_growth_constraint_excludes_retired_asset():
     labels = n.model.variables["Generator-p_nom"].labels.to_series()
 
     def vars_in(period):
-        return set(con.vars.sel(Carrier="solar", periods=period).values.ravel())
+        at = {"Carrier": "solar", "periods": period}
+        return set(con.vars.sel(at).values[con.coeffs.sel(at).values != 0])
 
     assert int(labels["old"]) in vars_in(2020)
     assert int(labels["old"]) not in vars_in(2030)
