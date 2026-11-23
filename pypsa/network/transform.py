@@ -619,7 +619,8 @@ class NetworkTransformMixin(_NetworkABC):
             new.add(c.name, c.static.index, **c.static)
             if with_time:
                 for k, v in c.dynamic.items():
-                    new._import_series_from_df(v, c.name, k)
+                    if not v.empty:
+                        new._import_series_from_df(v, c.name, k)
 
         return None if inplace else new
 
