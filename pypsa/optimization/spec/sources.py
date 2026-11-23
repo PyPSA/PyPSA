@@ -527,9 +527,14 @@ def _labels(s: NetworkSources, name: str) -> pd.Index:
     return getattr(s, f"{name}s")
 
 
+def network_labels(labels: pd.Index) -> pd.Index:
+    """Return component labels in their network dtype, as objects where there are none."""
+    return pd.Index(labels if len(labels) else labels.astype(object), name=None)
+
+
 @source("bus")
 def _buses(s: NetworkSources, name: str) -> pd.Index:
-    return pd.Index(s.n.components.buses.names, dtype=object)
+    return network_labels(s.n.components.buses.names)
 
 
 @source("carrier")
@@ -551,7 +556,7 @@ def _units(s: NetworkSources, name: str, c: Components) -> pd.Index:
     A one-port unit at a bus the network lacks is left out, as PyPSA's
     nodal balance never reaches it.
     """
-    names = pd.Index(c.active_assets, dtype=object, name=None)
+    names = network_labels(c.active_assets)
     if "bus" not in c.static:
         return names
     bus = of_scenario(c.static, s.n)["bus"].reindex(names)

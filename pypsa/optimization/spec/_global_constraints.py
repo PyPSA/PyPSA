@@ -17,6 +17,7 @@ import xarray as xr
 from pypsa.optimization.spec.sources import (
     BASE_SCENARIO,
     NetworkSources,
+    network_labels,
     of_scenario,
     source,
 )
@@ -299,7 +300,7 @@ def _max_relative_growth(s: NetworkSources, name: str) -> xr.DataArray:
 @source("global_constraint")
 def _global_constraint(s: NetworkSources, name: str) -> pd.Index:
     """Return the rows PyPSA builds: every `flow_based` row and every other row whose set holds a unit."""
-    labels = pd.Index(s.n.components.global_constraints.names, dtype=object)
+    labels = network_labels(s.n.components.global_constraints.names)
     types = _rows(s, "type", labels)
     built = set(labels[(types == "flow_based").any(axis=1)])
     for suffix, (kind, cell) in _WEIGHTS.items():
