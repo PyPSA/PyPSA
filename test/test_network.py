@@ -896,6 +896,30 @@ def test_single_add_network_with_time(ac_dc_network, n_5bus):
     assert new_buses.issuperset(n_5bus.c.buses.static.index)
 
 
+def test_merge_keeps_empty_dynamic_output():
+    """Merging keeps empty dynamic outputs empty (#1606)."""
+    snapshots = pd.date_range("2024-01-01", periods=3, freq="h")
+
+    n = pypsa.Network()
+    n.set_snapshots(snapshots)
+    n.add("Bus", ["bus1", "bus2"])
+    n.add("Link", "link1", bus0="bus1", bus1="bus2")
+
+    other = pypsa.Network()
+    other.set_snapshots(snapshots)
+    other.add("Bus", ["bus3", "bus4"])
+    other.add("Link", "link2", bus0="bus3", bus1="bus4")
+    other.add("Load", "load1", bus="bus3", p_set=[1.0, 2.0, 3.0])
+
+    assert n.c.links.dynamic["p0"].empty
+    assert other.c.links.dynamic["p0"].empty
+
+    merged = n.merge(other, with_time=True)
+
+    assert merged.c.links.dynamic["p0"].empty
+    assert merged.c.loads.dynamic["p_set"]["load1"].tolist() == [1.0, 2.0, 3.0]
+
+
 def test_shape_reprojection(ac_dc_shapes):
     n = ac_dc_shapes
 

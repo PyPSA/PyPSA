@@ -63,9 +63,11 @@ SPDX-License-Identifier: CC-BY-4.0
 - Add a new example on [forecast errors and the value of foresight](./examples/forecast-errors.ipynb), which operates a price-taker battery against price forecasts that are reissued every day and settles the committed schedule at realised prices. (<!-- md:pr 1928 -->)
 - Added an [example notebook](./examples/data-centre-investment.ipynb) on data centre investment with a willingness to pay, modelled as an extendable generator with negative sign and quadratic marginal costs.
 - Extend the [unit commitment example](./examples/unit-commitment.ipynb) with committable demand: load shedding in blocks and flexible demand with start-up cost. (<!-- md:pr 2147 -->)
+- Moved the AI-based contribution guidelines to their own page, [AI-based Contributions](contributing/ai.md), reachable at docs.pypsa.org/ai. (<!-- md:pr 2194 -->)
 
 ### Bug Fixes
 
+- Fix [`n.merge`][pypsa.Network.merge] filling dynamic output data such as the links' `p0` with default values, even when the data was absent from both input networks. Empty time series are now skipped during the merge.
 - Fix modelling-to-generate-alternatives (MGA) objectives that combine weights across component types with different names under linopy v1 semantics.
 - Fix building multi-period models with [`n.optimize(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.__call__] when a link is inactive in some investment periods, which raised a `ValueError` about NaN constants with the stricter arithmetic of upcoming linopy releases. (<!-- md:pr 2180 -->)
 - Re-exporting a network to an existing CSV folder now removes the files of components that no longer exist. Before, the stale files were kept and the removed components reappeared on import. (<!-- md:pr 2158 -->)
