@@ -514,7 +514,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir`.
             They extend and override `options.params.optimize.model_kwargs`.
-            The model is built sparse unless `sparse=False` is given.
+            The model is always built sparse.
 
         Returns
         -------

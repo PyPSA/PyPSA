@@ -64,18 +64,17 @@ NETWORKS = {
 }
 
 
-@pytest.mark.parametrize("sparse", [False, True])
 @pytest.mark.parametrize("network", NETWORKS)
-def test_scaled_matches_unscaled(network, sparse):
+def test_scaled_matches_unscaled(network):
     build, factors = NETWORKS[network]
     ref = build()
     ref.optimize()
     n = scale(build(), factors)
     n.c.global_constraints.static.scaling = 1e-3
-    n.optimize(model_kwargs={"sparse": sparse}, objective_scaling=1e-6)
+    n.optimize(objective_scaling=1e-6)
 
     cons = n.model.constraints
-    assert all(cons[name].lhs.is_sparse == sparse for name in cons)
+    assert all(cons[name].lhs.is_sparse for name in cons)
     for name in cons:
         if name.startswith("GlobalConstraint-"):
             assert (cons[name].scaling == 1e-3).all()

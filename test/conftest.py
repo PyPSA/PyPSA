@@ -115,12 +115,6 @@ def pytest_addoption(parser):
         help="Activate the new components API (options.future.components_api)",
     )
     parser.addoption(
-        "--linopy-dense",
-        action="store_true",
-        default=False,
-        help="Build optimization models on linopy's dense backend",
-    )
-    parser.addoption(
         "--test-docs",
         action="store_true",
         default=False,
@@ -144,8 +138,6 @@ def pytest_configure(config):
     """Configure pytest session with custom options."""
     if config.getoption("--new-components-api"):
         pypsa.options.future.components_api = True
-    if config.getoption("--linopy-dense"):
-        pypsa.options.params.optimize.model_kwargs = {"sparse": False}
 
 
 def pytest_collection_modifyitems(config, items):
