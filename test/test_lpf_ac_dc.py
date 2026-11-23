@@ -106,3 +106,32 @@ def test_lpf_contingency_unaffected_subnetwork():
     p0 = n.lpf_contingency(n.snapshots[0], branch_outages=[("Line", "al0")])
     assert not p0[("Line", "al0")].isna().any()
     equal(p0[("Line", "al0")].to_numpy(), [0.0, 100.0, 30.0, 30.0])
+
+
+@pytest.mark.parametrize("inactive_line", [False, True])
+def test_lpf_contingency_single_bus_sub_network(inactive_line):
+    # https://github.com/PyPSA/PyPSA/issues/966
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2026-01-01", periods=1, freq="h"))
+    n.add("Bus", ["a", "b", "c"])
+    n.add("Bus", "h2", carrier="H2")
+    n.add(
+        "Line",
+        ["ab", "bc", "ca"],
+        bus0=["a", "b", "c"],
+        bus1=["b", "c", "a"],
+        x=0.1,
+        s_nom=100,
+    )
+    if inactive_line:
+        n.add("Line", "h2a", bus0="h2", bus1="a", x=0.1, active=False)
+    n.add("Generator", "g", bus="a", control="Slack", p_set=70)
+    n.add("Load", "l", bus="c", p_set=60)
+    n.add("Link", "electrolysis", bus0="b", bus1="h2", p_nom=10, p_set=10)
+    n.add("Store", "h2 store", bus="h2")
+
+    p0 = n.lpf_contingency(n.snapshots[0], branch_outages=["ab", "bc", "ca"])
+
+    p0 = p0.loc["Line"].loc[["ab", "bc", "ca"]]
+    equal(p0["base"].to_numpy(), [80 / 3, 50 / 3, -130 / 3])
+    equal(p0[("Line", "ab")].to_numpy(), [0.0, -10.0, -70.0])
