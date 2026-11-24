@@ -45,6 +45,7 @@ expressions:
       sum(sum((Generator_p * GlobalConstraint_energy_weight) * Generator_operational_limit_weight, over=snapshot), over=Generator)
   Generator_injection:
     expression: sum(Generator_sign * Generator_p, over=Generator, by=Generator_bus[bus])
+    adds_to: Bus_injection
 
 conditions:
   Generator_efficiency_curve:

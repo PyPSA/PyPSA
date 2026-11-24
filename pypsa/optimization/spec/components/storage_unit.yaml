@@ -45,6 +45,7 @@ expressions:
   StorageUnit_injection:
     expression: >-
       sum(StorageUnit_sign * (StorageUnit_p_dispatch - StorageUnit_p_store), over=StorageUnit, by=StorageUnit_bus[bus])
+    adds_to: Bus_injection
 
 conditions:
   StorageUnit_fix:

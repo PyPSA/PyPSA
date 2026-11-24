@@ -11,6 +11,14 @@ description: >-
   at its conditional value at risk (CVaR). A plain run has one scenario, one
   period, unit weights and no outage.
 
+given:
+  expressions:
+    Bus_injection:
+      description: >-
+        what every component puts into a bus, less what it takes out; each
+        component adds its term with `adds_to:`
+      dims: [scenario, snapshot, bus]
+
 dimensions:
   scenario:
     description: the futures dispatch is chosen in, each with a weight
@@ -310,19 +318,7 @@ expressions:
     description: a zone bus's net position leaves the bus
     dims: [scenario, snapshot, bus]
     expression: -FlowBased_net_position
-  Bus_injection:
-    description: what every component puts into a bus, less what it takes out
-    dims: [scenario, snapshot, bus]
-    expression: >-
-      FlowBased_injection
-      + Generator_injection
-      + Line_injection
-      + Link_injection
-      + Load_injection
-      + Process_injection
-      + StorageUnit_injection
-      + Store_injection
-      + Transformer_injection
+    adds_to: Bus_injection
   Cycle_angle_sum:
     description: the voltage angle differences around a cycle, phase shifts included
     dims: [scenario, snapshot, cycle]
@@ -348,12 +344,6 @@ constraints:
     dims: [scenario, snapshot, cycle]
     where: at(Cycle_in_basis, by=snapshot_period[period])
     expression: Cycle_scale * Cycle_angle_sum == 0
-  Bus_nodal_balance:
-    name: Bus-nodal_balance
-    description: what enters a bus equals what leaves it
-    dims: [scenario, snapshot, bus]
-    where: Bus_attached
-    expression: Bus_injection == 0
   GlobalConstraint_ub:
     name: GlobalConstraint-upper
     scaling: global

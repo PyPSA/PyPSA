@@ -4,7 +4,8 @@
 
 """Render the spec as pages of the docs, one per source file.
 
-`system.yaml` gives the index page. Each file under `traits/` gives a
+`system.yaml` and the files of `PEERS` give the index page, with the sums
+`system.yaml` reads under `given:`, which the components add to. Each file under `traits/` gives a
 page, rendered for the first component that declares it. Each component
 gives a page with all that holds for it: its traits, renamed, and its own
 file under `components/`. An entry shows its math and its source, renamed,
@@ -30,6 +31,7 @@ from mathspec.program import ExpressionReference, Relation
 
 import pypsa
 from pypsa.optimization.spec._render import (
+    PEERS,
     _load,
     _renamed,
     _snake,
@@ -372,7 +374,11 @@ def _trait(trait: str, entries: list[Entry], ctx: _Context) -> str:
 @functools.cache
 def _files(root: Traversable) -> tuple[list[Entry], dict[str, Groups]]:
     """Return the entries of the system file under *root*, and of each component its entries grouped by source file."""
-    system = _entries(root / "system.yaml", lambda name: name, INDEX)
+    system = [
+        *_entries(root / "system.yaml", lambda name: name, INDEX),
+        *_sums(root / "system.yaml"),
+        *(e for p in PEERS for e in _entries(root / p, lambda name: name, INDEX)),
+    ]
     groups = {
         c.name: [
             *(
@@ -389,6 +395,17 @@ def _files(root: Traversable) -> tuple[list[Entry], dict[str, Groups]]:
         for c in formulated(pypsa.Network())
     }
     return system, groups
+
+
+def _sums(path: Traversable) -> list[Entry]:
+    """Return the sums the system file at *path* reads under `given:`; the components add their terms with `adds_to:`."""
+    if not path.is_file():
+        return []
+    given = _load(path, lambda name: name)[0].get("given", {})
+    return [
+        Entry(k, "expressions", v, INDEX)
+        for k, v in given.get("expressions", {}).items()
+    ]
 
 
 def _every(root: Traversable) -> list[Entry]:

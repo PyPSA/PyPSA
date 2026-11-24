@@ -11,6 +11,7 @@ given:
   variables:
     COMPONENT_NOM_ext: {dims: [UNIT]}
   expressions:
+    Bus_injection: {dims: [scenario, snapshot, bus]}
     Outage_s: {dims: [scenario, snapshot, outage]}
     COMPONENT_NOM_rated: {dims: [scenario, UNIT]}
 
@@ -102,6 +103,7 @@ expressions:
     otherwise: 0
   COMPONENT_injection:
     description: the flow leaves `bus0` and enters `bus1`; each end loses half the loss
+    adds_to: Bus_injection
     expression: >-
       -sum(COMPONENT_s, over=UNIT, by=COMPONENT_bus0[bus])
       + sum(COMPONENT_s, over=UNIT, by=COMPONENT_bus1[bus])

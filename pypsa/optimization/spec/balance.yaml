@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: mathspec Contributors
+#
+# SPDX-License-Identifier: MIT
+
+given:
+  expressions:
+    Bus_injection: {dims: [scenario, snapshot, bus]}
+  parameters:
+    Bus_attached: {dims: [bus, snapshot], dtype: bool}
+
+dimensions:
+  scenario: {}
+  snapshot: {dtype: str, ordered: true}
+  bus: {}
+
+constraints:
+  Bus_nodal_balance:
+    name: Bus-nodal_balance
+    description: what enters a bus equals what leaves it
+    dims: [scenario, snapshot, bus]
+    where: Bus_attached
+    expression: Bus_injection == 0

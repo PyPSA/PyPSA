@@ -42,6 +42,8 @@ Names = dict[str, dict[str, Name]]
 NAMED = ("variables", "constraints", "piecewise")
 #: The rules a constraint may name in `scaling:` for the factor of its rows.
 SCALINGS = frozenset({"bus", "objective", "none", "cycle", "carrier", "global"})
+#: The files composed with the joined spec by `mathspec.merge`, each reading sums the joined spec adds to.
+PEERS = ("balance.yaml",)
 #: The scaling rule of each entry that names one, by its key.
 Scalings = dict[str, str]
 #: A word of a name, between `_` or `-`.
@@ -212,7 +214,10 @@ def render(
 
     The files are joined as a dict, not by `mathspec.merge`, which needs
     each file to load on its own: `system.yaml` and the component files
-    read what the traits declare.
+    read what the traits declare. The joined spec reads under `given:` the
+    sums `system.yaml` names there, and the files add their terms with
+    `adds_to:`. `mathspec.merge` then composes it with each file of `PEERS`,
+    which reads those sums, and writes each sum from its terms.
 
     Raises:
         ValueError: Two files declare one entry.
@@ -235,6 +240,8 @@ def render(
     for path, rename in paths:
         if (root / path).is_file():
             fragment, found, scaled = _load(root / path, rename)
+            if path == "system.yaml" and "given" in fragment:
+                spec["given"] = fragment["given"]
             if path.startswith("traits/"):
                 renamed = mathspec.rename(fragment, rename).to_dict()
                 fragment = _described(renamed, rename)
@@ -246,6 +253,16 @@ def render(
             _merge(patched, _renamed(fragment, rename), str(patch / path))
             names = {s: names[s] | found[s] for s in NAMED}
             scalings |= scaled
-    rendered = mathspec.to_spec(spec)
+    peers = [spec]
+    for path in PEERS:
+        if (root / path).is_file():
+            fragment, found, scaled = _load(root / path, lambda n: n)
+            peers.append(fragment)
+            names = {s: names[s] | found[s] for s in NAMED}
+            scalings |= scaled
+    if len(peers) == 1:
+        rendered = mathspec.to_spec(spec)
+    else:
+        rendered = mathspec.merge(peers, description=spec.get("description"))
     overridden = mathspec.override(rendered, [patched]) if patched else rendered
     return overridden, names, scalings

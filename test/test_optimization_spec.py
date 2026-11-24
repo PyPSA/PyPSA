@@ -36,6 +36,14 @@ def test_every_declared_trait_has_one_file():
     assert declared == stated
 
 
+@pytest.mark.parametrize("component", [c.name for c in formulated(pypsa.Network())])
+def test_every_component_adds_its_injection_to_the_bus_balance(component):
+    terms = re.findall(r"\w+", str(spec().expressions["Bus_injection"].expression))
+    assert f"{component}_injection" in terms, (
+        "a component reaches the nodal balance only through `adds_to: Bus_injection`"
+    )
+
+
 @pytest.mark.parametrize(
     ("component", "name", "renamed"),
     [

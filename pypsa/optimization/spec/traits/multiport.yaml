@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 given:
+  expressions:
+    Bus_injection: {dims: [scenario, snapshot, bus]}
   parameters:
     COMPONENT_NOM: {dims: [scenario, UNIT]}
     COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
@@ -94,6 +96,7 @@ expressions:
     description: what the ports deliver to each bus, less what they draw from it
     dims: [scenario, snapshot, bus]
     expression: sum(COMPONENT_port_arrival, over=[UNIT, port], by=COMPONENT_port_bus[bus])
+    adds_to: Bus_injection
 
 conditions:
   COMPONENT_COEF_curve:
