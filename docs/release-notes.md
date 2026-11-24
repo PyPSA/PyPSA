@@ -29,7 +29,6 @@ SPDX-License-Identifier: CC-BY-4.0
     - **Behavior change**: The voltage angles `v_ang` after the optimization are now zero at the slack bus of each sub-network, as in [`n.lpf()`][pypsa.Network.lpf]. Before, they were shifted to zero mean per sub-network. Angle differences across lines are unchanged.
 - [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] now builds its model from a declarative YAML specification of the PyPSA formulation in `pypsa/optimization/spec/`, read by linopy. The call and the results are unchanged. Requires Python 3.12 and `linopy>=1.0`. (<!-- md:pr 2128 -->)
     - [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] takes `overrides`: YAML files, YAML text or dictionaries that edit, remove or add entries of the specification. See [Overriding the formulation](./user-guide/optimization/custom-constraints.md#overriding-the-formulation).
-    - The checked specification is cached in PyPSA's user cache directory, so the first model build of a new process is about 2.5 s faster. Switch off with `pypsa.options.optimization.formulation_cache = False`.
     - **Behavior change**: The modules `pypsa.optimization.constraints` and `pypsa.optimization.variables` and the `define_*` functions are removed.
     - **Behavior change**: A component without any active row gets no constraint, where it got a fully masked one before.
     - **Behavior change**: Unsupported input is now refused with a `ValueError` that quotes the broken assumption, where some cases raised `NotImplementedError` before.

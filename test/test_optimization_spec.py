@@ -66,7 +66,7 @@ def test_a_trait_description_takes_the_names_of_the_component(tmp_path):
         "dimensions:\n  UNIT_port: {}\nparameters:\n  COMPONENT_COEF_x:\n"
         "    dims: [UNIT_port]\n    description: the `COEF` of a `UNIT` port\n"
     )
-    spec = render(tmp_path).check()
+    spec = render(tmp_path)[0]
     assert spec.parameters["Link_efficiency_x"].description == (
         "the `efficiency` of a `Link` port"
     )
@@ -88,7 +88,7 @@ def test_a_trait_is_a_spec_of_its_own(trait, component):
 
 @pytest.mark.parametrize("section", ["variables", "constraints"])
 def test_a_key_is_its_linopy_name_with_underscores(section):
-    named = render(SPEC).names[section]
+    named = render(SPEC)[1][section]
     mismatched = {}
     for key, name in named.items():
         names = [name] if isinstance(name, str) else name.values()

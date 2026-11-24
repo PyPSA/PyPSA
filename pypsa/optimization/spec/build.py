@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import functools
+import json
 import re
 from collections.abc import Mapping
 from importlib.resources import files
@@ -36,11 +37,9 @@ from pypsa.optimization.scaling import (
     check_sub_networks,
     global_constraint_factors,
 )
-from pypsa.optimization.spec import _cache
 from pypsa.optimization.spec._passive_network import cycle_scaling
 from pypsa.optimization.spec._render import (
     Names,
-    Rendered,
     Scalings,
     formulated,
     renamer,
@@ -70,8 +69,8 @@ def _unit_dims() -> tuple[str, ...]:
 
 
 @functools.cache
-def _rendered(linearized_unit_commitment: bool) -> Rendered:
-    """Return the PyPSA names, the scaling rules, the cache key and the check of the spec, rendered once per process."""
+def _rendered(linearized_unit_commitment: bool) -> tuple[Spec, Names, Scalings]:
+    """Return the spec, its PyPSA names and its scaling rules, rendered once per process."""
     return render(SPEC, _patch(linearized_unit_commitment))
 
 
@@ -103,6 +102,16 @@ def _expanded(s: Spec) -> tuple[Spec, Spec]:
     return s, s.expand("piecewise")
 
 
+@functools.cache
+def _base(linearized_unit_commitment: bool) -> tuple[Spec, Spec]:
+    return _expanded(_rendered(linearized_unit_commitment)[0])
+
+
+#: The most patched formulations kept in memory; the oldest go first.
+KEEP = 8
+_PATCHED: dict[str, tuple[Spec, Spec]] = {}
+
+
 def _formulation(
     linearized_unit_commitment: bool = False,
     piecewise_options: Sequence[PiecewiseOptions] = (),
@@ -111,16 +120,21 @@ def _formulation(
     """Return the spec of `spec()` and its piecewise curves written out, which linopy builds from."""
     import mathspec  # noqa: PLC0415
 
-    rendered = _rendered(linearized_unit_commitment)
-    base = _cache.cached(rendered.key, lambda: _expanded(rendered.check()))
+    base = _base(linearized_unit_commitment)
     piecewise = (
         [_piecewise_patch(base[0], piecewise_options)] if piecewise_options else []
     )
     patches = [*piecewise, *map(_layer, overrides)]
     if not patches:
         return base
-    key = _cache.digest([rendered.key, patches])
-    return _cache.cached(key, lambda: _expanded(mathspec.override(base[0], patches)))
+    key = json.dumps(
+        [linearized_unit_commitment, patches], sort_keys=True, default=repr
+    )
+    if key not in _PATCHED:
+        _PATCHED[key] = _expanded(mathspec.override(base[0], patches))
+        while len(_PATCHED) > KEEP:
+            del _PATCHED[next(iter(_PATCHED))]
+    return _PATCHED[key]
 
 
 def spec(
@@ -210,13 +224,13 @@ def _piecewise_patch(base: Spec, options: Sequence[PiecewiseOptions]) -> dict:
 @functools.cache
 def spec_names(linearized_unit_commitment: bool = False) -> Names:
     """Return the PyPSA names the spec states, patched for linearised unit commitment on request."""
-    return _rendered(linearized_unit_commitment).names
+    return _rendered(linearized_unit_commitment)[1]
 
 
 @functools.cache
 def spec_scalings(linearized_unit_commitment: bool = False) -> Scalings:
     """Return the scaling rules the spec states, patched for linearised unit commitment on request."""
-    return _rendered(linearized_unit_commitment).scalings
+    return _rendered(linearized_unit_commitment)[2]
 
 
 def pypsa_name(name: str, named: dict, mode: str | None = None) -> str:

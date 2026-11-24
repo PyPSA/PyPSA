@@ -2,15 +2,11 @@
 #
 # SPDX-License-Identifier: MIT
 
-import logging
-
 import pytest
 import yaml
 from mathspec.errors import LanguageError
 
-import pypsa
-from pypsa.optimization.spec import _cache
-from pypsa.optimization.spec.build import _formulation, spec
+from pypsa.optimization.spec.build import spec
 
 HALF = {
     "dims": ["Generator", "scenario", "snapshot"],
@@ -18,13 +14,6 @@ HALF = {
     "expression": "Generator_p <= 0.5 * Generator_p_max_pu * Generator_p_nom_ext",
 }
 OVERRIDE = {"constraints": {"Generator_ext_p_upper": None, "Generator_p_half": HALF}}
-
-
-@pytest.fixture
-def cache(tmp_path, monkeypatch):
-    monkeypatch.setattr(_cache, "directory", lambda: tmp_path)
-    monkeypatch.setattr(_cache, "_MEMORY", {})
-    return tmp_path
 
 
 def _as(form, tmp_path):
@@ -77,45 +66,6 @@ def test_an_override_of_another_type_fails(ac_dc_network, override):
         ac_dc_network.optimize.create_model(overrides=[override])
 
 
-def test_the_cache_key_follows_the_content():
-    assert _cache.digest([OVERRIDE]) == _cache.digest([dict(OVERRIDE)])
-    assert _cache.digest([OVERRIDE]) != _cache.digest([{"constraints": {}}])
-
-
-def test_a_cached_value_is_read_from_disk_by_a_new_process(cache, monkeypatch):
-    calls = []
-    assert _cache.cached("k", lambda: calls.append(1) or "v") == "v"
-    monkeypatch.setattr(_cache, "_MEMORY", {})
-    assert _cache.cached("k", lambda: calls.append(1) or "w") == "v"
-    assert calls == [1]
-    assert [p.name for p in cache.iterdir()] == ["k.pkl"]
-
-
-def test_an_unreadable_cached_value_is_made_again(cache, caplog):
-    (cache / "k.pkl").write_bytes(b"not a pickle")
-    with caplog.at_level(logging.WARNING):
-        assert _cache.cached("k", lambda: "v") == "v"
-    assert "unreadable" in caplog.text
-    assert _cache._read(cache / "k.pkl") == "v"
-
-
-def test_the_cache_keeps_the_most_recently_used_files(cache, monkeypatch):
-    monkeypatch.setattr(_cache, "KEEP", 2)
-    for key in "abc":
-        _cache.cached(key, lambda: key)
-    assert sorted(p.name for p in cache.iterdir()) == ["b.pkl", "c.pkl"]
-
-
-def test_the_cache_stays_off_disk_when_disabled(cache):
-    with pypsa.option_context("optimization.formulation_cache", False):
-        _cache.cached("k", lambda: "v")
-    assert not list(cache.iterdir())
-
-
-def test_a_cached_formulation_equals_the_checked_one(cache, monkeypatch):
-    checked = _formulation(overrides=[OVERRIDE])
-    monkeypatch.setattr(_cache, "_MEMORY", {})
-    read = _formulation(overrides=[OVERRIDE])
-    assert read == checked
-    assert len(list(cache.iterdir())) == 2
-    assert "Generator_p_half" in spec(overrides=[OVERRIDE]).constraints
+def test_an_override_is_kept_by_its_content():
+    assert spec(overrides=[OVERRIDE]) is spec(overrides=[yaml.safe_dump(OVERRIDE)])
+    assert spec(overrides=[OVERRIDE]) is not spec()

@@ -175,10 +175,8 @@ constraints:
 n.optimize(overrides=["half.yaml"])
 ```
 
-PyPSA checks the specification with its overrides once and keeps the result in
-its user cache directory, so a new process with the same overrides skips the
-check. Set `pypsa.options.optimization.formulation_cache = False` to keep it in
-memory only.
+PyPSA checks the specification with its overrides once per process, so a
+repeated build with the same overrides skips the check.
 
 ## Handling snapshots in multi-investment optimizations
 
