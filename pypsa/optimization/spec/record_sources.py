@@ -47,14 +47,21 @@ from datarecord.tools.pypsa import (
     _weightings,
 )
 
+from pypsa.components._types.stores import needs_split_dispatch
+from pypsa.components.components import (
+    committable_big_m_scale,
+    committable_big_m_values,
+)
 from pypsa.constants import HOURS_PER_YEAR
 from pypsa.costs import periodized_cost
+from pypsa.network.topology import cycle_matrices, outage_factors
 from pypsa.optimization.spec._render import formulated
 from pypsa.optimization.spec.sources import (
     _SOURCES,
     BASE_SCENARIO,
     NetworkSources,
     _providers,
+    of_scenario,
     source,
 )
 
@@ -129,10 +136,17 @@ class _Component:
 
     @property
     def static(self) -> pd.DataFrame:
-        """PyPSA's static frame of the type, read off the record; a SubNetwork's is the built network's."""
-        if self._meta.name == "SubNetwork":
-            return self.__getattr__("static")
+        """PyPSA's static frame of the type, read off the record."""
         return self._s.static_frame(self._meta)
+
+    @property
+    def capital_cost(self) -> pd.Series:
+        """The cost of capacity over the horizon without fixed operation and maintenance, by member."""
+        static = self.static
+        inputs = ("capital_cost", "overnight_cost", "discount_rate", "lifetime")
+        return periodized_cost(
+            **{k: static[k] for k in inputs}, fom_cost=None, nyears=self._s.nyears
+        )
 
     @property
     def names(self) -> pd.Index:
@@ -522,6 +536,49 @@ class RecordSources(NetworkSources):
             mask = mask & (built <= period) & (period < retired)
         return mask.transpose(SNAPSHOT, c._unit_dim)
 
+    @functools.cached_property
+    def nyears(self) -> float | pd.Series:
+        """The years the record's snapshots span, by period where it has periods."""
+        weights = self.weightings(SNAPSHOT, self.network_index)["objective"]
+        if self.shape.multiperiod:
+            return weights.groupby(level=PERIOD).sum() / HOURS_PER_YEAR
+        return weights.sum() / HOURS_PER_YEAR
+
+    def passive(self, period: int | None) -> tuple[pd.Series, pd.DataFrame]:
+        """Return the passive network as tables: the carrier of each bus, and the passive branches.
+
+        A branch connects its buses where it is active and, for a period,
+        built and not retired in it. For a period only such a branch is a
+        member of a sub-network.
+        """
+        buses = of_scenario(self.static_frame(self.meta.c["Bus"]), self.n)[CARRIER]
+        columns = ["bus0", "bus1", "active", "x_pu", "x_pu_eff", "r_pu_eff"]
+        frames = {}
+        for name in sorted(self.meta.passive_branch_components):
+            c = _Component(self, self.meta.c[name])
+            if not len(c.names):
+                continue
+            static = of_scenario(c.static, self.n)[columns]
+            connects = static.index.isin(c._active_names(period))
+            member = connects if period is not None else True
+            frames[name] = static.assign(connects=connects, member=member)
+        if not frames:
+            empty = pd.MultiIndex.from_arrays([[], []])
+            return buses, pd.DataFrame(
+                columns=[*columns, "connects", "member"], index=empty
+            )
+        return buses, pd.concat(frames)
+
+    def cycle_matrices(self, period: int | None) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Return the cycle matrix of a period, plain and weighted, from the record's tables."""
+        return cycle_matrices(*self.passive(period), self.cycle_basis_method)
+
+    def outage_factors(
+        self, period: int | None, outages: pd.MultiIndex
+    ) -> pd.DataFrame:
+        """Return the outage factors of a period, branches by outage, from the record's tables."""
+        return outage_factors(*self.passive(period), outages)
+
     def weightings(self, dim: str, labels: pd.Index) -> pd.DataFrame:
         """Return the weightings of a record dim by label, one where the record states none."""
         columns = [w.column for w in _WEIGHTINGS.values() if w.dim == dim]
@@ -597,14 +654,9 @@ def _period_weight(s: RecordSources, name: str) -> xr.DataArray:
 @record_source("COMPONENT_capital_cost")
 def _capital_cost(s: RecordSources, name: str, c: Components) -> xr.DataArray:
     """Return the cost of capacity over the horizon, as `pypsa.costs.periodized_cost` states it."""
-    weights = s["snapshot_weightings_objective"]
-    nyears: Any = float(weights.sum()) / HOURS_PER_YEAR
-    if s.shape.multiperiod:
-        period = s.network_index.get_level_values(PERIOD)
-        nyears = weights.to_series().groupby(period.to_numpy()).sum() / HOURS_PER_YEAR
     inputs = ("capital_cost", "overnight_cost", "discount_rate", "lifetime", "fom_cost")
     kwargs = {k: s.da(c, k).to_series() for k in inputs if s.takes(c, k)}
-    cost = periodized_cost(**kwargs, nyears=nyears)
+    cost = periodized_cost(**kwargs, nyears=s.nyears)
     labels = {SCENARIO: s.scenarios, c._unit_dim: s.names(c)}
     return cost.to_xarray().reindex(labels)  # type: ignore[union-attr]
 
@@ -672,10 +724,30 @@ def _cvar(s: RecordSources, name: str) -> xr.DataArray:
     return xr.DataArray(np.nan)
 
 
+# -- derivations over the record's values ---------------------------------
+
+
 @record_source("COMPONENT_big_m")
 def _big_m(s: RecordSources, name: str, c: Components) -> xr.DataArray:
-    """Return PyPSA's big-M of a committable and extendable unit, which only a network states."""
-    extendable = s.da(c, c._operational_attrs["nom_extendable"]).astype(bool)
-    if not (s.da(c, "committable").astype(bool) & extendable).any():
+    """Return PyPSA's big-M of each committable and extendable unit, NaN for any other."""
+    nom = c._operational_attrs["nom"]
+    both = s.da(c, "committable").astype(bool) & s.da(c, f"{nom}_extendable").astype(
+        bool
+    )
+    if not both.any():
         return s.filled(name, np.nan)
-    return _SOURCES["COMPONENT_big_m"](s, name, c)
+    default = s.committable_big_m
+    if default is None:
+        load = s.grid("Load", "p_set").sum([SCENARIO, "name"])
+        sizes = (s.grid(c.name, k).to_numpy() for k in (nom, f"{nom}_max"))
+        default = committable_big_m_scale(float(abs(load).max()), *sizes)
+    max_pu = s.da(c, "p_max_pu").max(SNAPSHOT)
+    return committable_big_m_values(s.da(c, f"{nom}_max"), max_pu, default).where(both)
+
+
+@record_source("Store_split_dispatch")
+def _store_split_dispatch(s: RecordSources, name: str) -> xr.DataArray:
+    c = s.units["Store"]
+    inputs = ("efficiency_store", "efficiency_dispatch", "marginal_cost_dispatch")
+    values = (s.da(c, k) for k in (*inputs, "marginal_cost_store", "cycles_max"))
+    return needs_split_dispatch(*values).astype(bool)

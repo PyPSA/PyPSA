@@ -24,7 +24,11 @@ import mathspec
 from datarecord import Workspace
 from datarecord.tools.pypsa import PyPSA
 from linopy import Model
-from test_optimization_spec_equivalence import _multi_period, _scigrid_de
+from test_optimization_spec_equivalence import (
+    _committable_extendable,
+    _multi_period,
+    _scigrid_de,
+)
 
 import pypsa
 from pypsa.optimization.spec.build import spec
@@ -95,59 +99,77 @@ def ac_dc_inactive_unit() -> pypsa.Network:
     return n
 
 
-def multi_period_expansion_limit() -> pypsa.Network:
+def multi_period_expansion_limits() -> pypsa.Network:
     n = _multi_period()
-    n.add(
-        "GlobalConstraint",
-        "generator_capacity",
-        type="tech_capacity_expansion_limit",
-        constant=300,
-        sense="==",
-        carrier_attribute="gencarrier",
-        investment_period=2020,
-    )
+    limits = {
+        "line_volume": ("transmission_volume_expansion_limit", 150, "<=", "AC", None),
+        "line_cost": ("transmission_expansion_cost_limit", 4_000, "==", "AC", 2030),
+        "capacity": ("tech_capacity_expansion_limit", 300, "==", "gencarrier", 2020),
+    }
+    for name, (kind, constant, sense, carrier, period) in limits.items():
+        n.add(
+            "GlobalConstraint",
+            name,
+            type=kind,
+            constant=constant,
+            sense=sense,
+            carrier_attribute=carrier,
+            investment_period=period,
+        )
     return n
 
 
-#: Each case with the keys whose derivation still reads a `pypsa.Network`.
-CASES: dict[str, tuple[Callable[[], pypsa.Network], set[str]]] = {
-    "ac_dc_meshed": (pypsa.examples.ac_dc_meshed, {"cycle"}),
-    "ac_dc_stochastic": (ac_dc_stochastic, {"cycle"}),
-    "ac_dc_inactive_unit": (ac_dc_inactive_unit, {"cycle"}),
-    "storage_hvdc": (lambda: unique(pypsa.examples.storage_hvdc()), {"cycle"}),
-    "scigrid_de": (lambda: unique(cut(_scigrid_de(), 4)), {"cycle"}),
-    "multi_period": (lambda: dated(_multi_period()), {"cycle"}),
-    "multi_period_expansion_limit": (
-        lambda: dated(multi_period_expansion_limit()),
-        {"cycle"},
+def committable_extendable() -> pypsa.Network:
+    """A committable and extendable unit without a capacity limit, so its big-M is inferred."""
+    n = dated(_committable_extendable())
+    n.add("Carrier", "AC")
+    n.c.generators.static.loc["flex", "p_nom_max"] = np.inf
+    return n
+
+
+def first_lines(n: pypsa.Network) -> pd.Index:
+    return n.c.lines.static.index[:2]
+
+
+#: Each case with its build options, one a function of the network where it names units.
+CASES: dict[str, tuple[Callable[[], pypsa.Network], dict[str, Any]]] = {
+    "ac_dc_meshed": (pypsa.examples.ac_dc_meshed, {}),
+    "ac_dc_stochastic": (ac_dc_stochastic, {}),
+    "ac_dc_inactive_unit": (ac_dc_inactive_unit, {}),
+    "storage_hvdc": (lambda: unique(pypsa.examples.storage_hvdc()), {}),
+    "scigrid_de": (lambda: unique(cut(_scigrid_de(), 4)), {}),
+    "scigrid_de_outages": (
+        lambda: unique(cut(_scigrid_de(), 1)),
+        {"branch_outages": first_lines},
+    ),
+    "multi_period": (lambda: dated(_multi_period()), {}),
+    "multi_period_expansion_limits": (
+        lambda: dated(multi_period_expansion_limits()),
+        {},
     ),
     "multi_period_storage_stochastic": (
         lambda: dated(_multi_period(storage=True, scenarios=True)),
-        {"cycle"},
+        {},
     ),
-    "stochastic_network": (
-        lambda: cut(pypsa.examples.stochastic_network(), 24),
-        set(),
-    ),
-    "model_energy": (
-        lambda: cut(pypsa.examples.model_energy(), 24),
-        {"Store_split_dispatch"},
-    ),
+    "stochastic_network": (lambda: cut(pypsa.examples.stochastic_network(), 24), {}),
+    "model_energy": (lambda: cut(pypsa.examples.model_energy(), 24), {}),
+    "unit_commitment_extendable": (committable_extendable, {}),
 }
 
 
 @pytest.fixture(scope="module", params=CASES)
 def case(
     request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
-) -> tuple[NetworkSources, RecordSources, set[str]]:
-    """The sources of a case, from the network and from its record in a store."""
-    build, reads = CASES[request.param]
+) -> tuple[NetworkSources, RecordSources]:
+    """The sources of a case, from the network and, in a strict build, from its record in a store."""
+    build, options = CASES[request.param]
     n = build()
     n.calculate_dependent_values()
-    options = {"multi_invest": n.has_investment_periods}
+    options = {k: v(n) if callable(v) else v for k, v in options.items()}
+    options["multi_invest"] = n.has_investment_periods
     record = stored(n, tmp_path_factory.mktemp(request.param))
     from_network = NetworkSources(n, spec(), n.snapshots, n.snapshots, **options)
-    return from_network, RecordSources(record, spec(), **options), reads
+    return from_network, RecordSources(record, spec(), strict=True, **options)
 
 
 def stored(n: pypsa.Network, path: Path) -> RecordLike:
@@ -196,32 +218,25 @@ def solved(s: Any, sources: NetworkSources) -> Model:
     return m
 
 
-def test_sources_match(case: tuple[NetworkSources, RecordSources, set[str]]) -> None:
-    from_network, from_record, reads = case
+def test_sources_match(case: tuple[NetworkSources, RecordSources]) -> None:
+    from_network, from_record = case
     for name in from_network:
         assert_same(name, from_network[name], from_record[name])
-    assert set(from_record.touched) == reads
+    assert "network" not in vars(from_record)
 
 
-def test_model_matches(case: tuple[NetworkSources, RecordSources, set[str]]) -> None:
-    from_network, from_record, _ = case
+def test_model_matches(case: tuple[NetworkSources, RecordSources]) -> None:
+    from_network, from_record = case
     expected, found = solved(spec(), from_network), solved(spec(), from_record)
     assert entries(found) == entries(expected)
     assert found.objective.value == pytest.approx(expected.objective.value, rel=1e-9)
 
 
-def test_strict_build_reads_no_network(tmp_path: Path) -> None:
-    n = cut(pypsa.examples.stochastic_network(), 24)
-    sources = RecordSources(stored(n, tmp_path), spec(), strict=True)
-    assert solved(spec(), sources).objective.value > 0
-    assert not sources.touched
-    assert "network" not in vars(sources)
-
-
 def test_strict_build_refuses_a_network_read(tmp_path: Path) -> None:
     record = stored(pypsa.examples.ac_dc_meshed(), tmp_path)
-    with pytest.raises(NetworkReadError, match="cycle reads n._cycle_matrices"):
-        Model.from_spec(spec(), RecordSources(record, spec(), strict=True))
+    sources = RecordSources(record, spec(), strict=True)
+    with pytest.raises(NetworkReadError, match="reads n.sub_networks"):
+        sources.n.sub_networks
 
 
 @pytest.mark.parametrize("name", ["multi_period", "ac_dc_inactive_unit"])
