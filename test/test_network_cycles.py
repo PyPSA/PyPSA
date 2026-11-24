@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 import pypsa
-from pypsa.network.graph import (
+from pypsa.network.topology import (
     _bfs_cycle_basis,
     _edge_set_to_cycle,
     bfs_refined_cycle_basis,
