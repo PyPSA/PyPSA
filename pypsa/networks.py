@@ -43,7 +43,7 @@ from pypsa.consistency import NetworkConsistencyMixin
 from pypsa.definitions.structures import Dict
 from pypsa.network.components import NetworkComponentsMixin
 from pypsa.network.descriptors import NetworkDescriptorsMixin
-from pypsa.network.graph import NetworkGraphMixin, _combine_cycles, _sub_network_labels
+from pypsa.network.graph import NetworkGraphMixin, _sub_network_labels
 from pypsa.network.index import NetworkIndexMixin
 from pypsa.network.io import NetworkIOMixin
 from pypsa.network.power_flow import (
@@ -1268,7 +1268,6 @@ class Network(
             for c in map(self.components.__getitem__, self.passive_branch_components)
         )
         labels = _sub_network_labels(buses, ends.bus0, ends.bus1)
-        labels = pd.Series(labels, buses, name="sub_network")
         sub_network_map = labels.astype(str)
 
         # remove all old sub_networks
@@ -1415,18 +1414,29 @@ class Network(
         if not cycles:
             return pd.DataFrame()
 
+        # Combine all cycles and fill missing values with 0
+        cycles_df = pd.concat(cycles, axis=1, ignore_index=True).fillna(0)
+
+        # Get all branch components
+        existing_branch_components = cycles_df.index.unique("type")
         branches = self.branches()
 
         if self.has_scenarios:
             branches = branches.xs(self.scenarios[0], level="scenario")
 
         branches.index.names = ["type", "name"]
+        branches_i = branches.loc[existing_branch_components].index
 
-        weights = None
         if apply_weights:
-            carrier = branches.sub_network.map(self.c.sub_networks.static.carrier)
-            weights = branches.x_pu_eff.where(carrier == "AC", branches.r_pu_eff)
-        return _combine_cycles(cycles, branches.index, weights)
+            is_ac = branches.sub_network.map(self.c.sub_networks.static.carrier) == "AC"
+            weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
+            weights = weights[cycles_df.index]
+            cycles_df = cycles_df.where(
+                cycles_df == 0, cycles_df.multiply(weights, axis=0)
+            )
+
+        # Reindex to include all branches (even those not in cycles)
+        return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
 
     @deprecated(
         deprecated_in="1.0.0",

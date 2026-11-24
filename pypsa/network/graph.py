@@ -5,8 +5,8 @@
 """Graph of the passive network.
 
 Holds the graph methods of network and sub_network, the cycle basis
-algorithms, and private functions that compute the topology from plain tables
-of buses and branches: sub-networks, cycle matrices, incidence, PTDF and BODF.
+algorithms, and private functions that compute the topology from the labels
+of buses and branch ends: sub-networks, cycle matrices and incidence.
 These functions need no network, so other data layers in PyPSA can call them.
 """
 
@@ -21,8 +21,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import scipy as sp
-from scipy.sparse import csc_matrix, csgraph, csr_matrix, dok_matrix, issparse
-from scipy.sparse.linalg import spsolve
+from scipy.sparse import csgraph, csr_matrix, dok_matrix
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Hashable, Iterable, Mapping
@@ -287,21 +286,12 @@ class NetworkGraphMixin:
         if busorder is None:
             busorder = self.c.buses.static.index
 
-        no_buses = len(busorder)
-        no_branches = 0
-        bus0_inds_list = []
-        bus1_inds_list = []
-        for c in self.components:
-            if c.name not in branch_components:
-                continue
-            sel = c.static.query("active").index
-            no_branches += len(c.static.loc[sel])
-            bus0_inds_list.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
-            bus1_inds_list.append(busorder.get_indexer(c.static.loc[sel, "bus1"]))
-        bus0_inds = np.concatenate(bus0_inds_list)
-        bus1_inds = np.concatenate(bus1_inds_list)
-
-        return _incidence_matrix(bus0_inds, bus1_inds, no_buses)
+        ends = pd.concat(
+            c.static.loc[c.static.active, ["bus0", "bus1"]]
+            for c in self.components
+            if c.name in branch_components
+        )
+        return _incidence_matrix(busorder, ends.bus0, ends.bus1)
 
 
 def _bfs_fundamental_cycles(graph: nx.Graph, root: Hashable) -> list[list[Hashable]]:
@@ -458,9 +448,27 @@ def bfs_refined_cycle_basis(
     return cycles
 
 
-def _sub_network_labels(
+def _bus_positions(
     buses: pd.Index, bus0: pd.Series, bus1: pd.Series
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return the position of the two ends of each branch among the buses.
+
+    Raises
+    ------
+    ValueError
+        A branch ends at a bus that `buses` lacks.
+
+    """
+    ends = buses.get_indexer(bus0), buses.get_indexer(bus1)
+    missing = pd.concat([bus0[ends[0] == -1], bus1[ends[1] == -1]])
+    if not missing.empty:
+        pairs = ", ".join(f"{branch} at {bus}" for branch, bus in missing.items())
+        msg = f"Passive branches end at buses that do not exist: {pairs}."
+        raise ValueError(msg)
+    return ends
+
+
+def _sub_network_labels(buses: pd.Index, bus0: pd.Series, bus1: pd.Series) -> pd.Series:
     """Return the connected sub-network that each bus is in, numbered from 0.
 
     Parameters
@@ -476,22 +484,18 @@ def _sub_network_labels(
         A branch ends at a bus that `buses` lacks.
 
     """
-    ends = buses.get_indexer(bus0), buses.get_indexer(bus1)
-    missing = pd.concat([bus0[ends[0] == -1], bus1[ends[1] == -1]])
-    if not missing.empty:
-        pairs = ", ".join(f"{branch} at {bus}" for branch, bus in missing.items())
-        msg = f"Passive branches end at buses that do not exist: {pairs}."
-        raise ValueError(msg)
+    ends = _bus_positions(buses, bus0, bus1)
     size = len(buses)
     adjacency = csr_matrix((np.ones(len(ends[0])), ends), shape=(size, size))
-    return csgraph.connected_components(adjacency, directed=False)[1]
+    labels = csgraph.connected_components(adjacency, directed=False)[1]
+    return pd.Series(labels, buses, name="sub_network")
 
 
 def _cycle_matrix(
     buses: pd.Index,
     bus0: pd.Series,
     bus1: pd.Series,
-    edges: np.ndarray,
+    edges: pd.Series,
     method: str = "bfs-refined",
 ) -> dok_matrix:
     """Return the cycle matrix of one sub-network, branches by cycles.
@@ -507,9 +511,9 @@ def _cycle_matrix(
         The buses of the sub-network, in the order of its graph's nodes.
     bus0, bus1 : pandas.Series
         The two ends of each branch of the sub-network, by its label.
-    edges : numpy.ndarray
+    edges : pandas.Series
         Whether each branch is an edge of the graph: active and of finite
-        impedance.
+        impedance, by its label.
     method : str, default "bfs-refined"
         Either `"bfs-refined"` or `"paton"`.
 
@@ -522,7 +526,9 @@ def _cycle_matrix(
     mgraph.add_nodes_from(buses)
     mgraph.add_edges_from(
         (u, v, key)
-        for u, v, key, edge in zip(bus0, bus1, branches_i, edges, strict=True)
+        for u, v, key, edge in zip(
+            bus0, bus1, branches_i, edges.loc[branches_i], strict=True
+        )
         if edge
     )
     graph = nx.Graph(mgraph)
@@ -555,121 +561,28 @@ def _cycle_matrix(
     return C
 
 
-def _combine_cycles(
-    cycles: list[pd.DataFrame],
-    branches_i: pd.MultiIndex,
-    weights: pd.Series | None = None,
-) -> pd.DataFrame:
-    """Return the cycle matrix of a network from those of its sub-networks.
-
-    Parameters
-    ----------
-    cycles : list of pandas.DataFrame
-        The cycle matrix of each sub-network that has a cycle, by branch; at
-        least one.
-    branches_i : pandas.MultiIndex
-        Every passive branch, `(type, name)`; the result holds those of each
-        type that has a branch in a cycle.
-    weights : pandas.Series, optional
-        The impedance of each branch in a cycle, which multiplies its entries.
-
-    """
-    cycles_df = pd.concat(cycles, axis=1, ignore_index=True).fillna(0)
-    existing = cycles_df.index.unique("type")
-    branches_i = pd.Series(0, branches_i).loc[existing].index
-    if weights is not None:
-        weights = weights[cycles_df.index]
-        cycles_df = cycles_df.where(cycles_df == 0, cycles_df.multiply(weights, axis=0))
-    return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
-
-
-def _incidence_matrix(bus0: np.ndarray, bus1: np.ndarray, n_buses: int) -> csr_matrix:
+def _incidence_matrix(buses: pd.Index, bus0: pd.Series, bus1: pd.Series) -> csr_matrix:
     """Return the incidence matrix, buses by branches.
 
     Parameters
     ----------
-    bus0, bus1 : numpy.ndarray
-        The position of the two ends of each branch among the buses.
-    n_buses : int
-        The number of buses.
+    buses : pandas.Index
+        The buses, in the order of the rows.
+    bus0, bus1 : pandas.Series
+        The two ends of each branch, by its label, in the order of the columns.
+
+    Raises
+    ------
+    ValueError
+        A branch ends at a bus that `buses` lacks.
 
     """
+    rows0, rows1 = _bus_positions(buses, bus0, bus1)
     branches = len(bus0)
     return csr_matrix(
         (
             np.r_[np.ones(branches), -np.ones(branches)],
-            (np.r_[bus0, bus1], np.r_[:branches, :branches]),
+            (np.r_[rows0, rows1], np.r_[:branches, :branches]),
         ),
-        (n_buses, branches),
+        (len(buses), branches),
     )
-
-
-def _susceptance_matrices(
-    z: np.ndarray, K: csr_matrix
-) -> tuple[np.ndarray, csr_matrix, csr_matrix]:
-    """Return the susceptance of each branch, and the matrices `H` and `B` of the linear power flow.
-
-    Parameters
-    ----------
-    z : numpy.ndarray
-        The series impedance of each branch.
-    K : scipy.sparse.csr_matrix
-        The incidence matrix, buses by branches.
-
-    """
-    b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
-    b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
-    H = b_diag * K.T
-    return b, H, K * H
-
-
-def _ptdf(B: csr_matrix, H: csr_matrix) -> np.ndarray:
-    """Return the power transfer distribution factors, branches by buses.
-
-    Parameters
-    ----------
-    B : scipy.sparse.csr_matrix
-        The weighted Laplacian, buses by buses; the first bus is the slack.
-    H : scipy.sparse.csr_matrix
-        The susceptance times the transposed incidence, branches by buses.
-
-    """
-    n_pvpq = B.shape[0] - 1
-    index = np.r_[:n_pvpq]
-    identity = csc_matrix((np.ones(n_pvpq), (index, index)))
-    B_inverse = spsolve(csc_matrix(B[1:, 1:]), identity)
-    if issparse(B_inverse):
-        B_inverse = B_inverse.toarray()
-    elif B_inverse.shape == (1,):
-        B_inverse = B_inverse.reshape((1, 1))
-    B_inverse = np.hstack((np.zeros((n_pvpq, 1)), B_inverse))
-    B_inverse = np.vstack((np.zeros(n_pvpq + 1), B_inverse))
-    return H * B_inverse
-
-
-def _bodf(PTDF: np.ndarray, K: csr_matrix) -> np.ndarray:
-    """Return the branch outage distribution factors, branches by outaged branches.
-
-    After the outage of branch `l`, the flow on branch `k` is its flow
-    before plus `BODF[k, l]` times the flow on `l` before.
-
-    Parameters
-    ----------
-    PTDF : numpy.ndarray
-        The power transfer distribution factors, branches by buses.
-    K : scipy.sparse.csr_matrix
-        The incidence matrix, buses by branches.
-
-    """
-    num_branches = PTDF.shape[0]
-    branch_PTDF = PTDF * K
-    with np.errstate(divide="ignore"):
-        denominator = csr_matrix(
-            (
-                1 / (1 - np.diag(branch_PTDF)),
-                (np.r_[:num_branches], np.r_[:num_branches]),
-            )
-        )
-    factors = branch_PTDF * denominator
-    np.fill_diagonal(factors, -1)
-    return factors

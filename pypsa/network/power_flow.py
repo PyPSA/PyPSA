@@ -18,7 +18,7 @@ import pandas as pd
 from deprecation import deprecated
 from numpy import ones, r_
 from numpy.linalg import norm
-from scipy.sparse import csr_matrix, dok_matrix
+from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, issparse
 from scipy.sparse import hstack as shstack
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
@@ -31,12 +31,7 @@ from pypsa.common import (
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
-from pypsa.network.graph import (
-    _bodf,
-    _cycle_matrix,
-    _ptdf,
-    _susceptance_matrices,
-)
+from pypsa.network.graph import _cycle_matrix
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -732,10 +727,81 @@ def find_cycles(
         if not branches.empty:
             branches = branches.xs(sub_network.n.scenarios[0], level="scenario")
     finite = ~np.isinf(branches[weight]) if weight in branches else True
-    edges = (branches["active"] & finite).to_numpy(dtype=bool)
+    edges = (branches["active"] & finite).astype(bool)
     sub_network.C = _cycle_matrix(
         buses_i, branches["bus0"], branches["bus1"], edges, cycle_basis_method
     )
+
+
+def _susceptance_matrices(
+    z: np.ndarray, K: csr_matrix
+) -> tuple[np.ndarray, csr_matrix, csr_matrix]:
+    """Return the susceptance of each branch, and the matrices `H` and `B` of the linear power flow.
+
+    Parameters
+    ----------
+    z : numpy.ndarray
+        The series impedance of each branch.
+    K : scipy.sparse.csr_matrix
+        The incidence matrix, buses by branches.
+
+    """
+    b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
+    b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
+    H = b_diag * K.T
+    return b, H, K * H
+
+
+def _ptdf(B: csr_matrix, H: csr_matrix) -> np.ndarray:
+    """Return the power transfer distribution factors, branches by buses.
+
+    Parameters
+    ----------
+    B : scipy.sparse.csr_matrix
+        The weighted Laplacian, buses by buses; the first bus is the slack.
+    H : scipy.sparse.csr_matrix
+        The susceptance times the transposed incidence, branches by buses.
+
+    """
+    n_pvpq = B.shape[0] - 1
+    index = np.r_[:n_pvpq]
+    identity = csc_matrix((np.ones(n_pvpq), (index, index)))
+    B_inverse = spsolve(csc_matrix(B[1:, 1:]), identity)
+    if issparse(B_inverse):
+        B_inverse = B_inverse.toarray()
+    elif B_inverse.shape == (1,):
+        B_inverse = B_inverse.reshape((1, 1))
+    B_inverse = np.hstack((np.zeros((n_pvpq, 1)), B_inverse))
+    B_inverse = np.vstack((np.zeros(n_pvpq + 1), B_inverse))
+    return H * B_inverse
+
+
+def _bodf(PTDF: np.ndarray, K: csr_matrix) -> np.ndarray:
+    """Return the branch outage distribution factors, branches by outaged branches.
+
+    After the outage of branch `l`, the flow on branch `k` is its flow
+    before plus `BODF[k, l]` times the flow on `l` before.
+
+    Parameters
+    ----------
+    PTDF : numpy.ndarray
+        The power transfer distribution factors, branches by buses.
+    K : scipy.sparse.csr_matrix
+        The incidence matrix, buses by branches.
+
+    """
+    num_branches = PTDF.shape[0]
+    branch_PTDF = PTDF * K
+    with np.errstate(divide="ignore"):
+        denominator = csr_matrix(
+            (
+                1 / (1 - np.diag(branch_PTDF)),
+                (np.r_[:num_branches], np.r_[:num_branches]),
+            )
+        )
+    factors = branch_PTDF * denominator
+    np.fill_diagonal(factors, -1)
+    return factors
 
 
 @deprecated_common_kwargs
