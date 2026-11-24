@@ -354,28 +354,28 @@ constraints:
     dims: [scenario, snapshot, bus]
     where: Bus_attached
     expression: Bus_injection == 0
-  GlobalConstraint_ub:
+  GlobalConstraint_upper:
     name: GlobalConstraint-upper
     scaling: global
     description: the total is at most the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_sums AND GlobalConstraint_sense == '<='
     expression: GlobalConstraint_total <= GlobalConstraint_constant
-  GlobalConstraint_lb:
+  GlobalConstraint_lower:
     name: GlobalConstraint-lower
     scaling: global
     description: the total is at least the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_sums AND GlobalConstraint_sense == '>='
     expression: GlobalConstraint_total >= GlobalConstraint_constant
-  GlobalConstraint_eq:
+  GlobalConstraint_fix:
     name: GlobalConstraint-fix
     scaling: global
     description: the total equals the constant
     dims: [scenario, global_constraint]
     where: GlobalConstraint_sums AND GlobalConstraint_sense == '=='
     expression: GlobalConstraint_total == GlobalConstraint_constant
-  GlobalConstraint_flow_based_ub:
+  GlobalConstraint_ram:
     name: GlobalConstraint-ram
     description: >-
       a CNEC's flow, the zones' net positions and the corridor links' flows each

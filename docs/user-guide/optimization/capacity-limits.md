@@ -26,15 +26,15 @@ When components are both **committable** (`committable=True`) and **extendable**
 
 === "Generator"
 
-    <!-- md:spec-table Generator_com_ext_p_upper_big_m Generator_com_ext_p_upper_cap Generator_com_ext_p_lower Generator_com_ext_p_lower_nonneg -->
+    <!-- md:spec-table Generator_com_ext_p_upper_bigM Generator_com_ext_p_upper_cap Generator_com_ext_p_lower Generator_com_ext_p_lower_nonneg -->
 
 === "Link"
 
-    <!-- md:spec-table Link_com_ext_p_upper_big_m Link_com_ext_p_upper_cap Link_com_ext_p_lower Link_com_ext_p_lower_nonneg -->
+    <!-- md:spec-table Link_com_ext_p_upper_bigM Link_com_ext_p_upper_cap Link_com_ext_p_lower Link_com_ext_p_lower_nonneg -->
 
 === "Process"
 
-    <!-- md:spec-table Process_com_ext_p_upper_big_m Process_com_ext_p_upper_cap Process_com_ext_p_lower Process_com_ext_p_lower_nonneg -->
+    <!-- md:spec-table Process_com_ext_p_upper_bigM Process_com_ext_p_upper_cap Process_com_ext_p_lower Process_com_ext_p_lower_nonneg -->
 
 where $M_{i,s}$ is a sufficiently large constant (the "big-M") and $\bar{g}$, $\bar{f}$, $\bar{r}$ are the maximum per-unit dispatch limits (`p_max_pu`, default 1). When the status $u = 0$, the big-M constraint forces dispatch to zero. When $u = 1$, the lower bound becomes $g \geq \underline{g} \cdot G$ (minimum part-load) and the upper bound is $g \leq \bar{g} \cdot G$ (capacity limit).
 
@@ -64,15 +64,15 @@ For components that are both committable and extendable with ramp limits, a big-
 
 === "Generator"
 
-    <!-- md:spec-table Generator_p_ramp_limit_up_run_big_m Generator_p_ramp_limit_up_start_big_m Generator_p_ramp_limit_down_run_big_m Generator_p_ramp_limit_down_shut_big_m -->
+    <!-- md:spec-table Generator_p_ramp_limit_up_run_bigM Generator_p_ramp_limit_up_start_bigM Generator_p_ramp_limit_down_run_bigM Generator_p_ramp_limit_down_shut_bigM -->
 
 === "Link"
 
-    <!-- md:spec-table Link_p_ramp_limit_up_run_big_m Link_p_ramp_limit_up_start_big_m Link_p_ramp_limit_down_run_big_m Link_p_ramp_limit_down_shut_big_m -->
+    <!-- md:spec-table Link_p_ramp_limit_up_run_bigM Link_p_ramp_limit_up_start_bigM Link_p_ramp_limit_down_run_bigM Link_p_ramp_limit_down_shut_bigM -->
 
 === "Process"
 
-    <!-- md:spec-table Process_p_ramp_limit_up_run_big_m Process_p_ramp_limit_up_start_big_m Process_p_ramp_limit_down_run_big_m Process_p_ramp_limit_down_shut_big_m -->
+    <!-- md:spec-table Process_p_ramp_limit_up_run_bigM Process_p_ramp_limit_up_start_bigM Process_p_ramp_limit_down_run_bigM Process_p_ramp_limit_down_shut_bigM -->
 
 When the unit was running in the previous snapshot ($u_{i,s,t-1} = 1$), the big-M term vanishes and the normal ramp-up limit `ramp_limit_up` applies. When $u_{i,s,t-1} = 0$, the big-M relaxes the constraint, allowing unrestricted ramp-up. The start-up ramp limit `ramp_limit_start_up` is enforced only during start-up events ($su_{i,s,t} = 1$). The same logic applies symmetrically to ramp-down and shut-down constraints.
 
@@ -80,11 +80,11 @@ When the unit was running in the previous snapshot ($u_{i,s,t-1} = 1$), the big-
 
     === "Generator"
 
-        <!-- md:spec-legend Generator_com_ext_p_upper_big_m Generator_com_ext_p_upper_cap Generator_com_ext_p_lower Generator_com_ext_p_lower_nonneg Generator_p_ramp_limit_up_run_big_m Generator_p_ramp_limit_up_start_big_m Generator_p_ramp_limit_down_run_big_m Generator_p_ramp_limit_down_shut_big_m -->
+        <!-- md:spec-legend Generator_com_ext_p_upper_bigM Generator_com_ext_p_upper_cap Generator_com_ext_p_lower Generator_com_ext_p_lower_nonneg Generator_p_ramp_limit_up_run_bigM Generator_p_ramp_limit_up_start_bigM Generator_p_ramp_limit_down_run_bigM Generator_p_ramp_limit_down_shut_bigM -->
 
     === "Link"
 
-        <!-- md:spec-legend Link_com_ext_p_upper_big_m Link_com_ext_p_upper_cap Link_com_ext_p_lower Link_com_ext_p_lower_nonneg Link_p_ramp_limit_up_run_big_m Link_p_ramp_limit_up_start_big_m Link_p_ramp_limit_down_run_big_m Link_p_ramp_limit_down_shut_big_m -->
+        <!-- md:spec-legend Link_com_ext_p_upper_bigM Link_com_ext_p_upper_cap Link_com_ext_p_lower Link_com_ext_p_lower_nonneg Link_p_ramp_limit_up_run_bigM Link_p_ramp_limit_up_start_bigM Link_p_ramp_limit_down_run_bigM Link_p_ramp_limit_down_shut_bigM -->
 
 
 ## Modularity Constraints

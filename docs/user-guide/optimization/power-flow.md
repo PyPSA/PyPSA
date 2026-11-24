@@ -103,7 +103,7 @@ the `Kirchhoff-Voltage-Law` constraints.
 
 In PyPSA this non-linear function is linearized with piecewise linear constraints. The loss $\psi_{l,s,t}$ is bounded by the loss at full rating (`r_pu_eff * (s_max_pu * s_nom_max)**2`, with `s_nom` for non-extendable branches) and from below by a set of cuts $\epsilon$, one for each direction of flow:
 
-<!-- md:spec Line_loss Line_loss_upper Line_loss_tangents_forward Line_loss_tangents_reverse -->
+<!-- md:spec Line_loss Line_loss_upper Line_loss_tangents_pos Line_loss_tangents_neg -->
 
 Each cut $\epsilon$ is a segment of the linear approximation with slope `Line_loss_slope` and offset `Line_loss_offset`. Transformers have the same constraints (`Transformer_loss_*`).
 
@@ -138,7 +138,7 @@ When passing a dict, the `mode` key selects the method. Additional keys set the 
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend Kirchhoff_Voltage_Law Line_angle_sum Transformer_angle_sum Transformer_phase_shift Line_loss_upper Line_loss_tangents_forward Line_injection -->
+    <!-- md:spec-legend Kirchhoff_Voltage_Law Line_angle_sum Transformer_angle_sum Transformer_phase_shift Line_loss_upper Line_loss_tangents_pos Line_injection -->
 
 ### Secant-Based Linearization with Error Control
 

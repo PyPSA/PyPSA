@@ -6,7 +6,7 @@ parameters:
   Load_p_set:
     description: demand
     dims: [scenario, snapshot, Load]
-  Load_active:
+  Load_active_asset:
     description: whether a load is active; it has no build year or lifetime
     dims: [Load]
     dtype: bool
@@ -16,6 +16,6 @@ expressions:
     description: demand times sign where the load is active, zero otherwise
     dims: [scenario, snapshot, Load]
     cases:
-      active: { when: Load_active, expression: Load_sign * Load_p_set }
+      active: { when: Load_active_asset, expression: Load_sign * Load_p_set }
     otherwise: 0
   Load_injection: sum(Load_demand, over=Load, by=Load_bus[bus])

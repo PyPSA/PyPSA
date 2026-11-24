@@ -70,25 +70,25 @@ constraints:
     name: Store-fix-e-lower
     description: a fixed store holds at least its floor
     dims: [scenario, snapshot, Store]
-    where: not Store_e_nom_extendable AND Store_active AND (Store_e_nom < inf OR Store_e_min_pu == 0)
+    where: Store_fix AND (Store_e_nom < inf OR Store_e_min_pu == 0)
     expression: Store_e >= Store_e_min_pu * Store_e_nom_rated
   Store_fix_e_upper:
     name: Store-fix-e-upper
     description: a fixed store holds at most its nominal capacity
     dims: [scenario, snapshot, Store]
-    where: not Store_e_nom_extendable AND Store_active AND (Store_e_nom < inf OR Store_e_max_pu == 0)
+    where: Store_fix AND (Store_e_nom < inf OR Store_e_max_pu == 0)
     expression: Store_e <= Store_e_max_pu * Store_e_nom_rated
   Store_ext_e_lower:
     name: Store-ext-e-lower
     description: an extendable store holds at least its floor of the chosen build
     dims: [scenario, snapshot, Store]
-    where: Store_e_nom_extendable AND Store_active
+    where: Store_ext
     expression: Store_e >= Store_e_min_pu * Store_e_nom_ext
   Store_ext_e_upper:
     name: Store-ext-e-upper
     description: an extendable store holds at most the chosen build
     dims: [scenario, snapshot, Store]
-    where: Store_e_nom_extendable AND Store_active
+    where: Store_ext
     expression: Store_e <= Store_e_max_pu * Store_e_nom_ext
   Store_fix_p_lower:
     name: Store-fix-p-lower
@@ -97,14 +97,14 @@ constraints:
       not split its dispatch and has no `max_hours`
     dims: [scenario, snapshot, Store]
     where: >-
-      NOT Store_e_nom_extendable AND Store_active AND (Store_split_dispatch OR Store_max_hours)
+      Store_fix AND (Store_split_dispatch OR Store_max_hours)
       AND (Store_e_nom < inf OR Store_split_dispatch OR Store_p_min_pu == 0)
     expression: Store_p + Store_p_store >= Store_discharge_floor_pu * Store_e_nom_rated
   Store_fix_p_upper:
     name: Store-fix-p-upper
     description: a fixed store discharges at most its power rating. No row without `max_hours`
     dims: [scenario, snapshot, Store]
-    where: NOT Store_e_nom_extendable AND Store_active AND Store_max_hours AND (Store_e_nom < inf OR Store_p_max_pu == 0)
+    where: Store_fix AND Store_max_hours AND (Store_e_nom < inf OR Store_p_max_pu == 0)
     expression: Store_p + Store_p_store <= Store_p_max_pu / Store_max_hours * Store_e_nom_rated
   Store_fix_p_store_upper:
     name: Store-fix-p_store-upper
@@ -113,7 +113,7 @@ constraints:
       splits its dispatch, not at all otherwise
     dims: [scenario, snapshot, Store]
     where: >-
-      NOT Store_e_nom_extendable AND Store_active AND (NOT Store_split_dispatch OR Store_max_hours)
+      Store_fix AND (NOT Store_split_dispatch OR Store_max_hours)
       AND (Store_e_nom < inf OR NOT Store_split_dispatch OR Store_p_min_pu == 0)
     expression: Store_p_store <= Store_charge_cap_pu * Store_e_nom_rated
   Store_ext_p_lower:
@@ -122,13 +122,13 @@ constraints:
       an extendable store discharges at least its floor of the chosen build. No
       row for a store that does not split its dispatch and has no `max_hours`
     dims: [scenario, snapshot, Store]
-    where: Store_e_nom_extendable AND Store_active AND (Store_split_dispatch OR Store_max_hours)
+    where: Store_ext AND (Store_split_dispatch OR Store_max_hours)
     expression: Store_p + Store_p_store >= Store_discharge_floor_pu * Store_e_nom_ext
   Store_ext_p_upper:
     name: Store-ext-p-upper
     description: an extendable store discharges at most its power rating of the chosen build. No row without `max_hours`
     dims: [scenario, snapshot, Store]
-    where: Store_e_nom_extendable AND Store_active AND Store_max_hours
+    where: Store_ext AND Store_max_hours
     expression: Store_p + Store_p_store <= Store_p_max_pu / Store_max_hours * Store_e_nom_ext
   Store_ext_p_store_upper:
     name: Store-ext-p_store-upper
@@ -136,7 +136,7 @@ constraints:
       an extendable store charges through `p_store` at most its power rating of
       the chosen build where it splits its dispatch, not at all otherwise
     dims: [scenario, snapshot, Store]
-    where: Store_e_nom_extendable AND Store_active AND (NOT Store_split_dispatch OR Store_max_hours)
+    where: Store_ext AND (NOT Store_split_dispatch OR Store_max_hours)
     expression: Store_p_store <= Store_charge_cap_pu * Store_e_nom_ext
   Store_energy_balance:
     name: Store-energy_balance
