@@ -92,13 +92,13 @@ def test_incidence_matrix_inactive(ac_dc_subnetwork_inactive: SubNetwork) -> Non
     assert A.shape == (len(buses), len(lines[lines["active"]]))
 
 
-
 def test_calculate_B_H_zero_impedance(
     ac_dc_subnetwork: SubNetwork, caplog: pytest.LogCaptureFixture
 ) -> None:
     ac_dc_subnetwork.n.c.lines.static.loc["2", ["x", "r"]] = 0
     ac_dc_subnetwork.calculate_B_H()
     assert "series impedances are zero" in caplog.text
+
 
 @pytest.mark.parametrize(
     ("controls", "slack_generator", "slack_bus", "controls_after"),
