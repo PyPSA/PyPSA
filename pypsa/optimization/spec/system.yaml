@@ -23,7 +23,7 @@ dimensions:
   Generator:
     description: generators, each on one bus
   Link:
-    description: controllable branches, each from `bus0` to the buses its ports deliver to
+    description: controllable branches, each drawing `p` at port 0, `bus0`, and delivering at its further ports
   Process:
     description: converters whose ports each draw or deliver at their own rate of `p`
   port:

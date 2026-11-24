@@ -242,7 +242,7 @@ class NetworkSources(Mapping[str, Any]):
         return self.coords(c._unit_dim)
 
     def ports(self, c: Components) -> pd.DataFrame:
-        """Return the output ports of a multiport read long: one row per unit and set `bus<k>`, with its number `k`."""
+        """Return the ports of a multiport read long: one row per unit and set `bus<k>`, with its number `k`."""
         return self.memo(
             f"{c.name} ports", lambda: _ports_long(self, cast("_Multiport", c))
         )
@@ -510,7 +510,7 @@ def _ports_long(s: NetworkSources, c: _Multiport) -> pd.DataFrame:
     dim = c._unit_dim
     static = s.static(c)
     frames = []
-    for k in sorted(map(int, c._output_ports)):
+    for k in sorted(map(int, c.ports)):
         col = f"bus{k}"
         present = static[col].notna() & (static[col].astype(str).str.strip() != "")
         frames.append(
@@ -749,13 +749,21 @@ def _finite(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
 
 
 def _port_attribute(
-    s: NetworkSources, c: _Multiport, name: str, prefix: str
+    s: NetworkSources, c: _Multiport, name: str, prefix: str, unset: float = np.nan
 ) -> xr.DataArray:
-    """Return the attribute `<prefix><port suffix>` over (unit, port), NaN where a unit has no such port."""
+    """Return the attribute `<prefix><port suffix>` over (unit, port), NaN where a unit has no such port.
+
+    A port that has no such attribute, a Link's port 0, takes `unset`.
+    """
     unit = c._unit_dim
     parts = []
     for k, group in s.ports(c).groupby("port", sort=True):
-        da = s.da(c, f"{prefix}{c._port_suffix(k)}")
+        attr = f"{prefix}{c._port_suffix(k)}"
+        if attr in c.static or attr in c.dynamic:
+            da = s.da(c, attr)
+        else:
+            names = s.names(c).to_numpy()
+            da = xr.DataArray(np.full(len(names), unset), {unit: names}, unit)
         has = da.indexes[unit].isin(group[unit])
         mask = xr.DataArray(has, coords={unit: da.indexes[unit]}, dims=unit)
         parts.append(da.where(mask).expand_dims(port=[k]))
@@ -770,13 +778,13 @@ def _port_attribute(
 @source("Link_efficiency", "Process_rate")
 def _coefficient(s: NetworkSources, name: str) -> xr.DataArray:
     c = s.n.components[name.partition("_")[0]]
-    return _port_attribute(s, c, name, c._coefficient_attr).astype(float)
+    return _port_attribute(s, c, name, c._coefficient_attr, unset=-1).astype(float)
 
 
 @source("COMPONENT_port_delay")
 def _port_delay(s: NetworkSources, name: str, c: _Multiport) -> xr.DataArray:
     try:
-        delay = _port_attribute(s, c, name, "delay")
+        delay = _port_attribute(s, c, name, "delay", unset=0)
     except KeyError:
         return s.filled(name, 0)
     return delay.astype(float).fillna(0).astype(int)

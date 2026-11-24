@@ -22,7 +22,8 @@ parameters:
   COMPONENT_COEF:
     description: >-
       energy a port delivers per unit of `p`, negative where it draws; the
-      value at the snapshot the energy arrives applies. No port means no term
+      value at the snapshot the energy arrives applies. A port without its own
+      coefficient, a Link's `bus0`, draws `p`: minus one. No port means no term
     dims: [scenario, snapshot, UNIT, port]
     missing: absent
   COMPONENT_COEF_curve_p:
@@ -88,6 +89,11 @@ expressions:
         when: COMPONENT_COEF_curve
         expression: COMPONENT_port_curve_arrival
     otherwise: COMPONENT_port_linear_arrival
+
+  COMPONENT_injection:
+    description: what the ports deliver to each bus, less what they draw from it
+    dims: [scenario, snapshot, bus]
+    expression: sum(COMPONENT_port_arrival, over=[UNIT, port], by=COMPONENT_port_bus[bus])
 
 conditions:
   COMPONENT_COEF_curve:

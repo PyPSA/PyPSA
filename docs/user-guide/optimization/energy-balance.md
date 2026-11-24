@@ -22,7 +22,7 @@ The dispatch $g_{i,s,t}$ of a [`Generator`][pypsa.components.Generators] $i$, th
 
 The flow $p_{l,s,t}$ on a [`Line`][pypsa.components.Lines] $l$ (and on a [`Transformer`][pypsa.components.Transformers] $q$) withdraws from `bus0` and feeds in at `bus1` if $p_{l,s,t}>0$. With [lossy transmission](../optimization/power-flow.md#linear-loss-approximation), each end loses half of the loss $\psi_{l,s,t}$.
 
-The flow $f_{k,s,t}$ on a [`Link`][pypsa.components.Links] $k$ withdraws from `bus0`. Each further port $\beta$ (`bus1`, `bus2`, ...) receives what arrives there: $f_{k,s,t}$ times the efficiency $\eta_{\beta,s,t}$ of the port. For a link with more than two outputs (e.g. a combined heat and power plant), there are more ports with their own efficiencies. The efficiencies may also be negative to denote additional inputs rather than multiple outputs.
+The flow $f_{k,s,t}$ on a [`Link`][pypsa.components.Links] $k$ withdraws from `bus0`: port 0 has the efficiency $-1$. Each further port $\beta$ (`bus1`, `bus2`, ...) receives what arrives there: $f_{k,s,t}$ times the efficiency $\eta_{\beta,s,t}$ of the port. For a link with more than two outputs (e.g. a combined heat and power plant), there are more ports with their own efficiencies. The efficiencies may also be negative to denote additional inputs rather than multiple outputs.
 
 For processes, the port of each `bus{i}` receives the internal dispatch $r_{m,s,t}$ of a [`Process`][pypsa.components.Processes] $m$ times the `rate{i}` attribute of the port. A negative rate denotes an input.
 
