@@ -22,7 +22,13 @@ import pandas as pd
 import xarray as xr
 
 from pypsa._options import options
-from pypsa.optimization.spec._render import PLACEHOLDERS, WORD, formulated, renamer
+from pypsa.optimization.spec._render import (
+    PLACEHOLDERS,
+    WORD,
+    formulated,
+    renamer,
+    symbols,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Hashable
@@ -65,7 +71,7 @@ def source[F: Callable[..., Any]](*keys: str) -> Callable[[F], F]:
 
 
 def _providers(components: Collection[Components]) -> dict[str, Callable[..., Any]]:
-    """Return the derivation of each source name, a placeholder key stated per component."""
+    """Return the derivation of each source name, a placeholder key stated per component that has its placeholders."""
     general = {
         k: f for k, f in _SOURCES.items() if PLACEHOLDERS.isdisjoint(WORD.findall(k))
     }
@@ -73,7 +79,10 @@ def _providers(components: Collection[Components]) -> dict[str, Callable[..., An
     providers = dict(general)
     for c in components:
         rename = renamer(c)
+        known = symbols(c).keys()
         for key, f in stated.items():
+            if not PLACEHOLDERS.intersection(WORD.findall(key)) <= known:
+                continue
             name = rename(key)
             if name in providers:
                 msg = f"{name} has two derivations."
@@ -889,6 +898,11 @@ def _p_init(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return last.reindex({c._unit_dim: s.names(c).to_numpy()})
 
 
+@source("COMPONENT_status_solved")
+def _status_solved(s: NetworkSources, name: str, c: Components) -> bool:
+    return _solved_before(s, c, "status") is not None
+
+
 @source("COMPONENT_status_initial")
 def _status_initial(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return _history(s, c).sel(lag=1, drop=True)
@@ -906,6 +920,12 @@ def _big_m(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
 
 
 # -- storage --------------------------------------------------------------
+
+
+@source("COMPONENT_LEVEL_initial_per_period", "COMPONENT_CYCLIC_per_period")
+def _per_period(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
+    """Return the flag where the build has investment periods, false otherwise."""
+    return s.attribute(c, name) & s.multi_invest
 
 
 @source("COMPONENT_inactive_snapshots")

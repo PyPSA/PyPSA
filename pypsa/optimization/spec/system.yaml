@@ -425,6 +425,9 @@ assumptions:
     holds: "GlobalConstraint_type != 'tech_capacity_expansion_limit'"
     where: "count(scenario_weight, over=scenario) > 1"
     description: a `tech_capacity_expansion_limit` row is not allowed with scenarios
+  GlobalConstraint_sense_is_known:
+    holds: "GlobalConstraint_sense == '<=' OR GlobalConstraint_sense == '>=' OR GlobalConstraint_sense == '=='"
+    description: a row has the sense `<=`, `>=` or `==`
   GlobalConstraint_flow_based_sense_is_le:
     holds: "GlobalConstraint_sense == '<='"
     where: "GlobalConstraint_type == 'flow_based'"

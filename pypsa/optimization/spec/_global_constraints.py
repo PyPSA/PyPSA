@@ -259,7 +259,9 @@ def _type(s: NetworkSources, name: str) -> xr.DataArray:
 
 @source("GlobalConstraint_sense")
 def _sense(s: NetworkSources, name: str) -> xr.DataArray:
-    return _grid(s, _rows(s, "sense").astype(object))
+    """Return each row's sense, linopy's short forms `<`, `>` and `=` written out."""
+    senses = _rows(s, "sense").replace({"<": "<=", ">": ">=", "=": "=="})
+    return _grid(s, senses.astype(object))
 
 
 @source("GlobalConstraint_counts_snapshot")

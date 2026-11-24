@@ -1446,6 +1446,31 @@ def test_inactive_asset_with_modular_committable_ramp():
     assert "inactive" not in ramp_up.indexes["name"]
 
 
+def test_modular_committable_ramp_across_windows():
+    """A later window ramps from the modules the earlier window left on, not from all installed."""
+    n = pypsa.Network(snapshots=range(4))
+    n.add("Bus", "bus")
+    n.add("Generator", "backup", bus="bus", p_nom=500, marginal_cost=200)
+    n.add(
+        "Generator",
+        "com_mod",
+        bus="bus",
+        p_nom=400,
+        p_nom_mod=100,
+        committable=True,
+        marginal_cost=10,
+        start_up_cost=1000,
+        ramp_limit_up=0.2,
+    )
+    n.add("Load", "load", bus="bus", p_set=100)
+
+    n.optimize(snapshots=[0, 1])
+    n.optimize(snapshots=[2, 3])
+
+    equal(n.c.generators.dynamic.status["com_mod"], [1, 1, 1, 1])
+    equal(n.c.generators.dynamic.p["com_mod"], [100, 100, 100, 100])
+
+
 @pytest.mark.parametrize("min_down_time", [0, 1, 2])
 def test_modular_min_down_time_keeps_other_modules_available(min_down_time):
     """Min down time only holds back the shut-down modules, not the whole unit."""

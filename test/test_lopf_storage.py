@@ -407,3 +407,47 @@ def test_cycles_max_finite_in_one_scenario():
     status, _ = n.optimize()
     assert status == "ok"
     assert n.c.stores.static.e_nom_opt.gt(0).all()
+
+
+@pytest.mark.parametrize(
+    ("component", "attrs"),
+    [
+        ("Store", {"e_nom": 200}),
+        ("StorageUnit", {"p_nom": 100, "max_hours": 2}),
+    ],
+)
+@pytest.mark.parametrize(
+    ("flags", "backup"),
+    [
+        ({"cyclic_per_period": True}, 0),
+        ({"cyclic": True, "initial_per_period": True}, 100),
+    ],
+    ids=["cyclic_per_period", "initial_per_period"],
+)
+def test_per_period_flags_ignored_without_investment_periods(
+    component, attrs, flags, backup
+):
+    """Without investment periods the per-period flags leave the storage level as the plain flags set it."""
+    level, cyclic = (
+        ("e", "e_cyclic")
+        if component == "Store"
+        else ("state_of_charge", "cyclic_state_of_charge")
+    )
+    names = {"cyclic": cyclic, "cyclic_per_period": f"{cyclic}_per_period"}
+    names["initial_per_period"] = f"{level}_initial_per_period"
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "bus")
+    n.add("Generator", "backup", bus="bus", p_nom=200, marginal_cost=100)
+    n.add("Load", "load", bus="bus", p_set=50)
+    n.add(
+        component,
+        "storage",
+        bus="bus",
+        **attrs,
+        **{f"{level}_initial": 100},
+        **{names[k]: v for k, v in flags.items()},
+    )
+
+    n.optimize()
+
+    assert n.c.generators.dynamic.p["backup"].sum() == pytest.approx(backup)

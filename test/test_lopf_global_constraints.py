@@ -307,3 +307,44 @@ def test_transmission_cost_limit_overnight_cost():
     m = n.optimize.create_model()
     con = m.constraints["GlobalConstraint-cost_limit"]
     assert (con.coeffs == 100.0).all()
+
+
+def _gas_limited(sense: str) -> pypsa.Network:
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "b")
+    n.add("Carrier", ["gas", "wind"])
+    n.add("Load", "l", bus="b", p_set=50)
+    n.add(
+        "Generator",
+        ["gas", "wind"],
+        bus="b",
+        carrier=["gas", "wind"],
+        p_nom=100,
+        marginal_cost=[1, 100],
+    )
+    n.add(
+        "GlobalConstraint",
+        "gas_limit",
+        type="operational_limit",
+        carrier_attribute="gas",
+        sense=sense,
+        constant=100,
+    )
+    return n
+
+
+@pytest.mark.parametrize(
+    ("sense", "gas"),
+    [("<=", 100), ("<", 100), ("==", 100), ("=", 100), (">=", 150), (">", 150)],
+)
+def test_global_constraint_sense_aliases(sense, gas):
+    """A sense linopy accepts binds as its canonical form."""
+    n = _gas_limited(sense)
+    n.optimize()
+    assert n.c.generators.dynamic.p["gas"].sum() == pytest.approx(gas)
+
+
+def test_global_constraint_unknown_sense_raises():
+    n = _gas_limited("!=")
+    with pytest.raises(ValueError, match="sense"):
+        n.optimize()

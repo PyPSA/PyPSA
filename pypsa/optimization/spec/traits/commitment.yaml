@@ -65,6 +65,12 @@ parameters:
       one where the unit was on before the first snapshot, zero where off. A
       unit that is not committable counts as on
     dims: [scenario, UNIT]
+  COMPONENT_status_solved:
+    description: >-
+      whether an earlier window solved the status before the first snapshot, as
+      a count of modules, rather than it being rebuilt from the up and down times
+    dims: []
+    dtype: bool
   COMPONENT_p_init:
     description: >-
       the power the unit brought into the horizon where it came in on. No value
@@ -241,11 +247,11 @@ expressions:
   COMPONENT_ramp_previous_status:
     description: >-
       the status the ramp rows carry into a snapshot. A fixed modular unit that
-      came in on has all its modules on at the first snapshot
+      came in on before the network's first snapshot has all its modules on
     dims: [scenario, snapshot, UNIT]
     cases:
       opening_modules:
-        when: "position(snapshot) == 0 AND NOT COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0"
+        when: "position(snapshot) == 0 AND NOT COMPONENT_status_solved AND NOT COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0"
         expression: COMPONENT_status_initial * COMPONENT_modules_installed
     otherwise: COMPONENT_previous_status
   COMPONENT_ramp_up_allowance:

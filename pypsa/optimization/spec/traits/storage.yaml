@@ -54,7 +54,7 @@ parameters:
     description: energy stored before the first snapshot
     dims: [scenario, UNIT]
   COMPONENT_LEVEL_initial_per_period:
-    description: whether each investment period starts again from the initial energy
+    description: whether each investment period starts again from the initial energy; false without investment periods
     dims: [scenario, UNIT]
     dtype: bool
   COMPONENT_CYCLIC:
@@ -62,7 +62,7 @@ parameters:
     dims: [scenario, UNIT]
     dtype: bool
   COMPONENT_CYCLIC_per_period:
-    description: whether each investment period ends on the energy it starts with; it overrides the two other flags
+    description: whether each investment period ends on the energy it starts with; it overrides the two other flags and is false without investment periods
     dims: [scenario, UNIT]
     dtype: bool
   COMPONENT_opens_late:
