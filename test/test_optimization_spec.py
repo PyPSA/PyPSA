@@ -88,7 +88,7 @@ def test_a_trait_is_a_spec_of_its_own(trait, component):
 
 @pytest.mark.parametrize("section", ["variables", "constraints"])
 def test_a_key_is_its_linopy_name_with_underscores(section):
-    named = render(SPEC)[1][section]
+    named = render(SPEC).names[section]
     mismatched = {}
     for key, name in named.items():
         names = [name] if isinstance(name, str) else name.values()
