@@ -31,7 +31,7 @@ from pypsa.common import (
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
-from pypsa.network.topology import (
+from pypsa.network.graph import (
     _bodf,
     _cycle_matrix,
     _ptdf,

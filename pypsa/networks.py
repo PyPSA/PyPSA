@@ -43,7 +43,7 @@ from pypsa.consistency import NetworkConsistencyMixin
 from pypsa.definitions.structures import Dict
 from pypsa.network.components import NetworkComponentsMixin
 from pypsa.network.descriptors import NetworkDescriptorsMixin
-from pypsa.network.graph import NetworkGraphMixin
+from pypsa.network.graph import NetworkGraphMixin, _combine_cycles, _sub_network_labels
 from pypsa.network.index import NetworkIndexMixin
 from pypsa.network.io import NetworkIOMixin
 from pypsa.network.power_flow import (
@@ -51,7 +51,6 @@ from pypsa.network.power_flow import (
     SubNetworkPowerFlowMixin,
     find_cycles,
 )
-from pypsa.network.topology import _combine_cycles, _sub_network_labels
 from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.optimization.window import SnapshotWindow
