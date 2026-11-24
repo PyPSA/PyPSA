@@ -1263,18 +1263,13 @@ class Network(
             ``"bfs-refined"`` or ``"paton"``.
 
         """
-        adjacency_matrix = self.adjacency_matrix(
-            branch_components=self.passive_branch_components,
-            investment_period=investment_period,
-            return_dataframe=True,
+        buses = self.c.buses.static.index.unique("name")
+        ends = pd.concat(
+            c.static.loc[c.get_active_assets(investment_period), ["bus0", "bus1"]]
+            for c in map(self.components.__getitem__, self.passive_branch_components)
         )
-        rows, columns = np.nonzero(adjacency_matrix.to_numpy())
-        n_components, labels = sub_network_labels(
-            adjacency_matrix.index,
-            adjacency_matrix.index[rows],
-            adjacency_matrix.columns[columns],
-        )
-        labels = pd.Series(labels, adjacency_matrix.index, name="sub_network")
+        n_components, labels = sub_network_labels(buses, ends.bus0, ends.bus1)
+        labels = pd.Series(labels, buses, name="sub_network")
         sub_network_map = labels.astype(str)
 
         # remove all old sub_networks

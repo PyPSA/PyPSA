@@ -1089,11 +1089,12 @@ class SubNetworkPowerFlowMixin:
                 if c.name in n.passive_branch_components
             ]
         )
-        # incidence matrix
         self.K = self.incidence_matrix(busorder=self.buses_o)
-
-        # susceptances and the weighted Laplacian
         b, self.H, self.B = susceptance(z, self.K)
+        if np.isnan(b).any():
+            logger.warning(
+                "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
+            )
 
         phase_shift = np.concatenate(
             [

@@ -38,7 +38,7 @@ SPDX-License-Identifier: CC-BY-4.0
 ### Enhancements
 
 - Move the topology algorithms of the passive network (sub-networks, cycle basis, incidence, PTDF, BODF) into plain functions in `pypsa.network.topology`, which the `Network` and `SubNetwork` methods call. Results are unchanged. (<!-- md:pr PRNUM -->)
-    - **Behavior change**: A passive branch at a missing bus makes [`n.determine_network_topology()`][pypsa.Network.determine_network_topology] raise an error that names the cause.
+    - **Behavior change**: A passive branch at a missing bus makes [`n.determine_network_topology()`][pypsa.Network.determine_network_topology] raise a `ValueError` that names the branch and the bus. Before, the error read "graph should be a square array".
 - Deprecation: [`n.plot.iplot()`][pypsa.plot.accessor.PlotAccessor.iplot] is deprecated and will be removed in PyPSA 2.0. Use [`n.plot.explore()`][pypsa.plot.accessor.PlotAccessor.explore] instead. The interactive statistics plots `n.statistics.*.iplot()` are not affected. (<!-- md:pr 2158 -->)
 - Deprecation: `pypsa.network.power_flow.aggregate_multi_graph` is deprecated and will be removed in PyPSA 2.0 without replacement. (<!-- md:pr 2158 -->)
 - Deprecation: `c.n_save` and `c.attached` of [`Components`][pypsa.Components] are deprecated and will be removed in PyPSA 2.0. Components are attached to a network, use `c.n`. (<!-- md:pr 2106 -->)

@@ -11,8 +11,6 @@ with their own data.
 
 from __future__ import annotations
 
-import logging
-
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -21,13 +19,11 @@ from scipy.sparse.linalg import spsolve
 
 from pypsa.network.graph import OrderedGraph, bfs_refined_cycle_basis
 
-logger = logging.getLogger(__name__)
-
 CYCLE_BASIS_METHODS = ("bfs-refined", "paton")
 
 
 def sub_network_labels(
-    buses: pd.Index, bus0: pd.Index, bus1: pd.Index
+    buses: pd.Index, bus0: pd.Series, bus1: pd.Series
 ) -> tuple[int, np.ndarray]:
     """Return the number of connected sub-networks and the one each bus is in.
 
@@ -35,8 +31,8 @@ def sub_network_labels(
     ----------
     buses : pandas.Index
         The buses, in the order that numbers the sub-networks.
-    bus0, bus1 : pandas.Index
-        The two ends of each branch that connects.
+    bus0, bus1 : pandas.Series
+        The two ends of each branch that connects, by its label.
 
     Raises
     ------
@@ -45,8 +41,10 @@ def sub_network_labels(
 
     """
     ends = buses.get_indexer(bus0), buses.get_indexer(bus1)
-    if any((end == -1).any() for end in ends):
-        msg = "A branch ends at a bus the network does not hold."
+    missing = pd.concat([bus0[ends[0] == -1], bus1[ends[1] == -1]])
+    if not missing.empty:
+        pairs = ", ".join(f"{branch} at {bus}" for branch, bus in missing.items())
+        msg = f"Passive branches end at buses that do not exist: {pairs}."
         raise ValueError(msg)
     size = len(buses)
     adjacency = csr_matrix((np.ones(len(ends[0])), ends), shape=(size, size))
@@ -129,7 +127,8 @@ def combine_cycles(
     Parameters
     ----------
     cycles : list of pandas.DataFrame
-        The cycle matrix of each sub-network that has a cycle, by branch.
+        The cycle matrix of each sub-network that has a cycle, by branch; at
+        least one.
     weights : pandas.Series
         The impedance of each branch in a cycle.
     branches_i : pandas.MultiIndex
@@ -137,8 +136,6 @@ def combine_cycles(
         type that has a branch in a cycle.
 
     """
-    if not cycles:
-        return pd.DataFrame(), pd.DataFrame()
     cycles_df = pd.concat(cycles, axis=1, ignore_index=True).fillna(0)
     existing = cycles_df.index.unique("type")
     branches_i = pd.Series(0, branches_i).loc[existing].index
@@ -152,7 +149,16 @@ def combine_cycles(
 
 
 def incidence(bus0: np.ndarray, bus1: np.ndarray, buses: int) -> csr_matrix:
-    """Return the incidence matrix, buses by branches, of branches from position `bus0` to `bus1`."""
+    """Return the incidence matrix, buses by branches.
+
+    Parameters
+    ----------
+    bus0, bus1 : numpy.ndarray
+        The position of the two ends of each branch among the buses.
+    buses : int
+        The number of buses.
+
+    """
     branches = len(bus0)
     return csr_matrix(
         (
@@ -177,17 +183,22 @@ def susceptance(
 
     """
     b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
-    if np.isnan(b).any():
-        logger.warning(
-            "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
-        )
     b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
     H = b_diag * K.T
     return b, H, K * H
 
 
 def ptdf(B: csr_matrix, H: csr_matrix) -> np.ndarray:
-    """Return the power transfer distribution factors, branches by buses, the first bus the slack."""
+    """Return the power transfer distribution factors, branches by buses.
+
+    Parameters
+    ----------
+    B : scipy.sparse.csr_matrix
+        The weighted Laplacian, buses by buses; the first bus is the slack.
+    H : scipy.sparse.csr_matrix
+        The susceptance times the transposed incidence, branches by buses.
+
+    """
     n_pvpq = B.shape[0] - 1
     index = np.r_[:n_pvpq]
     identity = csc_matrix((np.ones(n_pvpq), (index, index)))
@@ -206,6 +217,14 @@ def bodf(PTDF: np.ndarray, K: csr_matrix) -> np.ndarray:
 
     After the outage of branch `l`, the flow on branch `k` is its flow
     before plus `BODF[k, l]` times the flow on `l` before.
+
+    Parameters
+    ----------
+    PTDF : numpy.ndarray
+        The power transfer distribution factors, branches by buses.
+    K : scipy.sparse.csr_matrix
+        The incidence matrix, buses by branches.
+
     """
     num_branches = PTDF.shape[0]
     branch_PTDF = PTDF * K
