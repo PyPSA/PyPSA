@@ -51,6 +51,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection
     from typing import Literal
 
+    from numpy.typing import ArrayLike
+
     from pypsa import Network
     from pypsa.definitions.components import ComponentType
 
@@ -146,6 +148,45 @@ def _split_port(attr: str) -> tuple[str, str]:
     """
     base = attr.rstrip("0123456789")
     return base, attr.removeprefix(base)
+
+
+def committable_big_m_scale(
+    peak_load: float, nom: ArrayLike, nom_max: ArrayLike
+) -> float:
+    """Return a big-M scale from the peak load and the largest finite capacity and capacity limit."""
+    candidates = [peak_load]
+    for sizes in (np.asarray(nom, dtype=float), np.asarray(nom_max, dtype=float)):
+        finite = sizes[np.isfinite(sizes) & (sizes > 0)]
+        if finite.size:
+            candidates.append(float(finite.max()))
+    fallback = max(candidates) * 10
+    if not np.isfinite(fallback) or fallback <= 0:
+        return 1e6
+    return fallback
+
+
+def committable_big_m_values(
+    nom_max: xarray.DataArray, max_pu: xarray.DataArray, big_m: float
+) -> xarray.DataArray:
+    """Return the big-M of each asset: its capacity limit where finite, else `big_m`, times `max_pu`.
+
+    Raises
+    ------
+    ValueError
+        `big_m` is not finite or not positive.
+
+    """
+    if not np.isfinite(big_m):
+        msg = f"committable_big_m must be finite, got {big_m}."
+        raise ValueError(msg)
+    if big_m <= 0:
+        msg = f"committable_big_m must be positive, got {big_m}."
+        raise ValueError(msg)
+    return xarray.where(
+        np.isfinite(nom_max) & (nom_max > 0),
+        nom_max * max_pu,
+        big_m * max_pu.fillna(1),
+    )
 
 
 class Components(
@@ -1094,36 +1135,18 @@ class Components(
 
     def _infer_committable_big_m_scale(self) -> float:
         """Infer a reasonable big-M scale from network and component data."""
-        candidates: list[float] = []
-
         if "nom" not in self._operational_attrs:
             msg = f"Component {self.name} has no nominal operational attribute."
             raise AttributeError(msg)
 
         # Peak total load over time provides a natural system-scale bound.
         load = self.n.get_switchable_as_dense("Load", "p_set")
-        peak_load = load.sum(axis=1).abs().max()
-        candidates.append(float(peak_load))
-
         nom_attr = self._operational_attrs["nom"]
-        nom_series = self.static[nom_attr]
-        finite_nominal = nom_series[np.isfinite(nom_series) & (nom_series > 0)]
-        if not finite_nominal.empty:
-            candidates.append(float(finite_nominal.max()))
-
-        nom_max_attr = f"{nom_attr}_max"
-        nom_max_series = self.static[nom_max_attr]
-        finite_max = nom_max_series[np.isfinite(nom_max_series) & (nom_max_series > 0)]
-        if not finite_max.empty:
-            candidates.append(float(finite_max.max()))
-
-        if not candidates:
-            return 1e6
-
-        fallback = max(candidates) * 10
-        if not np.isfinite(fallback) or fallback <= 0:
-            return 1e6
-        return fallback
+        return committable_big_m_scale(
+            float(load.sum(axis=1).abs().max()),
+            self.static[nom_attr],
+            self.static[f"{nom_attr}_max"],
+        )
 
     def get_committable_big_m_values(
         self,
@@ -1151,20 +1174,7 @@ class Components(
             big_m_default = self.n._committable_big_m
         if big_m_default is None:
             big_m_default = self._infer_committable_big_m_scale()
-        else:
-            if not np.isfinite(big_m_default):
-                msg = f"committable_big_m must be finite, got {big_m_default}."
-                raise ValueError(msg)
-            if big_m_default <= 0:
-                msg = f"committable_big_m must be positive, got {big_m_default}."
-                raise ValueError(msg)
-
-        fallback_values = big_m_default * max_pu_values.fillna(1)
-        return xarray.where(
-            np.isfinite(nom_max_values) & (nom_max_values > 0),
-            nom_max_values * max_pu_values,
-            fallback_values,
-        )
+        return committable_big_m_values(nom_max_values, max_pu_values, big_m_default)
 
     @property
     def periodized_cost(self) -> xarray.DataArray:

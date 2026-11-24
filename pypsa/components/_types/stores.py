@@ -23,6 +23,29 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
+def needs_split_dispatch(
+    efficiency_store: xr.DataArray,
+    efficiency_dispatch: xr.DataArray,
+    marginal_cost_dispatch: xr.DataArray,
+    marginal_cost_store: xr.DataArray,
+    cycles_max: xr.DataArray | None = None,
+) -> xr.DataArray:
+    """Return which stores need separate charging and discharging variables.
+
+    A store needs them where an efficiency differs from one, a cost applies
+    to one direction only or, where given, `cycles_max` is finite.
+    """
+    split = (
+        (efficiency_store != 1)
+        | (efficiency_dispatch != 1)
+        | (marginal_cost_dispatch != 0)
+        | (marginal_cost_store != 0)
+    )
+    if cycles_max is not None:
+        split = split | (cycles_max < np.inf)
+    return split.any("snapshot") if "snapshot" in split.dims else split
+
+
 @patch_add_docstring
 class Stores(Components):
     """Stores components class.
@@ -115,15 +138,14 @@ class Stores(Components):
             Boolean per store.
 
         """
-        split = (
-            (self.da.efficiency_store != 1)
-            | (self.da.efficiency_dispatch != 1)
-            | (self.da.marginal_cost_dispatch != 0)
-            | (self.da.marginal_cost_store != 0)
+        da = self.da
+        return needs_split_dispatch(
+            da.efficiency_store,
+            da.efficiency_dispatch,
+            da.marginal_cost_dispatch,
+            da.marginal_cost_store,
+            da.cycles_max if cycles else None,
         )
-        if cycles:
-            split = split | (self.da.cycles_max < np.inf)
-        return split.any("snapshot") if "snapshot" in split.dims else split
 
     def add(
         self,
