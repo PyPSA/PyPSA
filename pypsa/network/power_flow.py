@@ -1162,7 +1162,7 @@ class SubNetworkPowerFlowMixin:
         )
         self.K = self.incidence_matrix(busorder=self.buses_o)
         b, self.H, self.B = _susceptance_matrices(z, self.K)
-        if np.isnan(b).any():
+        if (z == 0).any():
             logger.warning(
                 "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
             )
