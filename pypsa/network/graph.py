@@ -291,9 +291,9 @@ class NetworkGraphMixin:
         bus0_inds = np.concatenate(bus0_inds_list)
         bus1_inds = np.concatenate(bus1_inds_list)
 
-        from pypsa.network.topology import incidence  # noqa: PLC0415
+        from pypsa.network.topology import _incidence_matrix  # noqa: PLC0415
 
-        return incidence(bus0_inds, bus1_inds, no_buses)
+        return _incidence_matrix(bus0_inds, bus1_inds, no_buses)
 
 
 def _bfs_fundamental_cycles(graph: nx.Graph, root: Hashable) -> list[list[Hashable]]:

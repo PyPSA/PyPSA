@@ -51,7 +51,7 @@ from pypsa.network.power_flow import (
     SubNetworkPowerFlowMixin,
     find_cycles,
 )
-from pypsa.network.topology import combine_cycles, sub_network_labels
+from pypsa.network.topology import _combine_cycles, _sub_network_labels
 from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.optimization.window import SnapshotWindow
@@ -1268,7 +1268,7 @@ class Network(
             c.static.loc[c.get_active_assets(investment_period), ["bus0", "bus1"]]
             for c in map(self.components.__getitem__, self.passive_branch_components)
         )
-        n_components, labels = sub_network_labels(buses, ends.bus0, ends.bus1)
+        n_components, labels = _sub_network_labels(buses, ends.bus0, ends.bus1)
         labels = pd.Series(labels, buses, name="sub_network")
         sub_network_map = labels.astype(str)
 
@@ -1425,7 +1425,7 @@ class Network(
 
         is_ac = branches.sub_network.map(self.c.sub_networks.static.carrier) == "AC"
         weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
-        plain, weighted = combine_cycles(cycles, weights, branches.index)
+        plain, weighted = _combine_cycles(cycles, weights, branches.index)
         return weighted if apply_weights else plain
 
     @deprecated(

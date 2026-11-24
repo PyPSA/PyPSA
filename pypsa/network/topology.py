@@ -6,7 +6,7 @@
 
 Each function reads plain arrays and tables of buses and passive branches,
 so it needs no network. `pypsa.Network` and `pypsa.SubNetwork` call them
-with their own data.
+with their own data. All functions are private to PyPSA.
 """
 
 from __future__ import annotations
@@ -19,10 +19,10 @@ from scipy.sparse.linalg import spsolve
 
 from pypsa.network.graph import OrderedGraph, bfs_refined_cycle_basis
 
-CYCLE_BASIS_METHODS = ("bfs-refined", "paton")
+_CYCLE_BASIS_METHODS = ("bfs-refined", "paton")
 
 
-def sub_network_labels(
+def _sub_network_labels(
     buses: pd.Index, bus0: pd.Series, bus1: pd.Series
 ) -> tuple[int, np.ndarray]:
     """Return the number of connected sub-networks and the one each bus is in.
@@ -51,7 +51,7 @@ def sub_network_labels(
     return csgraph.connected_components(adjacency, directed=False)
 
 
-def cycle_basis(
+def _cycle_matrix(
     buses: pd.Index,
     bus0: pd.Series,
     bus1: pd.Series,
@@ -78,8 +78,8 @@ def cycle_basis(
         Either `"bfs-refined"` or `"paton"`.
 
     """
-    if method not in CYCLE_BASIS_METHODS:
-        msg = 'cycle_basis_method must be one of "bfs-refined" or "paton"'
+    if method not in _CYCLE_BASIS_METHODS:
+        msg = f"cycle_basis_method must be one of {_CYCLE_BASIS_METHODS}"
         raise ValueError(msg)
     branches_i = bus0.index
     mgraph = OrderedGraph()
@@ -119,7 +119,7 @@ def cycle_basis(
     return C
 
 
-def combine_cycles(
+def _combine_cycles(
     cycles: list[pd.DataFrame], weights: pd.Series, branches_i: pd.MultiIndex
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Return the cycle matrix of a network, plain and weighted, from those of its sub-networks.
@@ -148,14 +148,14 @@ def combine_cycles(
     return plain, weighted
 
 
-def incidence(bus0: np.ndarray, bus1: np.ndarray, buses: int) -> csr_matrix:
+def _incidence_matrix(bus0: np.ndarray, bus1: np.ndarray, n_buses: int) -> csr_matrix:
     """Return the incidence matrix, buses by branches.
 
     Parameters
     ----------
     bus0, bus1 : numpy.ndarray
         The position of the two ends of each branch among the buses.
-    buses : int
+    n_buses : int
         The number of buses.
 
     """
@@ -165,11 +165,11 @@ def incidence(bus0: np.ndarray, bus1: np.ndarray, buses: int) -> csr_matrix:
             np.r_[np.ones(branches), -np.ones(branches)],
             (np.r_[bus0, bus1], np.r_[:branches, :branches]),
         ),
-        (buses, branches),
+        (n_buses, branches),
     )
 
 
-def susceptance(
+def _susceptance_matrices(
     z: np.ndarray, K: csr_matrix
 ) -> tuple[np.ndarray, csr_matrix, csr_matrix]:
     """Return the susceptance of each branch, and the matrices `H` and `B` of the linear power flow.
@@ -188,7 +188,7 @@ def susceptance(
     return b, H, K * H
 
 
-def ptdf(B: csr_matrix, H: csr_matrix) -> np.ndarray:
+def _ptdf(B: csr_matrix, H: csr_matrix) -> np.ndarray:
     """Return the power transfer distribution factors, branches by buses.
 
     Parameters
@@ -212,7 +212,7 @@ def ptdf(B: csr_matrix, H: csr_matrix) -> np.ndarray:
     return H * B_inverse
 
 
-def bodf(PTDF: np.ndarray, K: csr_matrix) -> np.ndarray:
+def _bodf(PTDF: np.ndarray, K: csr_matrix) -> np.ndarray:
     """Return the branch outage distribution factors, branches by outaged branches.
 
     After the outage of branch `l`, the flow on branch `k` is its flow

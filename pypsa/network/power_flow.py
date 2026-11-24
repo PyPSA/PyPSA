@@ -31,7 +31,12 @@ from pypsa.common import (
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
-from pypsa.network.topology import bodf, cycle_basis, ptdf, susceptance
+from pypsa.network.topology import (
+    _bodf,
+    _cycle_matrix,
+    _ptdf,
+    _susceptance_matrices,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -728,7 +733,7 @@ def find_cycles(
             branches = branches.xs(sub_network.n.scenarios[0], level="scenario")
     finite = ~np.isinf(branches[weight]) if weight in branches else True
     edges = (branches["active"] & finite).to_numpy(dtype=bool)
-    sub_network.C = cycle_basis(
+    sub_network.C = _cycle_matrix(
         buses_i, branches["bus0"], branches["bus1"], edges, cycle_basis_method
     )
 
@@ -1048,7 +1053,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             self.calculate_PTDF()
 
-        self.BODF = bodf(self.PTDF, self.K)
+        self.BODF = _bodf(self.PTDF, self.K)
 
     def calculate_PTDF(self, skip_pre: bool = False) -> None:
         """Calculate the Power Transfer Distribution Factor (PTDF) for sub_network.
@@ -1065,7 +1070,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             self.calculate_B_H()
 
-        self.PTDF = ptdf(self.B, self.H)
+        self.PTDF = _ptdf(self.B, self.H)
 
     def calculate_B_H(self, skip_pre: bool = False) -> None:
         """Calculate B and H matrices for AC or DC sub-networks."""
@@ -1090,7 +1095,7 @@ class SubNetworkPowerFlowMixin:
             ]
         )
         self.K = self.incidence_matrix(busorder=self.buses_o)
-        b, self.H, self.B = susceptance(z, self.K)
+        b, self.H, self.B = _susceptance_matrices(z, self.K)
         if np.isnan(b).any():
             logger.warning(
                 "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
