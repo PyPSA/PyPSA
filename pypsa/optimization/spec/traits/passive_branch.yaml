@@ -11,7 +11,7 @@ given:
     COMPONENT_NOM_ext: {dims: [UNIT]}
   expressions:
     Outage_s: {dims: [scenario, snapshot, outage]}
-    COMPONENT_NOM_rated: {dims: [scenario, UNIT]}
+    COMPONENT_NOM_finite: {dims: [scenario, UNIT]}
   conditions:
     COMPONENT_fix: {dims: [snapshot, UNIT]}
     COMPONENT_ext: {dims: [snapshot, UNIT]}
@@ -98,7 +98,7 @@ expressions:
     description: the flow where the branch is active, zero otherwise
     dims: [scenario, snapshot, UNIT]
     cases:
-      standing:
+      active:
         when: COMPONENT_active
         expression: COMPONENT_s
     otherwise: 0
@@ -121,13 +121,13 @@ constraints:
     description: a fixed branch carries at least the negative of its rating, loss included
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_fix AND (COMPONENT_NOM < inf OR COMPONENT_s_max_pu == 0)
-    expression: COMPONENT_s - COMPONENT_loss >= -COMPONENT_s_max_pu * COMPONENT_NOM_rated
+    expression: COMPONENT_s - COMPONENT_loss >= -COMPONENT_s_max_pu * COMPONENT_NOM_finite
   COMPONENT_fix_s_upper:
     name: COMPONENT-fix-s-upper
     description: a fixed branch carries at most its rating, loss included
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_fix AND (COMPONENT_NOM < inf OR COMPONENT_s_max_pu == 0)
-    expression: COMPONENT_s + COMPONENT_loss <= COMPONENT_s_max_pu * COMPONENT_NOM_rated
+    expression: COMPONENT_s + COMPONENT_loss <= COMPONENT_s_max_pu * COMPONENT_NOM_finite
   COMPONENT_ext_s_lower:
     name: COMPONENT-ext-s-lower
     description: an extendable branch carries at least the negative of its rating of the chosen build, loss included

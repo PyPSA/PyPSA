@@ -67,7 +67,8 @@ constraints:
       COMPONENT_p - COMPONENT_previous_p
       - (COMPONENT_p_min_pu * COMPONENT_NOM + COMPONENT_ramp_up_rate * COMPONENT_NOM) * COMPONENT_status
       + COMPONENT_p_min_pu * COMPONENT_NOM * COMPONENT_previous_status
-      + (COMPONENT_p_min_pu * COMPONENT_NOM + COMPONENT_ramp_up_rate * COMPONENT_NOM - COMPONENT_start_up_rate * COMPONENT_NOM)
+      + (COMPONENT_p_min_pu * COMPONENT_NOM + COMPONENT_ramp_up_rate * COMPONENT_NOM
+      - COMPONENT_start_up_rate * COMPONENT_NOM)
       * COMPONENT_start_up <= 0
   COMPONENT_com_partly_shut_down:
     name: COMPONENT-com-partly-shut-down
@@ -78,7 +79,8 @@ constraints:
       COMPONENT_previous_p - COMPONENT_p
       - COMPONENT_shut_down_rate * COMPONENT_NOM * COMPONENT_previous_status
       + (COMPONENT_shut_down_rate * COMPONENT_NOM - COMPONENT_ramp_down_rate * COMPONENT_NOM) * COMPONENT_status
-      - (COMPONENT_p_min_pu * COMPONENT_NOM + COMPONENT_ramp_down_rate * COMPONENT_NOM - COMPONENT_shut_down_rate * COMPONENT_NOM)
+      - (COMPONENT_p_min_pu * COMPONENT_NOM + COMPONENT_ramp_down_rate * COMPONENT_NOM
+      - COMPONENT_shut_down_rate * COMPONENT_NOM)
       * COMPONENT_start_up <= 0
 
 assumptions:

@@ -16,6 +16,8 @@ expressions:
     description: demand times sign where the load is active, zero otherwise
     dims: [scenario, snapshot, Load]
     cases:
-      active: { when: Load_active_asset, expression: Load_sign * Load_p_set }
+      active:
+        when: Load_active_asset
+        expression: Load_sign * Load_p_set
     otherwise: 0
   Load_injection: sum(Load_demand, over=Load, by=Load_bus[bus])

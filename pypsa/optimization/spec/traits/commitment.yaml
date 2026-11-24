@@ -15,21 +15,15 @@ given:
     snapshot_weightings_objective: {dims: [snapshot]}
   variables:
     COMPONENT_NOM_ext: {dims: [UNIT]}
-    COMPONENT_maintenance: {dims: [scenario, snapshot, UNIT]}
     COMPONENT_maintenance_capacity: {dims: [scenario, snapshot, UNIT]}
     COMPONENT_maintenance_status: {dims: [scenario, snapshot, UNIT]}
     COMPONENT_marginal_cost_piecewise: {dims: [scenario, snapshot, UNIT]}
     COMPONENT_n_mod: {dims: [UNIT]}
     COMPONENT_p: {dims: [scenario, snapshot, UNIT]}
-  expressions:
-    COMPONENT_NOM_effective: {dims: [scenario, UNIT]}
-    COMPONENT_NOM_rated: {dims: [scenario, UNIT]}
   conditions:
     COMPONENT_marginal_cost_curve: {dims: [UNIT]}
     COMPONENT_marginal_cost_convex: {dims: []}
     COMPONENT_modular: {dims: [UNIT]}
-    COMPONENT_fix: {dims: [snapshot, UNIT]}
-    COMPONENT_ext: {dims: [snapshot, UNIT]}
 
 dimensions:
   scenario: {}
@@ -37,9 +31,6 @@ dimensions:
   UNIT: {}
   period: {dtype: int, ordered: true}
   breakpoint: {dtype: int, ordered: true}
-
-relations:
-  snapshot_period: {key: snapshot, values: period}
 
 parameters:
   COMPONENT_committable:
@@ -74,38 +65,12 @@ parameters:
       a count of modules, rather than it being rebuilt from the up and down times
     dims: []
     dtype: bool
-  COMPONENT_p_init:
-    description: >-
-      the power the unit brought into the horizon where it came in on. No value
-      means unknown: then there is no ramp row at the first snapshot
-    dims: [scenario, UNIT]
-    missing: 0
   COMPONENT_up_time_brought_in:
     description: one while the up time the unit brought into the horizon still runs
     dims: [scenario, snapshot, UNIT]
   COMPONENT_down_time_brought_in:
     description: one while the down time the unit brought into the horizon still runs
     dims: [scenario, snapshot, UNIT]
-  COMPONENT_ramp_limit_up:
-    description: >-
-      most increase of power between two snapshots, per unit of nominal power.
-      The later snapshot's value applies. No value means no limit
-    dims: [scenario, snapshot, UNIT]
-    missing: absent
-  COMPONENT_ramp_limit_down:
-    description: >-
-      most decrease of power between two snapshots, per unit of nominal power.
-      The later snapshot's value applies. No value means no limit
-    dims: [scenario, snapshot, UNIT]
-    missing: absent
-  COMPONENT_ramp_limit_start_up:
-    description: most power in the snapshot a unit starts, per unit of nominal power. No value means no limit
-    dims: [scenario, UNIT]
-    missing: absent
-  COMPONENT_ramp_limit_shut_down:
-    description: most power in the snapshot before a unit stops, per unit of nominal power. No value means no limit
-    dims: [scenario, UNIT]
-    missing: absent
   COMPONENT_modules_installed:
     description: >-
       whole modules of a fixed modular build, its nominal capacity over the module size, and one
@@ -133,6 +98,9 @@ parameters:
       the segments, each its width times the `marginal_cost` at its upper end
     dims: [UNIT, breakpoint]
     missing: absent
+
+relations:
+  snapshot_period: {key: snapshot, values: period}
 
 variables:
   COMPONENT_status:
@@ -179,24 +147,6 @@ expressions:
         when: position(snapshot) == 0
         expression: COMPONENT_status_initial
     otherwise: shift(COMPONENT_status, along=snapshot, offset=1)
-  COMPONENT_previous_p:
-    description: >-
-      the power a unit carries into a snapshot. It is zero at the first
-      snapshot of a unit that becomes active later
-    dims: [scenario, snapshot, UNIT]
-    cases:
-      opening_late:
-        when: position(snapshot) > 0 AND NOT shift(COMPONENT_active, along=snapshot, offset=1)
-        expression: 0
-    otherwise: COMPONENT_p_carried_over
-  COMPONENT_p_carried_over:
-    description: "`p_init` at the first snapshot, the previous power after it"
-    dims: [scenario, snapshot, UNIT]
-    cases:
-      opening:
-        when: position(snapshot) == 0
-        expression: COMPONENT_p_init
-    otherwise: shift(COMPONENT_p, along=snapshot, offset=1)
   COMPONENT_modules:
     description: >-
       how many modules the status counts: the chosen number for an extendable
@@ -215,38 +165,6 @@ expressions:
         when: COMPONENT_modular
         expression: COMPONENT_NOM_mod
     otherwise: COMPONENT_NOM
-  COMPONENT_ramp_up_rate:
-    description: "`ramp_limit_up`, or one (the full build) where it has none"
-    dims: [scenario, snapshot, UNIT]
-    cases:
-      given:
-        when: COMPONENT_ramp_limit_up
-        expression: COMPONENT_ramp_limit_up
-    otherwise: 1
-  COMPONENT_ramp_down_rate:
-    description: "`ramp_limit_down`, or one (the full build) where it has none"
-    dims: [scenario, snapshot, UNIT]
-    cases:
-      given:
-        when: COMPONENT_ramp_limit_down
-        expression: COMPONENT_ramp_limit_down
-    otherwise: 1
-  COMPONENT_start_up_rate:
-    description: "`ramp_limit_start_up`, or one (the full build) where it has none"
-    dims: [scenario, UNIT]
-    cases:
-      given:
-        when: COMPONENT_ramp_limit_start_up
-        expression: COMPONENT_ramp_limit_start_up
-    otherwise: 1
-  COMPONENT_shut_down_rate:
-    description: "`ramp_limit_shut_down`, or one (the full build) where it has none"
-    dims: [scenario, UNIT]
-    cases:
-      given:
-        when: COMPONENT_ramp_limit_shut_down
-        expression: COMPONENT_ramp_limit_shut_down
-    otherwise: 1
   COMPONENT_ramp_previous_status:
     description: >-
       the status the ramp rows carry into a snapshot. A fixed modular unit that
@@ -254,35 +172,10 @@ expressions:
     dims: [scenario, snapshot, UNIT]
     cases:
       opening_modules:
-        when: position(snapshot) == 0 AND NOT COMPONENT_status_solved AND NOT COMPONENT_NOM_extendable AND COMPONENT_modular
+        when: >-
+          position(snapshot) == 0 AND NOT COMPONENT_status_solved AND NOT COMPONENT_NOM_extendable AND COMPONENT_modular
         expression: COMPONENT_status_initial * COMPONENT_modules_installed
     otherwise: COMPONENT_previous_status
-  COMPONENT_ramp_up_allowance:
-    description: >-
-      how far the power may rise between two snapshots: the ramp limit of the
-      modules that stay on, plus the start-up ramp of those that start
-    dims: [scenario, snapshot, UNIT]
-    cases:
-      committed:
-        when: COMPONENT_committable
-        expression: >-
-          COMPONENT_ramp_up_rate * COMPONENT_NOM_committed * COMPONENT_ramp_previous_status
-          + COMPONENT_start_up_rate * COMPONENT_NOM_committed
-          * (COMPONENT_status - COMPONENT_ramp_previous_status)
-    otherwise: COMPONENT_ramp_up_rate * COMPONENT_NOM_effective
-  COMPONENT_ramp_down_allowance:
-    description: >-
-      how far the power may fall between two snapshots: the ramp limit of the
-      modules that stay on, plus the shut-down ramp of those that stop
-    dims: [scenario, snapshot, UNIT]
-    cases:
-      committed:
-        when: COMPONENT_committable
-        expression: >-
-          COMPONENT_ramp_down_rate * COMPONENT_NOM_committed * COMPONENT_status
-          + COMPONENT_shut_down_rate * COMPONENT_NOM_committed
-          * (COMPONENT_ramp_previous_status - COMPONENT_status)
-    otherwise: COMPONENT_ramp_down_rate * COMPONENT_NOM_effective
   COMPONENT_commitment_opex:
     expression: >-
       sum(sum((COMPONENT_status * COMPONENT_stand_by_cost * snapshot_weightings_objective)
@@ -301,14 +194,6 @@ conditions:
       a committed unit with an extendable build that is not modular. Its status
       is held against the chosen build by big-M rows
     condition: COMPONENT_committed AND COMPONENT_NOM_extendable AND NOT COMPONENT_modular
-  COMPONENT_ramps_from_previous:
-    description: >-
-      a snapshot whose ramp row has a previous power: any but the first of its
-      period, and the first of the horizon where the unit came in off or with
-      a `p_init`
-    condition: >-
-      position(snapshot, within=snapshot_period[period]) > 0 OR
-      (position(snapshot) == 0 AND (COMPONENT_status_initial == 0 OR COMPONENT_p_init))
   COMPONENT_marginal_cost_as_lp:
     description: >-
       true where every `marginal_cost` curve of the component is convex and no
@@ -324,7 +209,9 @@ piecewise:
     description: the running cost is at least the `marginal_cost` curve at the power, by segment lines
     along: breakpoint
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active AND COMPONENT_marginal_cost_curve_p
+    where: >-
+      COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active
+      AND COMPONENT_marginal_cost_curve_p
     method: lp
     links:
       p: ["COMPONENT_p", "COMPONENT_marginal_cost_curve_p"]
@@ -336,7 +223,9 @@ piecewise:
       segments filled in order; the status gates the curve of a committable unit
     along: breakpoint
     dims: [scenario, snapshot, UNIT]
-    where: NOT COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active AND COMPONENT_marginal_cost_curve_p
+    where: >-
+      NOT COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active
+      AND COMPONENT_marginal_cost_curve_p
     method: incremental
     activity: COMPONENT_status
     links:
@@ -344,60 +233,48 @@ piecewise:
       cost: ["COMPONENT_marginal_cost_piecewise", "COMPONENT_marginal_cost_curve_cost", ">="]
 
 constraints:
-  COMPONENT_fix_p_lower:
-    name: COMPONENT-fix-p-lower
-    description: a fixed unit that is not committable runs at least at its minimum
-    dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_fix AND NOT COMPONENT_committable AND (COMPONENT_NOM < inf OR COMPONENT_p_min_pu == 0)
-    expression: COMPONENT_p >= COMPONENT_p_min_pu * COMPONENT_NOM_rated * (1 - COMPONENT_maintenance_pu * COMPONENT_maintenance)
-  COMPONENT_fix_p_upper:
-    name: COMPONENT-fix-p-upper
-    description: a fixed unit that is not committable runs at most at its maximum
-    dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_fix AND NOT COMPONENT_committable AND (COMPONENT_NOM < inf OR COMPONENT_p_max_pu == 0)
-    expression: COMPONENT_p <= COMPONENT_p_max_pu * COMPONENT_NOM_rated * (1 - COMPONENT_maintenance_pu * COMPONENT_maintenance)
-  COMPONENT_ext_p_lower:
-    name: COMPONENT-ext-p-lower
-    description: an extendable unit that is not committable runs at least at its minimum of the chosen build
-    dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_ext AND NOT COMPONENT_committable
-    expression: COMPONENT_p >= COMPONENT_p_min_pu * (COMPONENT_NOM_ext - COMPONENT_maintenance_pu * COMPONENT_maintenance_capacity)
-  COMPONENT_ext_p_upper:
-    name: COMPONENT-ext-p-upper
-    description: an extendable unit that is not committable runs at most at its maximum of the chosen build
-    dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_ext AND NOT COMPONENT_committable
-    expression: COMPONENT_p <= COMPONENT_p_max_pu * (COMPONENT_NOM_ext - COMPONENT_maintenance_pu * COMPONENT_maintenance_capacity)
   COMPONENT_com_p_lower:
     name: COMPONENT-com-p-lower
     description: a committed unit runs at least at its minimum while on
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND NOT COMPONENT_modular
-    expression: COMPONENT_p >= COMPONENT_p_min_pu * COMPONENT_NOM * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
+    expression: >-
+      COMPONENT_p >=
+      COMPONENT_p_min_pu * COMPONENT_NOM * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
   COMPONENT_com_p_upper:
     name: COMPONENT-com-p-upper
     description: a committed unit runs at most at its maximum while on, and not at all while off
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND NOT COMPONENT_modular
-    expression: COMPONENT_p <= COMPONENT_p_max_pu * COMPONENT_NOM * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
+    expression: >-
+      COMPONENT_p <=
+      COMPONENT_p_max_pu * COMPONENT_NOM * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
   COMPONENT_com_mod_p_lower:
     name: COMPONENT-com-mod-p-lower
     description: a committed modular unit runs at least at the minimum of its modules on
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_committed AND COMPONENT_modular
-    expression: COMPONENT_p >= COMPONENT_p_min_pu * COMPONENT_NOM_mod * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
+    expression: >-
+      COMPONENT_p >=
+      COMPONENT_p_min_pu * COMPONENT_NOM_mod
+      * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
   COMPONENT_com_mod_p_upper:
     name: COMPONENT-com-mod-p-upper
     description: a committed modular unit runs at most at the maximum of its modules on
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_committed AND COMPONENT_modular
-    expression: COMPONENT_p <= COMPONENT_p_max_pu * COMPONENT_NOM_mod * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
+    expression: >-
+      COMPONENT_p <=
+      COMPONENT_p_max_pu * COMPONENT_NOM_mod
+      * (COMPONENT_status - COMPONENT_maintenance_pu * COMPONENT_maintenance_status)
   COMPONENT_com_ext_p_upper_cap:
     name: COMPONENT-com-ext-p-upper-cap
     description: a committed extendable unit runs at most at its maximum of the chosen build
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_com_ext
-    expression: COMPONENT_p <= COMPONENT_p_max_pu * (COMPONENT_NOM_ext - COMPONENT_maintenance_pu * COMPONENT_maintenance_capacity)
+    expression: >-
+      COMPONENT_p <=
+      COMPONENT_p_max_pu * (COMPONENT_NOM_ext - COMPONENT_maintenance_pu * COMPONENT_maintenance_capacity)
   COMPONENT_com_ext_p_upper_bigM:
     name: COMPONENT-com-ext-p-upper-bigM
     description: a committed extendable unit does not run while off
@@ -493,78 +370,6 @@ constraints:
     expression: >-
       sum_back(COMPONENT_shut_down, along=snapshot, window=COMPONENT_min_down_time)
       + COMPONENT_down_time_brought_in <= COMPONENT_modules - COMPONENT_status
-  COMPONENT_p_ramp_limit_up:
-    name: COMPONENT-p-ramp_limit_up
-    description: >-
-      the power rises at most by the ramp allowance. A committed extendable unit
-      that is not modular has the big-M rows instead
-    dims: [scenario, snapshot, UNIT]
-    where: >-
-      (COMPONENT_ramp_limit_up OR COMPONENT_ramp_limit_start_up)
-      AND NOT COMPONENT_com_ext
-      AND COMPONENT_ramps_from_previous
-      AND COMPONENT_active
-    expression: COMPONENT_p - COMPONENT_previous_p <= COMPONENT_ramp_up_allowance
-  COMPONENT_p_ramp_limit_down:
-    name: COMPONENT-p-ramp_limit_down
-    description: >-
-      the power falls at most by the ramp allowance. A committed extendable unit
-      that is not modular has the big-M rows instead
-    dims: [scenario, snapshot, UNIT]
-    where: >-
-      (COMPONENT_ramp_limit_down OR COMPONENT_ramp_limit_shut_down)
-      AND NOT COMPONENT_com_ext
-      AND COMPONENT_ramps_from_previous
-      AND COMPONENT_active
-    expression: COMPONENT_previous_p - COMPONENT_p <= COMPONENT_ramp_down_allowance
-  COMPONENT_p_ramp_limit_up_run_bigM:
-    name: COMPONENT-p-ramp_limit_up-run-bigM
-    description: a running committed extendable unit rises at most by its ramp limit of the chosen build
-    dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_com_ext
-      AND (COMPONENT_ramp_limit_up OR COMPONENT_ramp_limit_start_up)
-      AND COMPONENT_ramps_from_previous
-    expression: >-
-      COMPONENT_p - COMPONENT_previous_p <=
-      COMPONENT_ramp_up_rate * COMPONENT_NOM_ext
-      + COMPONENT_big_m - COMPONENT_big_m * COMPONENT_previous_status
-  COMPONENT_p_ramp_limit_up_start_bigM:
-    name: COMPONENT-p-ramp_limit_up-start-bigM
-    description: a starting committed extendable unit rises at most by its start-up ramp of the chosen build
-    dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_com_ext
-      AND (COMPONENT_ramp_limit_up OR COMPONENT_ramp_limit_start_up)
-      AND COMPONENT_ramps_from_previous
-    expression: >-
-      COMPONENT_p - COMPONENT_previous_p <=
-      COMPONENT_start_up_rate * COMPONENT_NOM_ext
-      + COMPONENT_big_m - COMPONENT_big_m * COMPONENT_start_up
-  COMPONENT_p_ramp_limit_down_run_bigM:
-    name: COMPONENT-p-ramp_limit_down-run-bigM
-    description: a running committed extendable unit falls at most by its ramp limit of the chosen build
-    dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_com_ext
-      AND (COMPONENT_ramp_limit_down OR COMPONENT_ramp_limit_shut_down)
-      AND COMPONENT_ramps_from_previous
-    expression: >-
-      COMPONENT_p - COMPONENT_previous_p >=
-      -COMPONENT_ramp_down_rate * COMPONENT_NOM_ext
-      - COMPONENT_big_m + COMPONENT_big_m * COMPONENT_status
-  COMPONENT_p_ramp_limit_down_shut_bigM:
-    name: COMPONENT-p-ramp_limit_down-shut-bigM
-    description: a stopping committed extendable unit falls at most by its shut-down ramp of the chosen build
-    dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_com_ext
-      AND (COMPONENT_ramp_limit_down OR COMPONENT_ramp_limit_shut_down)
-      AND COMPONENT_ramps_from_previous
-    expression: >-
-      COMPONENT_previous_p - COMPONENT_p <=
-      COMPONENT_shut_down_rate * COMPONENT_NOM_ext
-      + COMPONENT_big_m - COMPONENT_big_m * COMPONENT_shut_down
 
 assumptions:
   COMPONENT_big_m_where_committed_and_extendable:

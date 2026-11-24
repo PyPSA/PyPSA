@@ -84,7 +84,7 @@ For **non-extendable** storage units (`p_nom_extendable=False`), the charge ($h^
 
 <!-- md:spec-table StorageUnit_fix_p_dispatch_lower StorageUnit_fix_p_dispatch_upper StorageUnit_fix_p_store_lower StorageUnit_fix_p_store_upper StorageUnit_fix_state_of_charge_lower StorageUnit_fix_state_of_charge_upper -->
 
-where the rated capacity `StorageUnit_p_nom_rated` is the nominal power capacity $\hat{h}_{s,v}$, $\bar{h}_{s,t,v}$ is a time-dependent restriction on the discharge per unit of nominal capacity, $\underline{h}_{s,t,v}$ is a time-dependent restriction on the maximum charge per unit of nominal capacity (usually negative, -1 by default), and `max_hours` is the number of hours at nominal power that fill the state of charge.
+where the rated capacity `StorageUnit_p_nom_finite` is the nominal power capacity $\hat{h}_{s,v}$, $\bar{h}_{s,t,v}$ is a time-dependent restriction on the discharge per unit of nominal capacity, $\underline{h}_{s,t,v}$ is a time-dependent restriction on the maximum charge per unit of nominal capacity (usually negative, -1 by default), and `max_hours` is the number of hours at nominal power that fill the state of charge.
 
 For **extendable** storage units (`p_nom_extendable=True`), the charge and discharge variables are constrained by:
 

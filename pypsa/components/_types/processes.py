@@ -46,7 +46,9 @@ class Processes(_Multiport):
         "carrier_expansion",
         "marginal_cost",
         "dispatch",
+        "rating",
         "commitment",
+        "ramping",
         "maintenance",
         "multiport",
     )

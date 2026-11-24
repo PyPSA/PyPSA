@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Dispatch Limits
 
-Each [`Generator`][pypsa.components.Generators] $i$ has a dispatch variable $g_{i,s,t}$ where $s$ labels the scenario and $t$ labels the snapshot. Each [`Link`][pypsa.components.Links] $k$ has a dispatch variable $f_{k,s,t}$. Each [`Process`][pypsa.components.Processes] $m$ has an internal dispatch variable $r_{m,s,t}$. Each [`Line`][pypsa.components.Lines] $l$ has a flow variable $p_{l,s,t}$ and each [`Transformer`][pypsa.components.Transformers] $q$ a flow variable $p_{s,t,q}$. The [trait `dispatch`](formulation/traits/dispatch.md) states the limits below.
+Each [`Generator`][pypsa.components.Generators] $i$ has a dispatch variable $g_{i,s,t}$ where $s$ labels the scenario and $t$ labels the snapshot. Each [`Link`][pypsa.components.Links] $k$ has a dispatch variable $f_{k,s,t}$. Each [`Process`][pypsa.components.Processes] $m$ has an internal dispatch variable $r_{m,s,t}$. Each [`Line`][pypsa.components.Lines] $l$ has a flow variable $p_{l,s,t}$ and each [`Transformer`][pypsa.components.Transformers] $q$ a flow variable $p_{s,t,q}$. The traits [`dispatch`](formulation/traits/dispatch.md) and [`rating`](formulation/traits/rating.md) state the limits below.
 
 !!! note "Dispatch limits of [`Store`][pypsa.components.Stores] and [`StorageUnit`][pypsa.components.StorageUnits]"
 
@@ -19,7 +19,7 @@ For non-extendable components (`{p,s}_nom_extendable=False`), the dispatch is li
 
 <!-- md:spec-table Generator_fix_p_lower Generator_fix_p_upper Link_fix_p_lower Link_fix_p_upper Process_fix_p_lower Process_fix_p_upper Line_fix_s_lower Line_fix_s_upper Transformer_fix_s_lower Transformer_fix_s_upper -->
 
-where the rated capacity (e.g. `Generator_p_nom_rated`) is the nominal capacity $\hat{g}_{i,s}$, $\hat{f}_{k,s}$, $\hat{r}_{m,s}$ or $\hat{p}_{l,s}$, reduced by planned maintenance where it applies; $\underline{g}_{i,s,t}$, $\underline{f}_{k,s,t}$, $\underline{r}_{m,s,t}$, $\bar{g}_{i,s,t}$, $\bar{f}_{k,s,t}$, $\bar{r}_{m,s,t}$ and $\bar{p}_{l,s,t}$ are time-dependent restrictions on the dispatch given per unit of nominal capacity (e.g. due to wind availability for generators or dynamic line rating and security margins for lines). With [lossy transmission](../optimization/power-flow.md#linear-loss-approximation), the line limits include the loss $\psi_{l,s,t}$.
+where the rated capacity (e.g. `Generator_p_nom_finite`) is the nominal capacity $\hat{g}_{i,s}$, $\hat{f}_{k,s}$, $\hat{r}_{m,s}$ or $\hat{p}_{l,s}$, reduced by planned maintenance where it applies; $\underline{g}_{i,s,t}$, $\underline{f}_{k,s,t}$, $\underline{r}_{m,s,t}$, $\bar{g}_{i,s,t}$, $\bar{f}_{k,s,t}$, $\bar{r}_{m,s,t}$ and $\bar{p}_{l,s,t}$ are time-dependent restrictions on the dispatch given per unit of nominal capacity (e.g. due to wind availability for generators or dynamic line rating and security margins for lines). With [lossy transmission](../optimization/power-flow.md#linear-loss-approximation), the line limits include the loss $\psi_{l,s,t}$.
 
 The dual variables, scaled by the snapshot weighting $w^{\mathrm{o}}_t$, are stored in `mu_lower` and `mu_upper` of the dynamic component data (e.g. `n.generators_t.mu_upper`).
 

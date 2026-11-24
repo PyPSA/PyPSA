@@ -35,14 +35,18 @@ expressions:
     description: the primary energy read off the `efficiency` curve where there is one, the output otherwise
     dims: [scenario, snapshot, Generator]
     cases:
-      curve: { when: Generator_efficiency_curve, expression: Generator_p_primary_piecewise }
+      curve:
+        when: Generator_efficiency_curve
+        expression: Generator_p_primary_piecewise
     otherwise: Generator_p
   Generator_primary_energy:
     expression: >-
-      sum(sum((Generator_primary_input * GlobalConstraint_energy_weight) * Generator_primary_energy_weight, over=snapshot), over=Generator)
+      sum(sum((Generator_primary_input * GlobalConstraint_energy_weight)
+      * Generator_primary_energy_weight, over=snapshot), over=Generator)
   Generator_operational_limit:
     expression: >-
-      sum(sum((Generator_p * GlobalConstraint_energy_weight) * Generator_operational_limit_weight, over=snapshot), over=Generator)
+      sum(sum((Generator_p * GlobalConstraint_energy_weight)
+      * Generator_operational_limit_weight, over=snapshot), over=Generator)
   Generator_injection:
     expression: sum(Generator_sign * Generator_p, over=Generator, by=Generator_bus[bus])
 
@@ -52,12 +56,6 @@ conditions:
     condition: >-
       count(Generator_efficiency_curve_p, over=breakpoint) > 0 AND Generator_active_asset
       AND count(GlobalConstraint_type == 'primary_energy', over=global_constraint) > 0
-
-assumptions:
-  Generator_efficiency_curve_on_a_fixed_build:
-    holds: "NOT Generator_p_nom_extendable AND Generator_p_nom != 0 AND Generator_p_nom < inf"
-    where: "count(Generator_efficiency_curve_p, over=breakpoint) > 0"
-    description: an `efficiency` curve needs a fixed, non-zero, finite `p_nom`
 
 piecewise:
   Generator_efficiency_incremental:
@@ -73,3 +71,9 @@ piecewise:
     links:
       p: [Generator_p, Generator_efficiency_curve_p]
       primary: [Generator_p_primary_piecewise, Generator_efficiency_curve_primary]
+
+assumptions:
+  Generator_efficiency_curve_on_a_fixed_build:
+    holds: NOT Generator_p_nom_extendable AND Generator_p_nom != 0 AND Generator_p_nom < inf
+    where: count(Generator_efficiency_curve_p, over=breakpoint) > 0
+    description: an `efficiency` curve needs a fixed, non-zero, finite `p_nom`

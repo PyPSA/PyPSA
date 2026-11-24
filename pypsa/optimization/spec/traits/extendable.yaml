@@ -94,13 +94,13 @@ variables:
     where: COMPONENT_capital_cost_curve
 
 expressions:
-  COMPONENT_NOM_rated:
+  COMPONENT_NOM_finite:
     description: >-
       the given nominal capacity, and zero where it is infinite. Then a limit is
       a row only where the per-unit value is zero
     dims: [scenario, UNIT]
     cases:
-      unrated:
+      infinite:
         when: COMPONENT_NOM == inf
         expression: 0
     otherwise: COMPONENT_NOM
@@ -136,9 +136,12 @@ conditions:
       COMPONENT_capital_cost_curve_nom
       AND shift(COMPONENT_capital_cost_curve_nom, along=breakpoint, offset=1)
       AND shift(COMPONENT_capital_cost_curve_nom, along=breakpoint, offset=-1)
-      AND (COMPONENT_capital_cost_curve_cost - shift(COMPONENT_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
-      * (shift(COMPONENT_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0) - COMPONENT_capital_cost_curve_nom)
-      > (shift(COMPONENT_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - COMPONENT_capital_cost_curve_cost)
+      AND (COMPONENT_capital_cost_curve_cost
+      - shift(COMPONENT_capital_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(COMPONENT_capital_cost_curve_nom, along=breakpoint, offset=-1, edge=0)
+      - COMPONENT_capital_cost_curve_nom)
+      > (shift(COMPONENT_capital_cost_curve_cost, along=breakpoint, offset=-1, edge=0)
+      - COMPONENT_capital_cost_curve_cost)
       * (COMPONENT_capital_cost_curve_nom - shift(COMPONENT_capital_cost_curve_nom, along=breakpoint, offset=1, edge=0))
   COMPONENT_capital_cost_as_lp:
     description: >-

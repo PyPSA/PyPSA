@@ -52,7 +52,9 @@ class Generators(Components):
         "marginal_cost",
         "dispatch",
         "single_bus",
+        "rating",
         "commitment",
+        "ramping",
         "maintenance",
         "primary_energy",
     )
