@@ -47,10 +47,13 @@ SPDX-License-Identifier: CC-BY-4.0
 - Add a new example on [forecast errors and the value of foresight](./examples/forecast-errors.ipynb), which operates a price-taker battery against price forecasts that are reissued every day and settles the committed schedule at realised prices. (<!-- md:pr 1928 -->)
 - Added an [example notebook](./examples/data-centre-investment.ipynb) on data centre investment with a willingness to pay, modelled as an extendable generator with negative sign and quadratic marginal costs.
 - Extend the [unit commitment example](./examples/unit-commitment.ipynb) with committable demand: load shedding in blocks and flexible demand with start-up cost. (<!-- md:pr 2147 -->)
+- Moved the AI-based contribution guidelines to their own page, [AI-based Contributions](contributing/ai.md), reachable at docs.pypsa.org/ai. (<!-- md:pr 2194 -->)
 
 ### Bug Fixes
 
 - Fix piecewise `marginal_cost` curves starting below zero, e.g. on a [Link](./user-guide/components/links.md) with `p_min_pu < 0`. They now cost nothing at zero output. Before, they added a constant cost in every snapshot, which for committable components changed the optimum. See [#2119](https://github.com/PyPSA/PyPSA/issues/2119).
+- Fix [`n.merge`][pypsa.Network.merge] filling dynamic output data such as the links' `p0` with default values, even when the data was absent from both input networks. Empty time series are now skipped during the merge.
+- Fix modelling-to-generate-alternatives (MGA) objectives that combine weights across component types with different names under linopy v1 semantics.
 - Fix building multi-period models with [`n.optimize(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.__call__] when a link is inactive in some investment periods, which raised a `ValueError` about NaN constants with the stricter arithmetic of upcoming linopy releases. (<!-- md:pr 2180 -->)
 - Re-exporting a network to an existing CSV folder now removes the files of components that no longer exist. Before, the stale files were kept and the removed components reappeared on import. (<!-- md:pr 2158 -->)
 - Fix importing networks from Excel files given as a URL, which raised a `FileNotFoundError`. (<!-- md:pr 2158 -->)
@@ -78,6 +81,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix the `"bfs-refined"` cycle basis depending on `PYTHONHASHSEED`. Start, direction and refinement order of each cycle now follow the bus order, so two runs write the same KVL constraints and LP files. The basis can differ from v1.4.0, the optimum does not. (<!-- md:pr 2023 -->)
 - Fix [`n.lpf_contingency()`][pypsa.Network.lpf_contingency] returning `NaN` for branches in AC sub-networks unaffected by the outage. Those branches now keep their base-case flows. (<!-- md:pr 2068 -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] leaving `n.buses_t.v_ang` with only the last window's snapshots when a sub-network has a single bus. The voltage angles now cover all snapshots, like the other time-varying outputs. (<!-- md:pr 2064 -->)
+- Fix capacity statistics of [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) ports with a time-varying efficiency using a stale static value. They now use the mean of the series, weighted by the generator snapshot weightings. (<!-- md:pr 2193 -->)
 - Fix [`n.add()`][pypsa.Network.add] silently dropping custom time-varying attributes of all but the first call. Later calls now add their columns to the existing frame, and `overwrite=True` replaces them. (<!-- md:pr 2063 -->)
 - Fix [`n.statistics.prices(weighting="load")`][pypsa.statistics.StatisticsAccessor.prices] on stochastic networks and network collections. Before, the load weights were dropped and the prices silently fell back to time weighting. Each scenario and each collection member is now weighted by its own withdrawal. (<!-- md:pr 2054 -->)
 - Fix `KeyError` in [`rename_component_names`][pypsa.Components.rename_component_names] when renaming non-bus components (such as links, lines, and carriers) in an attached network ([#2057](https://github.com/PyPSA/PyPSA/issues/2057)).

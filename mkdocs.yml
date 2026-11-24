@@ -193,6 +193,7 @@ nav:
 
 - Contributing:
   - Instructions: contributing/contributing.md
+  - AI-based Contributions: contributing/ai.md
   - Code of Conduct: CODE_OF_CONDUCT.md
   - Security: SECURITY.md
   - Contributors: contributing/contributors.md
@@ -407,6 +408,7 @@ plugins:
     redirect_maps:
       'home/release-notes.md': 'release-notes.md'
       'changelog.md': 'release-notes.md'
+      'ai.md': 'contributing/ai.md'
       'whats-new.md': 'release-notes.md'
       'code-of-conduct.md': 'CODE_OF_CONDUCT.md'
 
