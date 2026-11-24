@@ -15,9 +15,9 @@ By default, global constraints span across all investment periods. For models wi
 
     Each global constraint `{name}` of every type but `flow_based` carries the name `GlobalConstraint-{name}` in the Linopy model, as `GlobalConstraint-co2_limit`. All `flow_based` rows share the one constraint `GlobalConstraint-ram`, indexed by `name`. Their net positions and the balance of the net positions are `FlowBased-net_position` and `FlowBased-balance`.
 
-Each global constraint $\gamma$ bounds the sum of its type by its `constant` $\Gamma_{\gamma,s}$. The `sense` selects one of three rows: `GlobalConstraint_ub` for `"<="`, `GlobalConstraint_lb` for `">="` and `GlobalConstraint_eq` for `"=="`. The [formulation reference](formulation/index.md#GlobalConstraint_ub) lists all of them. The sections below show the sum of each type.
+Each global constraint $\gamma$ bounds the sum of its type by its `constant` $\Gamma_{\gamma,s}$. The `sense` selects one of three rows: `GlobalConstraint_upper` for `"<="`, `GlobalConstraint_lower` for `">="` and `GlobalConstraint_fix` for `"=="`. The [formulation reference](formulation/index.md#GlobalConstraint_upper) lists all of them. The sections below show the sum of each type.
 
-<!-- md:spec GlobalConstraint_ub GlobalConstraint_total -->
+<!-- md:spec GlobalConstraint_upper GlobalConstraint_total -->
 
 ## Primary Energy
 
@@ -47,7 +47,7 @@ The shadow price $\mu$ of the constraint would represent the CO~2~ price in this
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend GlobalConstraint_ub GlobalConstraint_energy_weight Generator_primary_energy Generator_primary_input StorageUnit_withdrawal Store_withdrawal -->
+    <!-- md:spec-legend GlobalConstraint_upper GlobalConstraint_energy_weight Generator_primary_energy Generator_primary_input StorageUnit_withdrawal Store_withdrawal -->
 
 ## Operational Limit
 
@@ -66,7 +66,7 @@ the operational limit were relaxed by one unit.
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend GlobalConstraint_ub Generator_operational_limit StorageUnit_operational_limit Store_operational_limit -->
+    <!-- md:spec-legend GlobalConstraint_upper Generator_operational_limit StorageUnit_operational_limit Store_operational_limit -->
 
 ## Volume Limit on Transmission Expansion
 
@@ -78,7 +78,7 @@ where the weights `Line_volume_weight` and `Link_volume_weight` are the `length`
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend GlobalConstraint_ub Line_transmission_volume_expansion Link_transmission_volume_expansion -->
+    <!-- md:spec-legend GlobalConstraint_upper Line_transmission_volume_expansion Link_transmission_volume_expansion -->
 
 ## Cost Limit on Transmission Expansion
 
@@ -90,7 +90,7 @@ where the weights `Line_expansion_cost_weight` and `Link_expansion_cost_weight` 
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend GlobalConstraint_ub Line_transmission_expansion_cost Link_transmission_expansion_cost -->
+    <!-- md:spec-legend GlobalConstraint_upper Line_transmission_expansion_cost Link_transmission_expansion_cost -->
 
 ## Expansion Limit
 
@@ -132,7 +132,7 @@ The weight `*_tech_capacity_weight` is one for an extendable component of the sp
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend GlobalConstraint_ub Generator_tech_capacity_expansion StorageUnit_tech_capacity_expansion Store_tech_capacity_expansion Link_tech_capacity_expansion Process_tech_capacity_expansion Line_tech_capacity_expansion -->
+    <!-- md:spec-legend GlobalConstraint_upper Generator_tech_capacity_expansion StorageUnit_tech_capacity_expansion Store_tech_capacity_expansion Link_tech_capacity_expansion Process_tech_capacity_expansion Line_tech_capacity_expansion -->
 
 ## Growth Limit per Carrier
 
@@ -174,7 +174,7 @@ so it equals the bus's net injection and is read from `n.buses_t.p` after solvin
 
 Each critical network element (CNEC) $\gamma$ is one global constraint row, a monitored grid constraint such as a line under a given outage. It contributes one half-space that bounds a weighted sum of net positions (and of controllable link flows, see below) by its remaining available margin `ram`, the headroom left on that element for cross-zonal trade:
 
-<!-- md:spec GlobalConstraint_flow_based_ub -->
+<!-- md:spec GlobalConstraint_ram -->
 
 The sensitivities `zonal_ptdf` are the zonal power transfer distribution factors (attributes `ptdf_<zone>`, see the [component page](../components/global-constraints.md#zonal-ptdf)); both they and the RAM (`ram`) may be static or vary by snapshot, and the constraint broadcasts over $t$ either way. A row with an `investment_period` only applies in that period's snapshots, and a row with a NaN `ram` is dropped in that snapshot. The shadow price of each row is written to `n.global_constraints_t.mu_ram`. A zero-sum balance closes the copper plate across the zones of each domain $z$:
 
@@ -227,7 +227,7 @@ If the corridor lands where the zone's GSK puts its power anyway, the column is 
 
 ??? note "Symbols"
 
-    <!-- md:spec-legend FlowBased_net_position FlowBased_injection GlobalConstraint_flow_based_ub FlowBased_balance -->
+    <!-- md:spec-legend FlowBased_net_position FlowBased_injection GlobalConstraint_ram FlowBased_balance -->
 
     The dual of each domain row is stored in `n.global_constraints_t.mu_ram`. The virtual-hub net position $g_n - d_n$ is reported in `n.buses_t.net_position`.
 

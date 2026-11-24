@@ -83,7 +83,7 @@ variables:
     name: COMPONENT-n_mod
     description: the number of modules of an extendable modular asset
     dims: [UNIT]
-    where: COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0 AND COMPONENT_active_asset
+    where: COMPONENT_NOM_extendable AND COMPONENT_modular AND COMPONENT_active_asset
     domain: integer
     bounds:
       lower: 0
@@ -116,6 +116,15 @@ expressions:
     expression: sum(scenario_weight * COMPONENT_build_cost * COMPONENT_capital_weight)
 
 conditions:
+  COMPONENT_modular:
+    description: an asset whose build comes in modules
+    condition: COMPONENT_NOM_mod > 0
+  COMPONENT_fix:
+    description: an asset with a fixed build, in a snapshot it is active in
+    condition: NOT COMPONENT_NOM_extendable AND COMPONENT_active
+  COMPONENT_ext:
+    description: an asset with an extendable build, in a snapshot it is active in
+    condition: COMPONENT_NOM_extendable AND COMPONENT_active
   COMPONENT_capital_cost_curve:
     description: an extendable active asset with a piecewise `capital_cost` curve
     condition: >-
@@ -185,7 +194,7 @@ constraints:
     name: COMPONENT-NOM_modularity
     description: the chosen build is a whole number of modules
     dims: [UNIT]
-    where: COMPONENT_NOM_extendable AND COMPONENT_NOM_mod > 0 AND COMPONENT_active_asset
+    where: COMPONENT_NOM_extendable AND COMPONENT_modular AND COMPONENT_active_asset
     expression: COMPONENT_NOM_ext == COMPONENT_NOM_mod * COMPONENT_n_mod
 
 assumptions:

@@ -5,7 +5,6 @@
 given:
   parameters:
     GlobalConstraint_counts_snapshot: {dims: [scenario, snapshot, global_constraint], dtype: bool}
-    COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
     COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
     COMPONENT_operational_limit_weight: {dims: [scenario, UNIT, global_constraint]}
     period_weight_objective: {dims: [period]}
@@ -18,7 +17,9 @@ given:
     COMPONENT_marginal_cost_piecewise: {dims: [scenario, snapshot, UNIT]}
   conditions:
     COMPONENT_marginal_cost_curve: {dims: [UNIT]}
-    COMPONENT_marginal_cost_curve_bends_down: {dims: [UNIT, breakpoint]}
+    COMPONENT_marginal_cost_convex: {dims: []}
+    COMPONENT_fix: {dims: [snapshot, UNIT]}
+    COMPONENT_ext: {dims: [snapshot, UNIT]}
 
 dimensions:
   scenario: {}
@@ -205,8 +206,7 @@ conditions:
     description: >-
       true where every `marginal_cost` curve of the component is convex: then
       the curves are stated as segment lines, else by incremental segments
-    condition: >-
-      count(COMPONENT_marginal_cost_curve AND count(COMPONENT_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=UNIT) == 0
+    condition: COMPONENT_marginal_cost_convex
 
 piecewise:
   COMPONENT_marginal_cost_lp:
@@ -237,13 +237,13 @@ constraints:
     name: COMPONENT-fix-p_store-lower
     description: a fixed asset stores no negative power
     dims: [scenario, snapshot, UNIT]
-    where: NOT COMPONENT_NOM_extendable AND COMPONENT_active
+    where: COMPONENT_fix
     expression: COMPONENT_p_store >= 0
   COMPONENT_ext_p_store_lower:
     name: COMPONENT-ext-p_store-lower
     description: an extendable asset stores no negative power
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_NOM_extendable AND COMPONENT_active
+    where: COMPONENT_ext
     expression: COMPONENT_p_store >= 0
 
 assumptions:

@@ -660,9 +660,7 @@ def _port_field(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
 
 @source("COMPONENT_active")
 def _active(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    if "snapshot" in s.declared(name):
-        return s.active(c)
-    return s.column(c, "active", bool)
+    return s.active(c)
 
 
 @source("COMPONENT_active_asset")

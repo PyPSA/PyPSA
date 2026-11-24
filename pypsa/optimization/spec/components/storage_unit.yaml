@@ -46,14 +46,6 @@ expressions:
     expression: >-
       sum(StorageUnit_sign * (StorageUnit_p_dispatch - StorageUnit_p_store), over=StorageUnit, by=StorageUnit_bus[bus])
 
-conditions:
-  StorageUnit_fix:
-    description: an active storage unit with a fixed build
-    condition: NOT StorageUnit_p_nom_extendable AND StorageUnit_active
-  StorageUnit_ext:
-    description: an active storage unit with an extendable build
-    condition: StorageUnit_p_nom_extendable AND StorageUnit_active
-
 constraints:
   StorageUnit_fix_p_dispatch_lower:
     name: StorageUnit-fix-p_dispatch-lower

@@ -5,7 +5,6 @@
 given:
   parameters:
     COMPONENT_NOM: {dims: [scenario, UNIT]}
-    COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
     COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
     transmission_losses: {dims: [], dtype: bool}
   variables:
@@ -13,6 +12,9 @@ given:
   expressions:
     Outage_s: {dims: [scenario, snapshot, outage]}
     COMPONENT_NOM_rated: {dims: [scenario, UNIT]}
+  conditions:
+    COMPONENT_fix: {dims: [snapshot, UNIT]}
+    COMPONENT_ext: {dims: [snapshot, UNIT]}
 
 dimensions:
   scenario: {}
@@ -118,25 +120,25 @@ constraints:
     name: COMPONENT-fix-s-lower
     description: a fixed branch carries at least the negative of its rating, loss included
     dims: [scenario, snapshot, UNIT]
-    where: not COMPONENT_NOM_extendable AND COMPONENT_active AND (COMPONENT_NOM < inf OR COMPONENT_s_max_pu == 0)
+    where: COMPONENT_fix AND (COMPONENT_NOM < inf OR COMPONENT_s_max_pu == 0)
     expression: COMPONENT_s - COMPONENT_loss >= -COMPONENT_s_max_pu * COMPONENT_NOM_rated
   COMPONENT_fix_s_upper:
     name: COMPONENT-fix-s-upper
     description: a fixed branch carries at most its rating, loss included
     dims: [scenario, snapshot, UNIT]
-    where: not COMPONENT_NOM_extendable AND COMPONENT_active AND (COMPONENT_NOM < inf OR COMPONENT_s_max_pu == 0)
+    where: COMPONENT_fix AND (COMPONENT_NOM < inf OR COMPONENT_s_max_pu == 0)
     expression: COMPONENT_s + COMPONENT_loss <= COMPONENT_s_max_pu * COMPONENT_NOM_rated
   COMPONENT_ext_s_lower:
     name: COMPONENT-ext-s-lower
     description: an extendable branch carries at least the negative of its rating of the chosen build, loss included
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_NOM_extendable AND COMPONENT_active
+    where: COMPONENT_ext
     expression: COMPONENT_s - COMPONENT_loss >= -COMPONENT_s_max_pu * COMPONENT_NOM_ext
   COMPONENT_ext_s_upper:
     name: COMPONENT-ext-s-upper
     description: an extendable branch carries at most its rating of the chosen build, loss included
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_NOM_extendable AND COMPONENT_active
+    where: COMPONENT_ext
     expression: COMPONENT_s + COMPONENT_loss <= COMPONENT_s_max_pu * COMPONENT_NOM_ext
   COMPONENT_s_set:
     name: COMPONENT-s_set
@@ -150,7 +152,7 @@ constraints:
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_lossy
     expression: COMPONENT_loss <= COMPONENT_loss_max
-  COMPONENT_loss_tangents_forward:
+  COMPONENT_loss_tangents_pos:
     name:
       tangents: COMPONENT-loss_tangents-pos
       secants: COMPONENT-loss_secants-pos
@@ -158,7 +160,7 @@ constraints:
     dims: [scenario, snapshot, UNIT, segment]
     where: COMPONENT_lossy
     expression: COMPONENT_loss + COMPONENT_loss_slope * COMPONENT_s >= COMPONENT_loss_offset
-  COMPONENT_loss_tangents_reverse:
+  COMPONENT_loss_tangents_neg:
     name:
       tangents: COMPONENT-loss_tangents-neg
       secants: COMPONENT-loss_secants-neg
@@ -172,7 +174,7 @@ constraints:
       after any one outage, a fixed branch carries at least the negative of its
       rating; its flow includes its share of the outaged flow
     dims: [scenario, snapshot, UNIT, outage]
-    where: not COMPONENT_NOM_extendable AND at(COMPONENT_BODF, by=snapshot_period[period]) AND COMPONENT_active
+    where: COMPONENT_fix AND at(COMPONENT_BODF, by=snapshot_period[period])
     expression: >-
       COMPONENT_s_monitored + at(COMPONENT_BODF, by=snapshot_period[period]) * Outage_s >=
       -COMPONENT_s_max_pu * COMPONENT_NOM
@@ -182,7 +184,7 @@ constraints:
       after any one outage, a fixed branch carries at most its rating; its flow
       includes its share of the outaged flow
     dims: [scenario, snapshot, UNIT, outage]
-    where: not COMPONENT_NOM_extendable AND at(COMPONENT_BODF, by=snapshot_period[period]) AND COMPONENT_active
+    where: COMPONENT_fix AND at(COMPONENT_BODF, by=snapshot_period[period])
     expression: >-
       COMPONENT_s_monitored + at(COMPONENT_BODF, by=snapshot_period[period]) * Outage_s <=
       COMPONENT_s_max_pu * COMPONENT_NOM
@@ -192,7 +194,7 @@ constraints:
       after any one outage, an extendable branch carries at least the negative
       of its rating of the chosen build
     dims: [scenario, snapshot, UNIT, outage]
-    where: COMPONENT_NOM_extendable AND at(COMPONENT_BODF, by=snapshot_period[period]) AND COMPONENT_active
+    where: COMPONENT_ext AND at(COMPONENT_BODF, by=snapshot_period[period])
     expression: >-
       COMPONENT_s_monitored + at(COMPONENT_BODF, by=snapshot_period[period]) * Outage_s >=
       -COMPONENT_s_max_pu * COMPONENT_NOM_ext
@@ -202,7 +204,7 @@ constraints:
       after any one outage, an extendable branch carries at most its rating of
       the chosen build
     dims: [scenario, snapshot, UNIT, outage]
-    where: COMPONENT_NOM_extendable AND at(COMPONENT_BODF, by=snapshot_period[period]) AND COMPONENT_active
+    where: COMPONENT_ext AND at(COMPONENT_BODF, by=snapshot_period[period])
     expression: >-
       COMPONENT_s_monitored + at(COMPONENT_BODF, by=snapshot_period[period]) * Outage_s <=
       COMPONENT_s_max_pu * COMPONENT_NOM_ext

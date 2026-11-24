@@ -25,9 +25,9 @@ conditions:
       an active committable unit with a fixed build whose start and stop cost
       the same in every snapshot and scenario
     condition: >-
-      COMPONENT_committable AND NOT COMPONENT_NOM_extendable AND
+      COMPONENT_fix AND COMPONENT_committable AND
       count(count(COMPONENT_start_up_cost != COMPONENT_shut_down_cost, over=snapshot) > 0,
-      over=scenario) == 0 AND COMPONENT_active
+      over=scenario) == 0
   COMPONENT_tightened_from_previous:
     description: a tightened unit at a snapshot that has a previous power
     condition: >-
@@ -87,6 +87,6 @@ assumptions:
     where: COMPONENT_marginal_cost_curve
     description: a unit with a `marginal_cost` curve is not committable, as a status gate needs integers
   COMPONENT_committable_is_not_modular:
-    holds: NOT (COMPONENT_NOM_mod > 0)
+    holds: NOT COMPONENT_modular
     where: COMPONENT_committable AND count(COMPONENT_active, over=snapshot) > 0
     description: a committable unit is not modular, as the relaxation cannot share out modules

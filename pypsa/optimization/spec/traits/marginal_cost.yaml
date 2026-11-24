@@ -77,6 +77,10 @@ conditions:
       * (shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - COMPONENT_marginal_cost_curve_p)
       > (shift(COMPONENT_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - COMPONENT_marginal_cost_curve_cost)
       * (COMPONENT_marginal_cost_curve_p - shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+  COMPONENT_marginal_cost_convex:
+    description: true where every `marginal_cost` curve of the component is convex
+    condition: >-
+      count(COMPONENT_marginal_cost_curve AND count(COMPONENT_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=UNIT) == 0
 
 assumptions:
   COMPONENT_marginal_cost_curve_on_a_fixed_build:

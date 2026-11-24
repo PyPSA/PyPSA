@@ -86,6 +86,19 @@ def test_a_trait_is_a_spec_of_its_own(trait, component):
     assert c._unit_dim in spec.dimensions
 
 
+@pytest.mark.parametrize("section", ["variables", "constraints"])
+def test_a_key_is_its_linopy_name_with_underscores(section):
+    named = render(SPEC)[1][section]
+    mismatched = {}
+    for key, name in named.items():
+        names = [name] if isinstance(name, str) else name.values()
+        spelled = {n.replace("-", "_") for n in names}
+        capacity = {f"{n}_ext" for n in spelled if section == "variables"}
+        if key not in spelled | capacity:
+            mismatched[key] = name
+    assert not mismatched
+
+
 @pytest.mark.parametrize(
     ("rule", "error"), [("none", None), ("largest", "rules \\['largest'\\]")]
 )

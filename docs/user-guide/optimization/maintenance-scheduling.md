@@ -160,15 +160,15 @@ When combined with unit commitment (`committable=True`), the dispatch bounds sca
 
     === "Generator"
 
-        <!-- md:spec-table Generator_com_ext_p_lower Generator_com_ext_p_upper_big_m Generator_com_ext_p_upper_cap -->
+        <!-- md:spec-table Generator_com_ext_p_lower Generator_com_ext_p_upper_bigM Generator_com_ext_p_upper_cap -->
 
     === "Link"
 
-        <!-- md:spec-table Link_com_ext_p_lower Link_com_ext_p_upper_big_m Link_com_ext_p_upper_cap -->
+        <!-- md:spec-table Link_com_ext_p_lower Link_com_ext_p_upper_bigM Link_com_ext_p_upper_cap -->
 
     === "Process"
 
-        <!-- md:spec-table Process_com_ext_p_lower Process_com_ext_p_upper_big_m Process_com_ext_p_upper_cap -->
+        <!-- md:spec-table Process_com_ext_p_lower Process_com_ext_p_upper_bigM Process_com_ext_p_upper_cap -->
 
     Non-modular extendable committables keep the big-M status formulation with the
     McCormick capacity auxiliary `maintenance_capacity`; modular committables use the

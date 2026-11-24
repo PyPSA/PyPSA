@@ -17,6 +17,7 @@ given:
     COMPONENT_status: {dims: [scenario, snapshot, UNIT]}
   conditions:
     COMPONENT_committed: {dims: [snapshot, UNIT]}
+    COMPONENT_modular: {dims: [UNIT]}
 
 dimensions:
   scenario: {}
@@ -64,7 +65,7 @@ variables:
     name: COMPONENT-maintenance
     description: one where an event covers the snapshot, zero otherwise
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_maintainable AND COMPONENT_active
+    where: COMPONENT_maint
     missing: 0
     bounds:
       lower: 0
@@ -73,7 +74,7 @@ variables:
     name: COMPONENT-maintenance_start
     description: whether an event starts in this snapshot
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_maintainable AND COMPONENT_active
+    where: COMPONENT_maint
     missing: 0
     domain: binary
   COMPONENT_maintenance_capacity:
@@ -88,9 +89,7 @@ variables:
     name: COMPONENT-maintenance_status
     description: the status while in maintenance, zero otherwise
     dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT (COMPONENT_NOM_extendable AND
-      NOT (COMPONENT_NOM_mod > 0))
+    where: COMPONENT_maint_com AND NOT (COMPONENT_NOM_extendable AND NOT COMPONENT_modular)
     missing: 0
     bounds:
       lower: 0
@@ -108,13 +107,17 @@ expressions:
     otherwise: COMPONENT_modules_installed
 
 conditions:
+  COMPONENT_maint:
+    description: a maintainable unit, in a snapshot it is active in
+    condition: COMPONENT_maintainable AND COMPONENT_active
+  COMPONENT_maint_com:
+    description: a maintainable committable unit, in a snapshot it is active in
+    condition: COMPONENT_maintainable AND COMPONENT_committed
   COMPONENT_maint_ext:
     description: >-
       a maintainable extendable unit, active in the snapshot, that is not both
       committable and modular
-    condition: >-
-      COMPONENT_maintainable AND COMPONENT_NOM_extendable AND NOT (COMPONENT_committable AND
-      COMPONENT_NOM_mod > 0) AND COMPONENT_active
+    condition: COMPONENT_maint AND COMPONENT_NOM_extendable AND NOT (COMPONENT_committable AND COMPONENT_modular)
 
 constraints:
   COMPONENT_maint_event_count:
@@ -129,7 +132,7 @@ constraints:
     scaling: none
     description: the unit is in maintenance exactly where an event covers the snapshot; events do not overlap
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_maintainable AND COMPONENT_active
+    where: COMPONENT_maint
     expression: >-
       COMPONENT_maintenance == sum(COMPONENT_maintenance_start, over=start,
       by=COMPONENT_maintenance_cover[covered])
@@ -138,7 +141,7 @@ constraints:
     scaling: none
     description: no event starts where it cannot run its whole duration
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_maintainable AND COMPONENT_active AND COMPONENT_maintenance_start_blocked
+    where: COMPONENT_maint AND COMPONENT_maintenance_start_blocked
     expression: COMPONENT_maintenance_start == 0
   COMPONENT_maintcap_upper:
     name: COMPONENT-maintcap_upper
@@ -175,48 +178,42 @@ constraints:
     scaling: none
     description: the status in maintenance is at most the status
     dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND
-      NOT (COMPONENT_NOM_mod > 0)
+    where: COMPONENT_maint_com AND NOT COMPONENT_NOM_extendable AND NOT COMPONENT_modular
     expression: COMPONENT_maintenance_status <= COMPONENT_status
   COMPONENT_maint_status_le_maint:
     name: COMPONENT-maint-status-le-maint
     scaling: none
     description: out of maintenance, the status in maintenance is zero
     dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND
-      NOT (COMPONENT_NOM_mod > 0)
+    where: COMPONENT_maint_com AND NOT COMPONENT_NOM_extendable AND NOT COMPONENT_modular
     expression: COMPONENT_maintenance_status <= COMPONENT_maintenance
   COMPONENT_maint_status_lb:
     name: COMPONENT-maint-status-lb
     scaling: none
     description: on and in maintenance, the status in maintenance is one
     dims: [scenario, snapshot, UNIT]
-    where: >-
-      COMPONENT_maintainable AND COMPONENT_committed AND NOT COMPONENT_NOM_extendable AND
-      NOT (COMPONENT_NOM_mod > 0)
+    where: COMPONENT_maint_com AND NOT COMPONENT_NOM_extendable AND NOT COMPONENT_modular
     expression: COMPONENT_maintenance_status >= COMPONENT_status + COMPONENT_maintenance - 1
   COMPONENT_maint_modstatus_le_status:
     name: COMPONENT-maint-modstatus-le-status
     scaling: none
     description: the modules on in maintenance are at most the modules on
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_NOM_mod > 0
+    where: COMPONENT_maint_com AND COMPONENT_modular
     expression: COMPONENT_maintenance_status <= COMPONENT_status
   COMPONENT_maint_modstatus_le_maint:
     name: COMPONENT-maint-modstatus-le-maint
     scaling: none
     description: out of maintenance, no module is on in maintenance
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_NOM_mod > 0
+    where: COMPONENT_maint_com AND COMPONENT_modular
     expression: COMPONENT_maintenance_status <= COMPONENT_maintenance_modules * COMPONENT_maintenance
   COMPONENT_maint_modstatus_lb:
     name: COMPONENT-maint-modstatus-lb
     scaling: none
     description: in maintenance, every module on is on in maintenance
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_maintainable AND COMPONENT_committed AND COMPONENT_NOM_mod > 0
+    where: COMPONENT_maint_com AND COMPONENT_modular
     expression: >-
       COMPONENT_maintenance_status >= COMPONENT_status - COMPONENT_maintenance_modules * (1 -
       COMPONENT_maintenance)
