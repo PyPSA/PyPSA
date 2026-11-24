@@ -10,11 +10,6 @@ parameters:
     dims: [Process, port, breakpoint]
     missing: absent
 
-expressions:
-  Process_injection:
-    expression: >-
-      sum(Process_port_arrival, over=[Process, port], by=Process_port_bus[bus])
-
 piecewise:
   Process_rate_incremental:
     name: Process-p_piecewise

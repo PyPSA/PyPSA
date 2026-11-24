@@ -10,18 +10,6 @@ parameters:
     dims: [Link, port, breakpoint]
     missing: absent
 
-relations:
-  Link_bus0:
-    description: the bus `p` is drawn from
-    key: Link
-    values: bus
-
-expressions:
-  Link_injection:
-    expression: >-
-      -sum(Link_p, over=Link, by=Link_bus0[bus])
-      + sum(Link_port_arrival, over=[Link, port], by=Link_port_bus[bus])
-
 piecewise:
   Link_efficiency_incremental:
     name: Link-p_piecewise
