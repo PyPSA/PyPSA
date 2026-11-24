@@ -274,6 +274,50 @@ class TestPiecewiseCostsResults:
         p = n.c.stores.dynamic.p["store0"]
         assert n.objective == pytest.approx((mc * p).sum() + (25 * 50), rel=1e-6)
 
+    @pytest.mark.parametrize("committable", [False, True])
+    @pytest.mark.parametrize(
+        ("curve", "linear"),
+        [
+            ({-1.0: 0.0, 0.0: 2.0, 1.0: 2.0}, 2.0),
+            # slope 3 on the segment from -0.5 to 0.5, which crosses zero
+            ({-1.0: 0.0, -0.5: 1.0, 0.5: 3.0, 1.0: 3.0}, 3.0),
+        ],
+    )
+    def test_piecewise_marginal_cost_starting_below_zero(
+        self, curve: dict[float, float], linear: float, committable: bool
+    ) -> None:
+        """A curve starting below zero costs nothing at zero output (#2119).
+
+        The link flows forward, then in reverse, where the curve matches `linear`.
+        """
+
+        def build(marginal_cost: Any) -> pypsa.Network:
+            n = pypsa.Network(snapshots=range(2))
+            n.add("Bus", ["bus0", "bus1"])
+            n.add("Generator", "gen0", bus="bus0", p_nom=100, marginal_cost=[1, 10])
+            n.add("Generator", "gen1", bus="bus1", p_nom=100, marginal_cost=[10, 1])
+            n.add("Load", "load0", bus="bus0", p_set=[0, 10])
+            n.add("Load", "load1", bus="bus1", p_set=[10, 0])
+            n.add(
+                "Link",
+                "link",
+                bus0="bus0",
+                bus1="bus1",
+                p_nom=60,
+                p_min_pu=-1,
+                committable=committable,
+                marginal_cost=marginal_cost,
+            )
+            n.optimize()
+            return n
+
+        n_pw = build(curve)
+        n_lin = build(linear)
+        assert n_pw.objective == pytest.approx(n_lin.objective)
+        assert n_pw.c.links.dynamic.p0["link"].tolist() == pytest.approx([10, -10])
+        mc = n_pw.c.links.dynamic.marginal_cost_piecewise_opt["link"]
+        assert mc.tolist() == pytest.approx([linear, linear])
+
     def test_multi_invest_piecewise_capital_cost(self) -> None:
         """A constant-slope piecewise capital cost matches its linear equivalent."""
 

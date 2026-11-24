@@ -103,7 +103,8 @@ We assume that piecewise marginal operating and capital cost curves are cumulati
 
 !!! warning
 
-    Curves must start at $x = 0$, and the y-value there prices a zero-width increment and is ignored.
+    Curves must start at or below $x = 0$ (e.g. for a Link with `p_min_pu < 0`), and the y-value at the first breakpoint prices a zero-width increment and is ignored.
+    Curves are integrated from $x = 0$, so zero output costs nothing.
 
 !!! example
 
