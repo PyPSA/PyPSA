@@ -32,7 +32,10 @@ shares with no other.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from copy import deepcopy
+from typing import TYPE_CHECKING, Any, NamedTuple
+
+from pypsa.optimization.spec import _cache
 
 #: A PyPSA name: one string, or one per transmission loss mode.
 Name = str | dict[str, str]
@@ -196,9 +199,16 @@ def _described(spec: Any, rename: Callable[[str], str]) -> Any:
     return spec
 
 
-def render(
-    root: Traversable, patch: Traversable | None = None
-) -> tuple[Spec, Names, Scalings]:
+class Rendered(NamedTuple):
+    """The PyPSA names and scaling rules of the spec PyPSA renders, its cache key, and the check that loads it."""
+
+    names: Names
+    scalings: Scalings
+    key: str
+    check: Callable[[], Spec]
+
+
+def render(root: Traversable, patch: Traversable | None = None) -> Rendered:
     """Return the spec *root* states, its PyPSA names and scaling rules, with the patch in *patch* laid over.
 
     It is `system.yaml`, then for each component every trait file under
@@ -212,7 +222,9 @@ def render(
 
     The files are joined as a dict, not by `mathspec.merge`, which needs
     each file to load on its own: `system.yaml` and the component files
-    read what the traits declare.
+    read what the traits declare. Loading the spec parses it, so it is left
+    to *check*; its key is the files joined with each trait renamed as
+    text, which is cheap, for `_cache` to find it under.
 
     Raises:
         ValueError: Two files declare one entry.
@@ -228,17 +240,14 @@ def render(
         rename = renamer(c)
         paths += [(f"traits/{t}.yaml", rename) for t in c._formulation]
         paths.append((f"components/{_snake(c.name)}.yaml", rename))
-    spec: dict[str, Any] = {}
+    fragments: list[tuple[dict, Callable[[str], str], str]] = []
     patched: dict[str, Any] = {}
     names: Names = {section: {} for section in NAMED}
     scalings: Scalings = {}
     for path, rename in paths:
         if (root / path).is_file():
             fragment, found, scaled = _load(root / path, rename)
-            if path.startswith("traits/"):
-                renamed = mathspec.rename(fragment, rename).to_dict()
-                fragment = _described(renamed, rename)
-            _merge(spec, fragment, str(root / path))
+            fragments.append((fragment, rename, path))
             names = {s: names[s] | found[s] for s in NAMED}
             scalings |= scaled
         if patch is not None and (patch / path).is_file():
@@ -246,6 +255,22 @@ def render(
             _merge(patched, _renamed(fragment, rename), str(patch / path))
             names = {s: names[s] | found[s] for s in NAMED}
             scalings |= scaled
-    rendered = mathspec.to_spec(spec)
-    overridden = mathspec.override(rendered, [patched]) if patched else rendered
-    return overridden, names, scalings
+
+    def joined(trait: Callable[[dict, Callable[[str], str]], dict]) -> dict:
+        spec: dict[str, Any] = {}
+        for fragment, rename, path in fragments:
+            own = deepcopy(fragment)
+            _merge(
+                spec, trait(own, rename) if path.startswith("traits/") else own, path
+            )
+        return spec
+
+    def check() -> Spec:
+        def trait(fragment: dict, rename: Callable[[str], str]) -> dict:
+            return _described(mathspec.rename(fragment, rename).to_dict(), rename)
+
+        rendered = mathspec.to_spec(joined(trait))
+        return mathspec.override(rendered, [patched]) if patched else rendered
+
+    key = _cache.digest([joined(_renamed), patched])
+    return Rendered(names, scalings, key, check)

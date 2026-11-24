@@ -543,6 +543,14 @@ options._add_option(
     "semantics ('flat' under v1, else 'multiindex'). Applies to newly built "
     "models only.",
 )
+options._add_option(
+    "optimization.formulation_cache",
+    True,
+    "Whether to keep the checked optimisation problem on disk, in PyPSA's user "
+    "cache directory, so that a new process builds its first model without "
+    "parsing the problem again. Each problem is kept under a key of its "
+    "content and of the versions that check it.",
+)
 # Warnings category
 options._add_option(
     "warnings.components_store_iter",

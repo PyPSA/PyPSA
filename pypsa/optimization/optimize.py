@@ -53,6 +53,7 @@ if TYPE_CHECKING:
 
     from pypsa import Network, SubNetwork
     from pypsa.components import Links, Processes
+    from pypsa.optimization.spec.build import Override
 logger = logging.getLogger(__name__)
 
 lookup = pd.read_csv(
@@ -276,6 +277,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
+        overrides: Sequence[Override] | None = None,
         cycle_basis_method: str = "bfs-refined",
         objective_scaling: float = 1.0,
         consistency_check: bool = True,
@@ -353,6 +355,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Each operator is interpreted as ``y operator f(x)``. One option
             per component and attribute applies to all its units; the
             ``name`` filter and ``method='sos2'`` are not supported.
+        overrides : list[str | Path | dict], optional
+            Changes to the optimisation problem, each a YAML file, YAML text or
+            mapping written as a `mathspec.override` patch over the spec of
+            `pypsa.optimization.spec.spec()`. They apply in turn, so a later one
+            wins. A patch edits, removes (``null``) or adds entries under their
+            spec keys; an entry it adds keeps its key as name.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
@@ -409,6 +417,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             committable_big_m=committable_big_m,
             meshed_thresholds=meshed_thresholds,
             piecewise_options=piecewise_options,
+            overrides=overrides,
             cycle_basis_method=cycle_basis_method,
             objective_scaling=objective_scaling,
             **model_kwargs,
@@ -449,6 +458,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
+        overrides: Sequence[Override] | None = None,
         cycle_basis_method: str = "bfs-refined",
         objective_scaling: float = 1.0,
         branch_outages: pd.MultiIndex | None = None,
@@ -499,6 +509,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Each operator is interpreted as ``y operator f(x)``. One option
             per component and attribute applies to all its units; the
             ``name`` filter and ``method='sos2'`` are not supported.
+        overrides : list[str | Path | dict], optional
+            Changes to the optimisation problem, each a YAML file, YAML text or
+            mapping written as a `mathspec.override` patch over the spec of
+            `pypsa.optimization.spec.spec()`. They apply in turn, so a later one
+            wins. A patch edits, removes (``null``) or adds entries under their
+            spec keys; an entry it adds keeps its key as name.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
@@ -573,6 +589,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             cycle_basis_method=cycle_basis_method,
             branch_outages=branch_outages,
             piecewise_options=piecewise_opts,
+            overrides=overrides or (),
             objective_scaling=objective_scaling,
         )
         define_nominal_constraints_per_bus_carrier(n, sns)

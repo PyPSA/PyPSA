@@ -66,7 +66,7 @@ def test_a_trait_description_takes_the_names_of_the_component(tmp_path):
         "dimensions:\n  UNIT_port: {}\nparameters:\n  COMPONENT_COEF_x:\n"
         "    dims: [UNIT_port]\n    description: the `COEF` of a `UNIT` port\n"
     )
-    spec = render(tmp_path)[0]
+    spec = render(tmp_path).check()
     assert spec.parameters["Link_efficiency_x"].description == (
         "the `efficiency` of a `Link` port"
     )

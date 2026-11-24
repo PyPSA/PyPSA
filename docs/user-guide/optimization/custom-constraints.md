@@ -139,6 +139,47 @@ Generally, optimised values for custom variables are not written back to the net
 <!-- However, if you follow the naming convention `{component}-{variable}`, where `component` is the name of the component (e.g., "Generator") and `variable` is the name of the variable (e.g., "custom_var"),
 the optimised values will be stored for the network component (e.g. `n.generators_t.custom_var`). -->
 
+## Overriding the formulation
+
+[`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] builds its
+model from the specification shown in
+[Formulation (generated)](formulation/index.md). The argument `overrides` lays
+changes over it before the model is built, without writing linopy code. Each
+override is a YAML file, YAML text or a dictionary, written as a
+[mathspec](https://github.com/energy-models/mathspec) patch:
+
+* an entry it states in full is added;
+* a field it states on an existing entry replaces that field;
+* an entry set to `null` is removed.
+
+Overrides apply in turn, so a later one wins. They name entries by their keys
+in the specification, as `Generator_ext_p_upper`, not by the names of the
+built model, as `Generator-ext-p-upper`. An added entry keeps its key as its
+name in `n.model`. An added parameter `<Component>_<attr>` reads the column
+`<attr>` of the component's static data, e.g. `Generator_half` reads
+`n.c.generators.static["half"]`. Other data sources are not supported yet.
+
+For example, this file limits each extendable generator to half of its
+capacity instead of its full capacity:
+
+``` yaml title="half.yaml"
+constraints:
+  Generator_ext_p_upper: null
+  Generator_p_half:
+    dims: [Generator, scenario, snapshot]
+    where: Generator_p_nom_extendable AND not Generator_committable AND Generator_active
+    expression: Generator_p <= 0.5 * Generator_p_max_pu * Generator_p_nom_ext
+```
+
+``` py
+n.optimize(overrides=["half.yaml"])
+```
+
+PyPSA checks the specification with its overrides once and keeps the result in
+its user cache directory, so a new process with the same overrides skips the
+check. Set `pypsa.options.optimization.formulation_cache = False` to keep it in
+memory only.
+
 ## Handling snapshots in multi-investment optimizations
 
 In multi-period networks, `n.snapshots` is a `pandas.MultiIndex`. linopy's v1
