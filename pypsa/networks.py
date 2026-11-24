@@ -32,7 +32,6 @@ import pandas as pd
 import pyproj
 import validators
 from pyproj import CRS, Transformer
-from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import (
@@ -52,6 +51,7 @@ from pypsa.network.power_flow import (
     SubNetworkPowerFlowMixin,
     find_cycles,
 )
+from pypsa.network.topology import combine_cycles, sub_network_labels
 from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.optimization.window import SnapshotWindow
@@ -1268,8 +1268,11 @@ class Network(
             investment_period=investment_period,
             return_dataframe=True,
         )
-        n_components, labels = csgraph.connected_components(
-            adjacency_matrix.values, directed=False
+        rows, columns = np.nonzero(adjacency_matrix.to_numpy())
+        n_components, labels = sub_network_labels(
+            adjacency_matrix.index,
+            adjacency_matrix.index[rows],
+            adjacency_matrix.columns[columns],
         )
         labels = pd.Series(labels, adjacency_matrix.index, name="sub_network")
         sub_network_map = labels.astype(str)
@@ -1418,29 +1421,17 @@ class Network(
         if not cycles:
             return pd.DataFrame()
 
-        # Combine all cycles and fill missing values with 0
-        cycles_df = pd.concat(cycles, axis=1, ignore_index=True).fillna(0)
-
-        # Get all branch components
-        existing_branch_components = cycles_df.index.unique("type")
         branches = self.branches()
 
         if self.has_scenarios:
             branches = branches.xs(self.scenarios[0], level="scenario")
 
         branches.index.names = ["type", "name"]
-        branches_i = branches.loc[existing_branch_components].index
 
-        if apply_weights:
-            is_ac = branches.sub_network.map(self.c.sub_networks.static.carrier) == "AC"
-            weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
-            weights = weights[cycles_df.index]
-            cycles_df = cycles_df.where(
-                cycles_df == 0, cycles_df.multiply(weights, axis=0)
-            )
-
-        # Reindex to include all branches (even those not in cycles)
-        return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
+        is_ac = branches.sub_network.map(self.c.sub_networks.static.carrier) == "AC"
+        weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
+        plain, weighted = combine_cycles(cycles, weights, branches.index)
+        return weighted if apply_weights else plain
 
     @deprecated(
         deprecated_in="1.0.0",

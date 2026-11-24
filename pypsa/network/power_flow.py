@@ -18,7 +18,7 @@ import pandas as pd
 from deprecation import deprecated
 from numpy import ones, r_
 from numpy.linalg import norm
-from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, issparse
+from scipy.sparse import csr_matrix, dok_matrix
 from scipy.sparse import hstack as shstack
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
@@ -31,9 +31,7 @@ from pypsa.common import (
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
-from pypsa.network.graph import (
-    bfs_refined_cycle_basis,
-)
+from pypsa.network.topology import bodf, cycle_basis, ptdf, susceptance
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -722,56 +720,17 @@ def find_cycles(
         ``"paton"``.
 
     """
-    if cycle_basis_method not in ("bfs-refined", "paton"):
-        msg = 'cycle_basis_method must be one of "bfs-refined" or "paton"'
-        raise ValueError(msg)
-
-    branches_bus0 = sub_network.branches()["bus0"]
-
-    if sub_network.n.has_scenarios and not branches_bus0.empty:
-        first_scenario = sub_network.n.scenarios[0]
-        branches_bus0 = branches_bus0.xs(first_scenario, level="scenario")
-
-    branches_i = branches_bus0.index
-
-    # reduce to a non-multi-graph for cycles with > 2 edges
-    mgraph = sub_network.graph(weight=weight, inf_weight=False, include_inactive=False)
-    graph = nx.Graph(mgraph)
-
-    if cycle_basis_method == "paton":
-        cycles = nx.cycle_basis(graph)
-    else:
-        cycles = bfs_refined_cycle_basis(graph)
-
-    # number of 2-edge cycles
-    num_multi = len(mgraph.edges()) - len(graph.edges())
-
-    sub_network.C = dok_matrix((len(branches_bus0), len(cycles) + num_multi))
-
-    for j, cycle in enumerate(cycles):
-        for i in range(len(cycle)):
-            branch = next(iter(mgraph[cycle[i]][cycle[(i + 1) % len(cycle)]].keys()))
-            branch_i = branches_i.get_loc(branch)
-            sign = +1 if branches_bus0.iat[branch_i] == cycle[i] else -1
-            sub_network.C[branch_i, j] += sign
-
-    # counter for multis
-    c = len(cycles)
-
-    # add multi-graph 2-edge cycles for multiple branches between same pairs of buses
-    for u, v in graph.edges():
-        bs = list(mgraph[u][v].keys())
-        if len(bs) > 1:
-            first = bs[0]
-            first_i = branches_i.get_loc(first)
-            for b in bs[1:]:
-                b_i = branches_i.get_loc(b)
-                sign = (
-                    -1 if branches_bus0.iat[b_i] == branches_bus0.iat[first_i] else +1
-                )
-                sub_network.C[first_i, c] = 1
-                sub_network.C[b_i, c] = sign
-                c += 1
+    branches = sub_network.branches()
+    buses_i = sub_network.c.buses.static.index
+    if sub_network.n.has_scenarios:
+        buses_i = buses_i.unique("name")
+        if not branches.empty:
+            branches = branches.xs(sub_network.n.scenarios[0], level="scenario")
+    finite = ~np.isinf(branches[weight]) if weight in branches else True
+    edges = (branches["active"] & finite).to_numpy(dtype=bool)
+    sub_network.C = cycle_basis(
+        buses_i, branches["bus0"], branches["bus1"], edges, cycle_basis_method
+    )
 
 
 @deprecated_common_kwargs
@@ -1089,20 +1048,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             self.calculate_PTDF()
 
-        num_branches = self.PTDF.shape[0]
-
-        # build LxL version of PTDF
-        branch_PTDF = self.PTDF * self.K
-
-        with np.errstate(divide="ignore"):
-            denominator = csr_matrix(
-                (1 / (1 - np.diag(branch_PTDF)), (r_[:num_branches], r_[:num_branches]))
-            )
-
-        self.BODF = branch_PTDF * denominator
-
-        # make sure the flow on the branch itself is zero
-        np.fill_diagonal(self.BODF, -1)
+        self.BODF = bodf(self.PTDF, self.K)
 
     def calculate_PTDF(self, skip_pre: bool = False) -> None:
         """Calculate the Power Transfer Distribution Factor (PTDF) for sub_network.
@@ -1119,26 +1065,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             self.calculate_B_H()
 
-        # calculate inverse of B with slack removed
-
-        n_pvpq = len(self.pvpqs)
-        index = np.r_[:n_pvpq]
-
-        identity = csc_matrix((np.ones(n_pvpq), (index, index)))
-
-        B_inverse = spsolve(csc_matrix(self.B[1:, 1:]), identity)
-
-        # exception for two-node networks, where B_inverse is a 1d array
-        if issparse(B_inverse):
-            B_inverse = B_inverse.toarray()
-        elif B_inverse.shape == (1,):
-            B_inverse = B_inverse.reshape((1, 1))
-
-        # add back in zeroes for slack
-        B_inverse = np.hstack((np.zeros((n_pvpq, 1)), B_inverse))
-        B_inverse = np.vstack((np.zeros(n_pvpq + 1), B_inverse))
-
-        self.PTDF = self.H * B_inverse
+        self.PTDF = ptdf(self.B, self.H)
 
     def calculate_B_H(self, skip_pre: bool = False) -> None:
         """Calculate B and H matrices for AC or DC sub-networks."""
@@ -1162,22 +1089,11 @@ class SubNetworkPowerFlowMixin:
                 if c.name in n.passive_branch_components
             ]
         )
-        # susceptances
-        b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
-
-        if np.isnan(b).any():
-            logger.warning(
-                "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
-            )
-        b_diag = csr_matrix((b, (r_[: len(b)], r_[: len(b)])))
-
         # incidence matrix
         self.K = self.incidence_matrix(busorder=self.buses_o)
 
-        self.H = b_diag * self.K.T
-
-        # weighted Laplacian
-        self.B = self.K * self.H
+        # susceptances and the weighted Laplacian
+        b, self.H, self.B = susceptance(z, self.K)
 
         phase_shift = np.concatenate(
             [
