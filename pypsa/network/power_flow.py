@@ -999,6 +999,9 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         for sub_network in self.c.sub_networks.static.obj:
             sub_network._branches = sub_network.branches()
+            # skip sub-networks without active branches, e.g. single buses
+            if not sub_network._branches.active.any():
+                continue
             sub_network.calculate_BODF()
 
         for branch in branch_outages:
