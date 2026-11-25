@@ -250,6 +250,9 @@ class NetworkGraphMixin:
     ) -> sp.sparse.csr_matrix:
         """Construct a sparse incidence matrix (directed).
 
+        On stochastic networks the matrix uses the buses and branches of the
+        first scenario, with one row per bus and one column per active branch.
+
         Parameters
         ----------
         branch_components : iterable sublist of `branch_components`
@@ -291,6 +294,14 @@ class NetworkGraphMixin:
             for c in self.components
             if c.name in branch_components
         )
+        if self.has_scenarios:
+            scenario = self.scenarios[0]
+            if isinstance(busorder, pd.MultiIndex):
+                busorder = busorder[
+                    busorder.get_level_values("scenario") == scenario
+                ].get_level_values("name")
+            if not ends.empty:
+                ends = ends.xs(scenario, level="scenario")
         return _incidence_matrix(busorder, ends.bus0, ends.bus1)
 
 
@@ -463,7 +474,7 @@ def _bus_positions(
     missing = pd.concat([bus0[ends[0] == -1], bus1[ends[1] == -1]])
     if not missing.empty:
         pairs = ", ".join(f"{branch} at {bus}" for branch, bus in missing.items())
-        msg = f"Passive branches end at buses that do not exist: {pairs}."
+        msg = f"Branches end at buses that do not exist: {pairs}."
         raise ValueError(msg)
     return ends
 

@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import numpy as np
 import pytest
 
 import pypsa
@@ -125,3 +126,68 @@ def test_find_slack_bus(controls, slack_generator, slack_bus, controls_after) ->
     assert sub_network.slack_generator == slack_generator
     assert sub_network.slack_bus == slack_bus
     assert n.c.generators.static.control.to_dict() == controls_after
+
+
+@pytest.mark.parametrize("carrier", ["AC", "DC"])
+def test_stochastic_topology_matrices_use_first_scenario(carrier):
+    n = Network()
+    n.add("Bus", ["a", "b", "c"], carrier=carrier)
+    n.add("Line", ["ab", "bc"], bus0=["a", "b"], bus1=["b", "c"], x=0.1, r=0.2)
+    n.add(
+        "Transformer", "ca", bus0="c", bus1="a", x=0.3, r=0.1, s_nom=10, phase_shift=5
+    )
+    n.add("Line", "inactive", bus0="b", bus1="a", active=False)
+    n.add("Link", "across", bus0="a", bus1="c")
+    n.add(
+        "Generator", ["gb", "gc", "ga"], bus=["b", "c", "a"], control=["PQ", "PV", "PQ"]
+    )
+    n.set_scenarios(["z", "a"])
+    n.c.generators.static.at[("a", "gc"), "control"] = "PQ"
+    n.c.generators.static.at[("a", "ga"), "control"] = "Slack"
+    n.c.transformers.static.at[("a", "ca"), "phase_shift"] = 15
+
+    first = n.get_scenario("z")
+    first.determine_network_topology()
+    reference = first.c.sub_networks.static.obj.iloc[0]
+    reference.calculate_BODF()
+
+    order = first.c.buses.static.index[::-1]
+    np.testing.assert_array_equal(
+        n.incidence_matrix().toarray(), first.incidence_matrix().toarray()
+    )
+    np.testing.assert_array_equal(
+        n.incidence_matrix(["Link"], busorder=order).toarray(),
+        first.incidence_matrix(["Link"], busorder=order).toarray(),
+    )
+
+    n.determine_network_topology()
+    sub = n.c.sub_networks.static.obj.iloc[0]
+    sub.calculate_BODF()
+    assert n.c.buses.static.at[("a", "c"), "control"] == "PQ"
+    assert sub.buses_o.equals(reference.buses_o)
+    np.testing.assert_array_equal(
+        sub.incidence_matrix().toarray(), reference.incidence_matrix().toarray()
+    )
+    for attr in ("K", "H", "B"):
+        np.testing.assert_allclose(
+            getattr(sub, attr).toarray(), getattr(reference, attr).toarray()
+        )
+    for attr in ("p_branch_shift", "p_bus_shift", "PTDF", "BODF"):
+        np.testing.assert_allclose(getattr(sub, attr), getattr(reference, attr))
+
+
+def test_stochastic_slack_without_generators_uses_first_scenario_bus():
+    n = Network()
+    n.add("Bus", ["b0", "b1"])
+    n.add("Line", "line", bus0="b0", bus1="b1", x=0.1)
+    n.set_scenarios(["first", "other"])
+    n.c.buses.static = n.c.buses.static.reindex(
+        [("other", "b1"), ("other", "b0"), ("first", "b0"), ("first", "b1")]
+    )
+
+    n.determine_network_topology()
+    sub = n.c.sub_networks.static.obj.iloc[0]
+    sub.calculate_PTDF()
+    assert sub.slack_bus == "b0"
+    assert list(sub.buses_o) == ["b0", "b1"]
+    np.testing.assert_allclose(sub.PTDF, [[0, -1]])
