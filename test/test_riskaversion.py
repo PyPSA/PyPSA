@@ -316,13 +316,14 @@ def test_cvar_with_quadratic_opex_raises():
         n.optimize(log_to_console=False)
 
 
-def test_objective_without_any_costs_raises():
+@pytest.mark.parametrize("generator", [{"p_nom": 5.0}, {"p_nom_extendable": True}])
+def test_objective_without_any_costs_raises(generator: dict) -> None:
     """Cover optimize.py guard when neither CAPEX nor OPEX terms exist."""
     n = pypsa.Network(snapshots=range(2))
     n.add("Carrier", "elec")
     n.add("Bus", "b", carrier="elec")
     n.add("Load", "d", bus="b", p_set=[1.0, 1.0])
-    n.add("Generator", "g", bus="b", p_nom=5.0)
+    n.add("Generator", "g", bus="b", **generator)
 
     # No capex/opex terms — objective cannot be formed
     with pytest.raises(ValueError, match=r"Objective function could not be created"):

@@ -216,8 +216,10 @@ def _has_costs(n: Network, sns: pd.Index) -> bool:
             if any(_any_nonzero(c.da[a], committables, sns) for a in COMMITMENT_COSTS):
                 return True
         extendables = c.extendables.intersection(active)
-        if not c._piecewise_schema("capital_cost").empty and not extendables.empty:
-            return True
+        if c.has_piecewise("capital_cost"):
+            curved = c.piecewise["capital_cost"].columns.unique("name")
+            if not extendables.intersection(curved).empty:
+                return True
         if _any_nonzero(c.periodized_cost, extendables, sns):
             return True
     return False
