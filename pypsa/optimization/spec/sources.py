@@ -856,7 +856,7 @@ def _port_attribute(
     parts = []
     for k, group in s.ports(c).groupby("port", sort=True):
         attr = f"{prefix}{c._port_suffix(k)}"
-        if attr in c.static or attr in c.dynamic:
+        if s.takes(c, attr):
             da = s.da(c, attr)
         else:
             names = s.names(c).to_numpy()

@@ -54,7 +54,8 @@ from pypsa.components.components import (
 )
 from pypsa.constants import HOURS_PER_YEAR
 from pypsa.costs import periodized_cost
-from pypsa.network.topology import cycle_matrices, outage_factors
+from pypsa.network.graph import _cycle_matrix, _incidence_matrix, _sub_network_labels
+from pypsa.network.power_flow import _bodf, _ptdf, _susceptance_matrices
 from pypsa.optimization.spec._render import formulated
 from pypsa.optimization.spec.sources import (
     _SOURCES,
@@ -66,7 +67,7 @@ from pypsa.optimization.spec.sources import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
     from datarecord import RecordLike
     from duckdb import DuckDBPyRelation
@@ -74,6 +75,102 @@ if TYPE_CHECKING:
 
     from pypsa import Network
     from pypsa.components import Components
+
+
+def _sub_networks(
+    buses: pd.Series, branches: pd.DataFrame
+) -> Iterator[tuple[pd.Series, pd.DataFrame]]:
+    """Yield the buses and branches of each sub-network of more than one bus.
+
+    Parameters
+    ----------
+    buses : pandas.Series
+        The carrier of each bus.
+    branches : pandas.DataFrame
+        The passive branches by `(type, name)`, types sorted, with `bus0`
+        and `bus1`, whether each `connects` its buses and whether it is a
+        `member` of the sub-network of its `bus0`.
+
+    """
+    connecting = branches[branches["connects"].to_numpy(dtype=bool)]
+    labels = _sub_network_labels(buses.index, connecting["bus0"], connecting["bus1"])
+    of_branch = branches["bus0"].map(labels).where(branches["member"]).to_numpy()
+    sizes = labels.value_counts().sort_index()
+    for i in sizes.index[sizes > 1]:
+        yield buses[labels.to_numpy() == i], branches[of_branch == i]
+
+
+def _cycle_matrices(
+    buses: pd.Series, branches: pd.DataFrame, method: str
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return the cycle matrix of a network stated as tables, plain and weighted.
+
+    A cycle weighs a branch by its `x_pu_eff` in a sub-network of carrier
+    `AC` and by its `r_pu_eff` in any other.
+
+    Parameters
+    ----------
+    buses, branches
+        As `_sub_networks` takes them; `branches` also holds `active`,
+        `x_pu`, `x_pu_eff` and `r_pu_eff`.
+    method : str
+        The cycle basis method.
+
+    """
+    branches = branches.rename_axis(index=["type", "name"])
+    cycles = []
+    weights = branches["r_pu_eff"].copy()
+    for sub_buses, rows in _sub_networks(buses, branches):
+        edges = rows["active"].astype(bool) & ~np.isinf(rows["x_pu"])
+        C = _cycle_matrix(sub_buses.index, rows["bus0"], rows["bus1"], edges, method)
+        if sub_buses.iat[0] == "AC":
+            weights[rows.index] = rows["x_pu_eff"]
+        if C.size:
+            cycles.append(pd.DataFrame(C.todense(), index=rows.index))
+    if not cycles:
+        return pd.DataFrame(), pd.DataFrame()
+    plain = pd.concat(cycles, axis=1, ignore_index=True).fillna(0)
+    weighted = plain.where(plain == 0, plain.multiply(weights[plain.index], axis=0))
+    branches_i = branches.loc[plain.index.unique("type")].index
+    return tuple(
+        df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
+        for df in (plain, weighted)
+    )
+
+
+def _outage_factors(
+    buses: pd.Series, branches: pd.DataFrame, outages: pd.MultiIndex
+) -> pd.DataFrame:
+    """Return the outage factors of a network stated as tables, branches by outaged branch names.
+
+    The first bus of a sub-network is its slack. A branch has the
+    impedance `r_pu_eff` in a sub-network of carrier `DC` and `x_pu_eff`
+    in any other.
+
+    Parameters
+    ----------
+    buses, branches
+        As `_cycle_matrices` takes them.
+    outages : pandas.MultiIndex
+        The outaged branches, `(type, name)`.
+
+    """
+    branches = branches.rename_axis(index=["type", "name"])
+    frames = []
+    for sub_buses, rows in _sub_networks(buses, branches):
+        outaged = rows.index.intersection(outages)
+        if outaged.empty:
+            continue
+        live = rows[rows["active"].to_numpy(dtype=bool)]
+        K = _incidence_matrix(sub_buses.index, live["bus0"], live["bus1"])
+        z = live["r_pu_eff" if sub_buses.iat[0] == "DC" else "x_pu_eff"]
+        _, H, B = _susceptance_matrices(z.to_numpy(dtype=float), K)
+        frame = pd.DataFrame(
+            _bodf(_ptdf(B, H), K), index=rows.index, columns=rows.index
+        )
+        frames.append(frame[outaged].droplevel(0, axis=1))
+    return pd.concat(frames) if frames else pd.DataFrame()
+
 
 #: What a component states of its type, whatever units it holds.
 COMPONENT_META = frozenset(
@@ -571,13 +668,13 @@ class RecordSources(NetworkSources):
 
     def cycle_matrices(self, period: int | None) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Return the cycle matrix of a period, plain and weighted, from the record's tables."""
-        return cycle_matrices(*self.passive(period), self.cycle_basis_method)
+        return _cycle_matrices(*self.passive(period), self.cycle_basis_method)
 
     def outage_factors(
         self, period: int | None, outages: pd.MultiIndex
     ) -> pd.DataFrame:
         """Return the outage factors of a period, branches by outage, from the record's tables."""
-        return outage_factors(*self.passive(period), outages)
+        return _outage_factors(*self.passive(period), outages)
 
     def weightings(self, dim: str, labels: pd.Index) -> pd.DataFrame:
         """Return the weightings of a record dim by label, one where the record states none."""
@@ -684,10 +781,13 @@ def activity_patch(spec: Spec) -> dict[str, dict[str, Any]]:
     }
     conditions = {}
     for c in formulated(pypsa.Network()):
+        if f"{c.name}_active" not in spec.parameters:
+            continue
         unit, on = c._unit_dim, f"{c.name}_active_asset"
         built, life = f"{c.name}_build_year", f"{c.name}_lifetime"
         parameters[f"{c.name}_active"] = None
-        parameters[on] = {"dims": [unit], "dtype": "bool", "description": "on"}
+        if on not in spec.parameters:
+            parameters[on] = {"dims": [unit], "dtype": "bool", "description": "on"}
         conditions[f"{c.name}_active"] = on
         if "build_year" not in c.static:
             continue
