@@ -246,6 +246,9 @@ Committable extendable generators state their ramp limits in the
 PyPSA checks the specification with its overrides once per process, so a
 repeated build with the same overrides skips the check.
 
+To add a group of components with the math that ties them as often as needed,
+define a [composite](composites.md).
+
 ## Handling snapshots in multi-investment optimizations
 
 In multi-period networks, `n.snapshots` is a `pandas.MultiIndex`. linopy's v1

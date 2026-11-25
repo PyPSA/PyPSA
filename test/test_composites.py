@@ -1,0 +1,292 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+import numpy as np
+import pandas as pd
+import pytest
+import yaml
+
+import pypsa
+
+BATTERY = yaml.safe_load("""
+name: battery
+description: a battery whose charger and discharger share one inverter
+parameters:
+  bus: null
+  efficiency: 0.95
+  max_hours: 8
+  availability: 1.0
+  capital_cost_power: 5
+  capital_cost_energy: 1
+  shared_inverter: true
+components:
+  Bus:
+    dc: {carrier: battery}
+  Link:
+    charger: {bus0: $bus, bus1: "@dc", efficiency: $efficiency, p_nom_extendable: true, capital_cost: $capital_cost_power}
+    discharger: {bus0: "@dc", bus1: $bus, efficiency: $efficiency, p_nom_extendable: true, p_max_pu: $availability}
+  Store:
+    store: {bus: "@dc", e_nom_extendable: true, e_cyclic: true, capital_cost: $capital_cost_energy}
+math:
+  constraints:
+    battery_inverter:
+      description: where `battery_efficiency` is high, the charger and the discharger share one rating
+      dims: [scenario, battery]
+      where: battery_shared_inverter
+      expression: >-
+        at(Link_p_nom_effective, by=battery_members[charger])
+        == at(Link_p_nom_effective, by=battery_members[discharger])
+    battery_duration:
+      dims: [scenario, battery]
+      expression: >-
+        at(Store_e_nom_effective, by=battery_members[store])
+        <= battery_max_hours * at(Link_p_nom_effective, by=battery_members[discharger])
+""")
+INSTANCES = pd.Index(["bat north", "bat south"])
+
+
+@pytest.fixture
+def n():
+    n = pypsa.Network()
+    n.set_snapshots(range(24))
+    n.add("Bus", ["north", "south"])
+    sun = np.clip(np.sin(np.linspace(0, 2 * np.pi, 24)), 0, None)
+    n.add(
+        "Generator",
+        ["north pv", "south pv"],
+        bus=["north", "south"],
+        p_nom_extendable=True,
+        p_max_pu=np.column_stack([sun, sun]),
+        capital_cost=50,
+    )
+    n.add(
+        "Generator",
+        ["north gas", "south gas"],
+        bus=["north", "south"],
+        p_nom=100,
+        marginal_cost=80,
+    )
+    n.add("Load", ["north load", "south load"], bus=["north", "south"], p_set=10)
+    n.composites.register(BATTERY)
+    return n
+
+
+def _add(n):
+    n.add("battery", INSTANCES, bus=["north", "south"], max_hours=[2, 6])
+
+
+@pytest.mark.parametrize("form", ["mapping", "text", "path"])
+def test_a_type_registers_from_each_form(form, tmp_path):
+    n = pypsa.Network()
+    definition = {"mapping": BATTERY, "text": yaml.safe_dump(BATTERY)}.get(form)
+    if form == "path":
+        definition = tmp_path / "battery.yaml"
+        definition.write_text(yaml.safe_dump(BATTERY))
+    battery = n.composites.register(definition)
+    assert n.composites.battery.name == battery.name == "battery"
+    assert list(n.composites) == ["battery"]
+    assert n.meta["composites"]["battery"]["components"] == BATTERY["components"]
+
+
+def test_add_expands_an_instance_into_tagged_members(n):
+    names = n.add("battery", INSTANCES, bus=["north", "south"], return_names=True)
+    assert names.equals(INSTANCES)
+    links = n.c.links.static
+    assert list(links.index) == [
+        "bat north charger",
+        "bat south charger",
+        "bat north discharger",
+        "bat south discharger",
+    ]
+    assert list(links.bus0) == ["north", "south", "bat north dc", "bat south dc"]
+    assert list(links.composite) == list(INSTANCES) * 2
+    assert list(links.composite_member) == ["charger"] * 2 + ["discharger"] * 2
+    assert (n.c.stores.static.composite_type == "battery").all()
+    assert n.composites.battery.members.loc["bat south", "store"] == "bat south store"
+
+
+def test_add_lays_values_over_the_instances(n):
+    availability = pd.DataFrame({"bat south": 0.5, "bat north": 1.0}, index=n.snapshots)
+    n.composites.battery.add(
+        INSTANCES,
+        bus=pd.Series({"bat south": "south", "bat north": "north"}),
+        efficiency=[0.9, 0.8],
+        availability=availability,
+    )
+    static = n.composites.battery.static
+    assert list(static.bus) == ["north", "south"]
+    assert list(static.efficiency) == [0.9, 0.8]
+    assert list(static.max_hours) == [8, 8]
+    p_max_pu = n.c.links.dynamic.p_max_pu
+    assert (p_max_pu["bat south discharger"] == 0.5).all()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"bus": "north", "volume": 3}, r"unknown \['volume'\]"),
+        ({}, r"missing \['bus'\]"),
+        (
+            {"bus": "north", "max_hours": pd.DataFrame({"x": [1.0]})},
+            "not a time series",
+        ),
+        ({"bus": "north", "max_hours": pd.Series({"x": 3, "y": 4})}, "lacks"),
+        ({"bus": "north", "availability": pd.DataFrame({"y": [1.0]})}, "lacks"),
+    ],
+)
+def test_add_refuses_wrong_parameters(n, kwargs, match):
+    with pytest.raises(ValueError, match=match):
+        n.add("battery", ["x", "z"], **kwargs)
+    assert "x dc" not in n.c.buses.static.index
+
+
+def test_add_refuses_a_taken_member_name_before_adding(n):
+    n.add("Link", "x discharger", bus0="north", bus1="south")
+    with pytest.raises(ValueError, match="exist"):
+        n.add("battery", "x", bus="north")
+    assert "x dc" not in n.c.buses.static.index
+    n.add("battery", "y", bus="north")
+
+
+def test_add_refuses_a_suffix(n):
+    with pytest.raises(ValueError, match="suffix"):
+        n.add("battery", "x", suffix=" 1", bus="north")
+
+
+def test_add_refuses_a_taken_name(n):
+    _add(n)
+    with pytest.raises(ValueError, match="are taken"):
+        n.add("battery", "bat north", bus="north")
+
+
+def test_the_math_ties_the_members(n):
+    _add(n)
+    links = n.c.links.static
+    links.loc["bat south charger", ["p_nom", "p_nom_extendable"]] = [7.0, False]
+    n.optimize()
+    p_nom = links.p_nom_opt
+    e_nom = n.c.stores.static.e_nom_opt
+    assert p_nom["bat north charger"] == pytest.approx(p_nom["bat north discharger"])
+    assert p_nom["bat south discharger"] == pytest.approx(7)
+    assert e_nom["bat north store"] <= 2 * p_nom["bat north discharger"] + 1e-6
+    assert e_nom["bat south store"] <= 6 * 7 + 1e-6
+    assert e_nom["bat north store"] == pytest.approx(2 * p_nom["bat north discharger"])
+
+
+def test_a_bool_parameter_masks_rows(n):
+    n.add("battery", INSTANCES, bus=["north", "south"], shared_inverter=[True, False])
+    m = n.optimize.create_model()
+    rows = (m.constraints["battery_inverter"].labels != -1).any("scenario")
+    assert rows.to_series().to_dict() == {"bat north": True, "bat south": False}
+
+
+def test_a_math_parameter_varies_by_scenario(n):
+    _add(n)
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    n.c.buses.static.loc[("high", "bat north dc"), "battery_max_hours"] = 0.5
+    n.optimize()
+    p_nom = n.c.links.static.p_nom_opt.xs("low", level="scenario")
+    e_nom = n.c.stores.static.e_nom_opt.xs("low", level="scenario")
+    assert e_nom["bat north store"] <= 0.5 * p_nom["bat north discharger"] + 1e-6
+
+
+def test_instances_run_over_investment_periods(n):
+    _add(n)
+    n.snapshots = pd.MultiIndex.from_product([[2030, 2040], range(12)])
+    n.investment_periods = [2030, 2040]
+    n.c.links.static.loc["bat north discharger", "build_year"] = 2040
+    n.optimize(multi_investment_periods=True)
+    assert n.model.constraints["battery_duration"].sizes["battery"] == 2
+
+
+def test_two_types_build_side_by_side(n):
+    _add(n)
+    cell = yaml.safe_load(yaml.safe_dump(BATTERY).replace("battery", "cell"))
+    n.composites.register(cell)
+    n.add("cell", "c", bus="north")
+    m = n.optimize.create_model()
+    assert {"battery_inverter", "cell_inverter"} <= set(m.constraints)
+
+
+def test_a_description_is_no_parameter_reference(n):
+    _add(n)
+    assert "battery_shared_inverter" in n.c.buses.static
+    assert "battery_efficiency" not in n.c.buses.static
+
+
+def test_statistics_group_by_instance(n):
+    _add(n)
+    n.optimize()
+    balance = n.statistics.energy_balance(groupby="composite")
+    assert set(balance.index.get_level_values("composite")) == {"", *INSTANCES}
+
+
+def test_a_type_without_instances_adds_no_rows(n):
+    n.optimize()
+    assert "battery_inverter" not in n.model.constraints
+
+
+def test_composites_survive_copy_and_netcdf(n, tmp_path):
+    _add(n)
+    path = tmp_path / "net.nc"
+    n.export_to_netcdf(path)
+    others = [n.copy(), pypsa.Network(path)]
+    n.optimize()
+    for other in others:
+        assert other.composites.battery.members.equals(n.composites.battery.members)
+        other.optimize()
+        assert other.objective == pytest.approx(n.objective)
+
+
+def test_an_incomplete_instance_fails(n):
+    _add(n)
+    n.remove("Store", "bat north store")
+    with pytest.raises(ValueError, match=r"\['bat north'\] lack members"):
+        n.optimize.create_model()
+
+
+def test_an_instance_is_built_in_full_or_not_at_all(n):
+    _add(n)
+    links = n.c.links.static
+    links.loc[["bat north charger", "bat north discharger"], "active"] = False
+    n.c.stores.static.loc["bat north store", "active"] = False
+    m = n.optimize.create_model()
+    assert list(m.constraints["battery_inverter"].indexes["battery"]) == ["bat south"]
+    n.c.stores.static.loc["bat north store", "active"] = True
+    with pytest.raises(ValueError, match="outside the build"):
+        n.optimize.create_model()
+
+
+def _with(**changes):
+    return {**BATTERY, **changes}
+
+
+@pytest.mark.parametrize(
+    ("definition", "match"),
+    [
+        (_with(name="Link"), "named by an identifier"),
+        (_with(name="bus"), "named by an identifier"),
+        (_with(volume=1), "sections"),
+        (_with(components={"Battery": {"x": {}}}), "by component class"),
+        (_with(components={"Carrier": {"x": {}}}), "by component class"),
+        (_with(parameters={"members": 1}), "cannot name a parameter"),
+        (_with(components={"Link": {"a": {"bus0": "@b"}}}), "refers to @b"),
+        (_with(components={"Link": {"a": {"bus0": "$b"}}}), "refers to \\$b"),
+        (_with(math={"objective": {}}), "has the sections"),
+        (_with(math={"constraints": {"inverter": {}}}), "cannot add 'inverter'"),
+        (
+            _with(math={"constraints": {"Generator_ext_p_upper": None}}),
+            "cannot add 'Generator_ext_p_upper'",
+        ),
+    ],
+)
+def test_a_malformed_definition_is_refused(definition, match):
+    with pytest.raises(ValueError, match=match):
+        pypsa.Network().composites.register(definition)
+
+
+def test_another_type_of_the_same_name_is_refused(n):
+    n.composites.register(BATTERY)
+    with pytest.raises(ValueError, match="Another composite type"):
+        n.composites.register(_with(description="other"))

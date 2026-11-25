@@ -551,7 +551,7 @@ def build_model(
     objective_scaling: float = 1.0,
     **options: Any,
 ) -> Model:
-    """Build the model of `n` over the build's snapshots from the spec, with *overrides* laid over it."""
+    """Build the model of `n` over the build's snapshots from the spec, with its composites and then *overrides* laid over it."""
     check(
         n,
         network_index,
@@ -561,8 +561,16 @@ def build_model(
     )
     model_kwargs = model_kwargs or {}
     n.calculate_dependent_values()
+    overrides = [*n.composites.patches(), *overrides]
     s, expanded = _formulation(linearized_unit_commitment, piecewise_options, overrides)
-    sources = NetworkSources(n, s, network_index, model_index, **options)
+    sources = NetworkSources(
+        n,
+        s,
+        network_index,
+        model_index,
+        providers=n.composites.providers(),
+        **options,
+    )
     mode = (options.get("transmission_losses") or {}).get("mode")
     rename = _renamer(s, spec_names(linearized_unit_commitment), mode)
     m = Model.from_spec(

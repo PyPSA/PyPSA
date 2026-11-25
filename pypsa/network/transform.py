@@ -217,6 +217,13 @@ class NetworkTransformMixin(_NetworkABC):
         if return_names is None:
             return_names = options.params.add.return_names
 
+        if isinstance(class_name, str) and class_name in self.composites:
+            if suffix or overwrite:
+                msg = "A composite takes no `suffix` or `overwrite`; name its instances in full."
+                raise ValueError(msg)
+            names = self.composites[class_name].add(name, **kwargs)
+            return names if return_names else None
+
         c = as_components(self, class_name)
         if c.name == "StorageUnit":
             warnings.warn(

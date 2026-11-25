@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from pypsa.components.store import ComponentsStore
+    from pypsa.composites import Composites
     from pypsa.optimization.window import SnapshotWindow
 
 
@@ -69,6 +70,7 @@ class _NetworkABC(ABC):
     calculate_dependent_values: Callable
 
     passive_branches: pd.DataFrame
+    composites: Composites
 
     # Optimization
     _model: linopy.Model | None

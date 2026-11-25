@@ -115,6 +115,8 @@ class NetworkSources(Mapping[str, Any]):
         The cycle basis method of the KVL rows.
     branch_outages : pandas.Index | None
         The outages of a security-constrained run.
+    providers : Mapping | None
+        Further derivations of this build, called as `f(sources, name)`.
 
     """
 
@@ -130,6 +132,7 @@ class NetworkSources(Mapping[str, Any]):
         committable_big_m: float | None = None,
         cycle_basis_method: str = "bfs-refined",
         branch_outages: Any = None,
+        providers: Mapping[str, Callable[..., Any]] | None = None,
     ) -> None:
         """Initialise the sources of one build."""
         self.n = n
@@ -143,6 +146,11 @@ class NetworkSources(Mapping[str, Any]):
         self.branch_outages = branch_outages
         self.units = {c._unit_dim: c for c in formulated(n)}
         self._providers = _providers(self.units.values())
+        clash = self._providers.keys() & dict(providers or {}).keys()
+        if clash:
+            msg = f"{sorted(clash)} have two derivations."
+            raise ValueError(msg)
+        self._providers |= dict(providers or {})
         self._keys = dict.fromkeys(
             [*spec.dimensions, *spec.relations, *spec.parameters]
         )
