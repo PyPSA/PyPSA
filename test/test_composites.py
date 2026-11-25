@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+from importlib.util import find_spec
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -241,16 +243,29 @@ def test_a_type_without_instances_adds_no_rows(n):
     assert "battery_inverter" not in n.model.constraints
 
 
-def test_composites_survive_copy_netcdf_and_hdf5(n, tmp_path):
+@pytest.mark.parametrize(
+    "form",
+    [
+        "copy",
+        "netcdf",
+        pytest.param(
+            "hdf5",
+            marks=pytest.mark.skipif(
+                find_spec("tables") is None, reason="PyTables not installed"
+            ),
+        ),
+    ],
+)
+def test_composites_survive_copy_and_io(n, tmp_path, form):
     _add(n)
-    n.export_to_netcdf(tmp_path / "net.nc")
-    n.export_to_hdf5(tmp_path / "net.h5")
-    others = [n.copy(), *(pypsa.Network(tmp_path / f) for f in ("net.nc", "net.h5"))]
+    path = tmp_path / {"netcdf": "net.nc", "hdf5": "net.h5"}.get(form, "")
+    if form != "copy":
+        getattr(n, f"export_to_{form}")(path)
+    other = n.copy() if form == "copy" else pypsa.Network(path)
     n.optimize()
-    for other in others:
-        assert other.composites.battery.members.equals(n.composites.battery.members)
-        other.optimize()
-        assert other.objective == pytest.approx(n.objective)
+    assert other.composites.battery.members.equals(n.composites.battery.members)
+    other.optimize()
+    assert other.objective == pytest.approx(n.objective)
 
 
 def test_an_incomplete_instance_fails(n):
