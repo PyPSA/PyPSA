@@ -707,8 +707,12 @@ UNUSED_ATTRIBUTE_RULES: tuple[_UnusedAttributeRule, ...] = (
 
 
 def _non_default_names(component: Components, attr: str) -> pd.Index:
-    values = component.da[attr]
     default = component.defaults.at[attr, "default"]
+    if attr not in component.dynamic or component.dynamic[attr].empty:
+        static = component.static[attr]
+        differs = (static != default) & ~(static.isna() & pd.isna(default))
+        return component._name_index(differs)
+    values = component.da[attr]
     differs = (values != default) & ~(values.isnull() & pd.isna(default))
     differs = differs.any(dim=[dim for dim in differs.dims if dim != "name"])
     return pd.Index(differs.coords["name"].values[differs.to_numpy()])

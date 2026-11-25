@@ -291,7 +291,7 @@ def _max_modules(c: Components, names: pd.Index) -> DataArray:
     nom_max = nom_max.where(np.isfinite(nom_max), c._resolve_big_m_default(None))
     is_modular = DataArray(names.isin(c.modulars), coords=[names])
     nom_mod = c.da[c._operational_attrs["nom_mod"]].sel(name=names)
-    modules = np.ceil(nom_max / nom_mod.where(is_modular, 1))
+    modules = -(-nom_max // nom_mod.where(is_modular, 1))
     return modules.where(is_modular, 1)
 
 
