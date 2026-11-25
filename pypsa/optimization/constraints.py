@@ -392,6 +392,18 @@ def define_operational_constraints_for_committables(
     p = n.model[f"{c.name}-p"].sel(name=com_i)
     active = c.da.active.sel(name=com_i, snapshot=sns)
 
+    if c.static.status_max.notna().any() or not c.dynamic.status_max.empty:
+        status_max = c.da.status_max.sel(name=com_i, snapshot=sns)
+        availability_mask = active & status_max.notnull()
+        if availability_mask.any():
+            n.model.add_constraints(
+                status,
+                "<=",
+                status_max.fillna(0),
+                name=f"{c.name}-com-status-max",
+                mask=availability_mask,
+            )
+
     ext_i = c.extendables.intersection(c.active_assets)
     com_ext_i = com_i.intersection(ext_i).difference(c.modulars)
     com_fix_i = com_i.difference(ext_i).difference(c.modulars)

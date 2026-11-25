@@ -13,6 +13,97 @@ import pypsa
 from pypsa._linopy_compat import linopy_uses_v1, v1_semantics
 
 
+@pytest.mark.parametrize(
+    ("component", "p_attr"), [("Generator", "p"), ("Link", "p0"), ("Process", "p")]
+)
+@pytest.mark.parametrize("extendable", [False, True], ids=["fixed", "extendable"])
+def test_modular_status_max(component, p_attr, extendable):
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Carrier", "power")
+    n.add("Bus", ["input", "output"], carrier="power")
+    n.add("Generator", "supply", bus="input", carrier="power", p_nom=200)
+    n.add(
+        "Generator",
+        "backup",
+        bus="output",
+        carrier="power",
+        p_nom=200,
+        marginal_cost=100,
+    )
+    n.add("Load", "load", bus="output", p_set=150)
+    buses = (
+        {"bus": "output"}
+        if component == "Generator"
+        else {"bus0": "input", "bus1": "output"}
+    )
+    n.add(
+        component,
+        "fleet",
+        **buses,
+        carrier="power",
+        p_nom=0 if extendable else 200,
+        p_nom_mod=100,
+        p_nom_extendable=extendable,
+        p_nom_max=200,
+        committable=True,
+        up_time_before=0,
+        marginal_cost=1,
+        stand_by_cost=10,
+        status_max=[np.nan, 1, 0],
+    )
+
+    assert n.optimize(solver_name="highs") == ("ok", "optimal")
+    c = n.c[component]
+    equal(c.dynamic.status["fleet"], [2, 1, 0])
+    equal(c.dynamic[p_attr]["fleet"], [150, 100, 0])
+    equal(n.c.generators.dynamic.p["backup"], [0, 50, 150])
+    assert n.objective == pytest.approx(150 + 100 + 3 * 10 + 200 * 100)
+
+
+@pytest.mark.parametrize("linearized", [False, True])
+def test_static_status_max_only_applies_to_committable_units(linearized):
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Carrier", "power")
+    n.add("Bus", "bus", carrier="power")
+    n.add("Load", "load", bus="bus", p_set=120)
+    n.add(
+        "Generator",
+        "offline",
+        bus="bus",
+        carrier="power",
+        p_nom=60,
+        marginal_cost=1,
+        committable=True,
+        status_max=0,
+    )
+    n.add(
+        "Generator",
+        "available",
+        bus="bus",
+        carrier="power",
+        p_nom=70,
+        marginal_cost=10,
+        committable=True,
+    )
+    n.add(
+        "Generator",
+        "backup",
+        bus="bus",
+        carrier="power",
+        p_nom=80,
+        marginal_cost=100,
+        status_max=0,
+    )
+
+    assert n.optimize(solver_name="highs", linearized_unit_commitment=linearized) == (
+        "ok",
+        "optimal",
+    )
+    equal(n.c.generators.dynamic.status["offline"], [0, 0])
+    equal(n.c.generators.dynamic.p["available"], [70, 70])
+    equal(n.c.generators.dynamic.p["backup"], [50, 50])
+
+
 def test_unit_commitment():
     """
     This test is based on https://docs.pypsa.org/latest/examples/unit-commitment/

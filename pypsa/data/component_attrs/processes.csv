@@ -31,6 +31,7 @@ stand_by_cost,static or series,currency/h,0.,Stand-by cost for operating the pro
 length,float,km,0,"Length of the process. Useful for calculating `capital_cost` for HVDC connections.",Input (optional)
 terrain_factor,float,per unit,1,Terrain factor for increasing `capital_cost` calculated from `length`.,Input (optional)
 committable,boolean,n/a,False,Apply unit commitment constraints.,Input (optional)
+status_max,static or series,n/a,NaN,"Maximum number of committed modules per snapshot. For a non-modular unit, 0 forces it off. NaN leaves commitment uncapped by this attribute. Only if `committable=True`.",Input (optional)
 start_up_cost,static or series,currency,0,Cost to start up the process. Only used if `committable=True`.,Input (optional)
 shut_down_cost,static or series,currency,0,Cost to shut down the process. Only used if `committable=True`.,Input (optional)
 min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1.  Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
