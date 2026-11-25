@@ -1288,7 +1288,10 @@ class SubNetworkPowerFlowMixin:
 
         if gens.empty:
             self.slack_generator = None
-            self.slack_bus = self.c.buses.static.index.get_level_values("name")[0]
+            buses = self.c.buses.static
+            if self.n.has_scenarios:
+                buses = buses.xs(self.n.scenarios[0], level="scenario")
+            self.slack_bus = buses.index[0]
         else:
             # One slack bus is shared by all scenarios. Choose it using the
             # same generator order as the first scenario's deterministic network.

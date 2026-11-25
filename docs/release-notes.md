@@ -53,7 +53,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- Fix incidence, susceptance, PTDF and BODF matrices on stochastic networks. They use the first scenario's bus order and active branches, including its transformer phase shifts in the linear power flow. ([#2202](https://github.com/PyPSA/PyPSA/issues/2202))
+- Fix incidence, susceptance, PTDF and BODF matrices on stochastic networks. They use the first scenario's bus order and active branches. The branch and bus injection offsets also use its transformer phase shifts. (<!-- md:pr 2207 -->)
 
 - Fix [`n.merge`][pypsa.Network.merge] filling dynamic output data such as the links' `p0` with default values, even when the data was absent from both input networks. Empty time series are now skipped during the merge.
 - Fix modelling-to-generate-alternatives (MGA) objectives that combine weights across component types with different names under linopy v1 semantics.

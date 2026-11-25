@@ -174,3 +174,20 @@ def test_stochastic_topology_matrices_use_first_scenario(carrier):
         )
     for attr in ("p_branch_shift", "p_bus_shift", "PTDF", "BODF"):
         np.testing.assert_allclose(getattr(sub, attr), getattr(reference, attr))
+
+
+def test_stochastic_slack_without_generators_uses_first_scenario_bus():
+    n = Network()
+    n.add("Bus", ["b0", "b1"])
+    n.add("Line", "line", bus0="b0", bus1="b1", x=0.1)
+    n.set_scenarios(["first", "other"])
+    n.c.buses.static = n.c.buses.static.reindex(
+        [("other", "b1"), ("other", "b0"), ("first", "b0"), ("first", "b1")]
+    )
+
+    n.determine_network_topology()
+    sub = n.c.sub_networks.static.obj.iloc[0]
+    sub.calculate_PTDF()
+    assert sub.slack_bus == "b0"
+    assert list(sub.buses_o) == ["b0", "b1"]
+    np.testing.assert_allclose(sub.PTDF, [[0, -1]])
