@@ -165,6 +165,15 @@ These constraints are defined in the function `define_operational_constraints_fo
         | $T_{\textrm{up_time_before}}$ | `n.processes.up_time_before` | Parameter |
         | $T_{\textrm{down_time_before}}$ | `n.processes.down_time_before` | Parameter |
 
+## Availability limits
+
+Set `status_max` on a committable generator, link or process to cap the number of
+online modules. Use a scalar for all snapshots or a time series with one value per
+snapshot. For example, `status_max=[2, 1, 2]` leaves only one module of a two-module
+fleet available during the middle snapshot. A value of `0` forces a fleet or a
+non-modular unit off. Leave the value at `NaN` (the default) to apply no availability
+cap in that snapshot. Minimum up and down times and ramp limits still apply.
+
 ## Ramping
 
 Ramp rate limits can be defined for increasing output $ru_{n,s,t}$ and decreasing output $rd_{n,s,t}$. By default these are null and ignored. They must be provided per unit of the nominal capacity.

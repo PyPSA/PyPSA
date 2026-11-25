@@ -1126,7 +1126,7 @@ class Network(
                   Bremen Converter     True  NaN  ...       NaN       NaN
                   DC link              True  NaN  ...       NaN       NaN
         <BLANKLINE>
-        [11 rows x 84 columns]
+        [11 rows x 85 columns]
 
         See Also
         --------
@@ -1212,7 +1212,7 @@ class Network(
                   Bremen Converter     True           0  ...                   1
                   DC link              True           0  ...                   1
         <BLANKLINE>
-        [4 rows x 54 columns]
+        [4 rows x 55 columns]
 
         See Also
         --------
