@@ -717,12 +717,12 @@ def _units(s: RecordSources, name: str, c: Components) -> pd.Index:
 
 
 @record_source(
-    "snapshot_weightings_objective",
-    "snapshot_weightings_generators",
-    "snapshot_weightings_stores",
+    "snapshot_weighting_objective",
+    "snapshot_weighting_generators",
+    "snapshot_weighting_stores",
 )
 def _snapshot_weighting(s: RecordSources, name: str) -> xr.DataArray:
-    column = name.removeprefix("snapshot_weightings_")
+    column = name.removeprefix("snapshot_weighting_")
     table = s.weightings(SNAPSHOT, s.network_index)
     return s.over_snapshots(table[column].to_numpy(dtype=float))
 
@@ -736,11 +736,11 @@ def _scenario_weight(s: RecordSources, name: str) -> xr.DataArray:
     return xr.DataArray(values, coords={SCENARIO: s.scenarios}, dims=SCENARIO)
 
 
-@record_source("period_weight_objective", "period_weight_years")
-def _period_weight(s: RecordSources, name: str) -> xr.DataArray:
+@record_source("period_weighting_objective", "period_weighting_years")
+def _period_weighting(s: RecordSources, name: str) -> xr.DataArray:
     values = np.ones(len(s.periods))
     if s.multi_invest:
-        column = name.removeprefix("period_weight_")
+        column = name.removeprefix("period_weighting_")
         values = s.weightings(PERIOD, s.periods)[column].to_numpy(dtype=float)
     return xr.DataArray(values, coords={PERIOD: s.periods}, dims=PERIOD)
 
