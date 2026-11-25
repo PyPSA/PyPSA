@@ -23,8 +23,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import xarray as xr
-from datarecord import Flags, settle
-from datarecord.schema.categories import matching
+from datarecord import Flags, select, settle
 from datarecord.schema.schema import unpacked
 from datarecord.tools.pypsa import (
     _AXIS_TYPES,
@@ -43,7 +42,6 @@ from datarecord.tools.pypsa import (
     PyPSA,
     _port_table,
     _scenario_weights,
-    _tuples_of,
     _weightings,
 )
 
@@ -70,7 +68,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
     from datarecord import RecordLike
-    from duckdb import DuckDBPyRelation
     from mathspec.spec import Spec
 
     from pypsa import Network
@@ -343,7 +340,7 @@ class RecordSources(NetworkSources):
         self.strict = strict
         self.touched: dict[str, set[str]] = {}
         self._deriving: list[str] = []
-        self.shape = NetworkShape(record.schema, record.dims)
+        self.shape = NetworkShape(record.schema, record.dimensions)
         levels = self.shape.snapshot_levels
         index = (
             pd.MultiIndex.from_frame(levels)
@@ -420,7 +417,7 @@ class RecordSources(NetworkSources):
 
     def axis(self, dim: str) -> pd.Index:
         """Return the labels of a record dim in axis order."""
-        rel = self.record.dims.get(dim)
+        rel = self.record.dimensions.get(dim)
         labels = [] if rel is None else [label for (label,) in rel.fetchall()]
         return pd.Index(labels, dtype=object)
 
@@ -552,14 +549,16 @@ class RecordSources(NetworkSources):
         if rel is None:
             columns = [SCENARIO, *self.network_index.names, key, "value"]
             return pd.DataFrame(columns=columns)
-        members = self.record.dims[key]
+        dims = self.record.dimensions
         if key == ENTITY:
-            members = matching(self.record.properties[ENTITY], {CTYPE: (ctype,)})
-        labels: dict[str, DuckDBPyRelation] = {key: members}
-        if port is not None:
-            labels = {CONNECTION: _tuples_of(self.record.dims[CONNECTION], members)}
+            dims = self.memo(
+                f"{ctype} selection",
+                lambda: select(self.record, **{CTYPE: [ctype]}).dimensions,
+            )
+        dim = key if port is None else CONNECTION
+        labels = {dim: dims[dim]}
         if self.stochastic and SCENARIO in rel.columns:
-            labels[SCENARIO] = self.record.dims[SCENARIO]
+            labels[SCENARIO] = self.record.dimensions[SCENARIO]
         settled = settle(rel, labels, Flags(frozenset(labels), frozenset(labels)))
         schema = self.record.schema
         rows = unpacked(schema, CONNECTION, unpacked(schema, SNAPSHOT, settled)).df()
