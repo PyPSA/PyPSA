@@ -283,28 +283,31 @@ def _constraint(m: Model, lhs: LinearExpression, con: Constraint) -> Constraint:
 
 
 #: The global constraints the spec states by sense, which PyPSA names by label.
-BY_SENSE = ("GlobalConstraint-upper", "GlobalConstraint-lower", "GlobalConstraint-fix")
+BY_SENSE = {
+    "GlobalConstraint-upper": "<=",
+    "GlobalConstraint-lower": ">=",
+    "GlobalConstraint-fix": "=",
+}
 
 
 def _split_by_label(m: Model) -> None:
     """Replace each constraint of `BY_SENSE` with one constraint `GlobalConstraint-{label}` per built row label."""
-    for name in BY_SENSE:
+    for name, sign in BY_SENSE.items():
         if name not in m.constraints:
             continue
         con = m.constraints[name]
         m.remove_constraints(name)
         for label in con.indexes["name"]:
-            part = con.sel(name=label, drop=True)
-            built = part.labels != -1
+            built = con.labels.sel(name=label, drop=True) != -1
             if not built.any():
                 continue
             m.add_constraints(
-                part.lhs,
-                part.sign,
-                part.rhs,
+                con.lhs.sel(name=label, drop=True),
+                sign,
+                con.rhs.sel(name=label, drop=True),
                 name=f"GlobalConstraint-{label}",
                 mask=built,
-                scaling=part.scaling,
+                scaling=con.scaling.sel(name=label, drop=True),
             )
 
 
@@ -432,7 +435,7 @@ def _carrier_factors(
     """Return per carrier the geometric mean of the smallest and largest factor of its expandable assets."""
     low = np.full(len(carriers), np.nan)
     high = np.full(len(carriers), np.nan)
-    for c in formulated(n, "carrier_expansion"):
+    for c in formulated(n, "capacity"):
         name = renamer(c)
         built = (
             sources[name("COMPONENT_NOM_extendable")]

@@ -250,6 +250,7 @@ ignore = [
     'SIM118',
     'PLR0911',
     'PLR0913',
+    'PLR0917',
     'PLR0915',
     'PLR2004',
     # Could be implemented
