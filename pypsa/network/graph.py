@@ -2,7 +2,13 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Graph helper functions, which are attached to network and sub_network, and cycle-basis algorithms."""
+"""Graph of the passive network.
+
+Holds the graph methods of network and sub_network, the cycle basis
+algorithms, and private functions that compute the topology from the labels
+of buses and branch ends: sub-networks, cycle matrices and incidence.
+These functions need no network, so other data layers in PyPSA can call them.
+"""
 
 from __future__ import annotations
 
@@ -15,9 +21,12 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import scipy as sp
+from scipy.sparse import csgraph, csr_matrix, dok_matrix
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Hashable, Iterable, Mapping
+
+_CYCLE_BASIS_METHODS = ("bfs-refined", "paton")
 
 
 class OrderedGraph(nx.MultiGraph):
@@ -277,27 +286,12 @@ class NetworkGraphMixin:
         if busorder is None:
             busorder = self.c.buses.static.index
 
-        no_buses = len(busorder)
-        no_branches = 0
-        bus0_inds_list = []
-        bus1_inds_list = []
-        for c in self.components:
-            if c.name not in branch_components:
-                continue
-            sel = c.static.query("active").index
-            no_branches += len(c.static.loc[sel])
-            bus0_inds_list.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
-            bus1_inds_list.append(busorder.get_indexer(c.static.loc[sel, "bus1"]))
-        bus0_inds = np.concatenate(bus0_inds_list)
-        bus1_inds = np.concatenate(bus1_inds_list)
-
-        return sp.sparse.csr_matrix(
-            (
-                np.r_[np.ones(no_branches), -np.ones(no_branches)],
-                (np.r_[bus0_inds, bus1_inds], np.r_[:no_branches, :no_branches]),
-            ),
-            (no_buses, no_branches),
+        ends = pd.concat(
+            c.static.loc[c.static.active, ["bus0", "bus1"]]
+            for c in self.components
+            if c.name in branch_components
         )
+        return _incidence_matrix(busorder, ends.bus0, ends.bus1)
 
 
 def _bfs_fundamental_cycles(graph: nx.Graph, root: Hashable) -> list[list[Hashable]]:
@@ -452,3 +446,143 @@ def bfs_refined_cycle_basis(
         if not swaps:
             break
     return cycles
+
+
+def _bus_positions(
+    buses: pd.Index, bus0: pd.Series, bus1: pd.Series
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return the position of the two ends of each branch among the buses.
+
+    Raises
+    ------
+    ValueError
+        A branch ends at a bus that `buses` lacks.
+
+    """
+    ends = buses.get_indexer(bus0), buses.get_indexer(bus1)
+    missing = pd.concat([bus0[ends[0] == -1], bus1[ends[1] == -1]])
+    if not missing.empty:
+        pairs = ", ".join(f"{branch} at {bus}" for branch, bus in missing.items())
+        msg = f"Passive branches end at buses that do not exist: {pairs}."
+        raise ValueError(msg)
+    return ends
+
+
+def _sub_network_labels(buses: pd.Index, bus0: pd.Series, bus1: pd.Series) -> pd.Series:
+    """Return the connected sub-network that each bus is in, numbered from 0.
+
+    Parameters
+    ----------
+    buses : pandas.Index
+        The buses, in the order that numbers the sub-networks.
+    bus0, bus1 : pandas.Series
+        The two ends of each branch that connects, by its label.
+
+    Raises
+    ------
+    ValueError
+        A branch ends at a bus that `buses` lacks.
+
+    """
+    ends = _bus_positions(buses, bus0, bus1)
+    size = len(buses)
+    adjacency = csr_matrix((np.ones(len(ends[0])), ends), shape=(size, size))
+    labels = csgraph.connected_components(adjacency, directed=False)[1]
+    return pd.Series(labels, buses, name="sub_network")
+
+
+def _cycle_matrix(
+    buses: pd.Index,
+    bus0: pd.Series,
+    bus1: pd.Series,
+    edges: pd.Series,
+    method: str = "bfs-refined",
+) -> dok_matrix:
+    """Return the cycle matrix of one sub-network, branches by cycles.
+
+    The basis of `method` holds the cycles of more than 2 edges; each
+    further branch between two buses then closes a cycle of 2 edges with the
+    first one between them. An entry is `+1` where the cycle runs along
+    the branch from `bus0` to `bus1` and `-1` against it.
+
+    Parameters
+    ----------
+    buses : pandas.Index
+        The buses of the sub-network, in the order of its graph's nodes.
+    bus0, bus1 : pandas.Series
+        The two ends of each branch of the sub-network, by its label.
+    edges : pandas.Series
+        Whether each branch is an edge of the graph: active and of finite
+        impedance, by its label.
+    method : str, default "bfs-refined"
+        Either `"bfs-refined"` or `"paton"`.
+
+    """
+    if method not in _CYCLE_BASIS_METHODS:
+        msg = f"cycle_basis_method must be one of {_CYCLE_BASIS_METHODS}"
+        raise ValueError(msg)
+    branches_i = bus0.index
+    mgraph = OrderedGraph()
+    mgraph.add_nodes_from(buses)
+    mgraph.add_edges_from(
+        (u, v, key)
+        for u, v, key, edge in zip(
+            bus0, bus1, branches_i, edges.loc[branches_i], strict=True
+        )
+        if edge
+    )
+    graph = nx.Graph(mgraph)
+    if method == "paton":
+        cycles = nx.cycle_basis(graph)
+    else:
+        cycles = bfs_refined_cycle_basis(graph)
+
+    num_multi = len(mgraph.edges()) - len(graph.edges())
+    C = dok_matrix((len(bus0), len(cycles) + num_multi))
+
+    for j, cycle in enumerate(cycles):
+        for i in range(len(cycle)):
+            branch = next(iter(mgraph[cycle[i]][cycle[(i + 1) % len(cycle)]].keys()))
+            branch_i = branches_i.get_loc(branch)
+            sign = +1 if bus0.iat[branch_i] == cycle[i] else -1
+            C[branch_i, j] += sign
+
+    c = len(cycles)
+    for u, v in graph.edges():
+        bs = list(mgraph[u][v].keys())
+        if len(bs) > 1:
+            first_i = branches_i.get_loc(bs[0])
+            for b in bs[1:]:
+                b_i = branches_i.get_loc(b)
+                sign = -1 if bus0.iat[b_i] == bus0.iat[first_i] else +1
+                C[first_i, c] = 1
+                C[b_i, c] = sign
+                c += 1
+    return C
+
+
+def _incidence_matrix(buses: pd.Index, bus0: pd.Series, bus1: pd.Series) -> csr_matrix:
+    """Return the incidence matrix, buses by branches.
+
+    Parameters
+    ----------
+    buses : pandas.Index
+        The buses, in the order of the rows.
+    bus0, bus1 : pandas.Series
+        The two ends of each branch, by its label, in the order of the columns.
+
+    Raises
+    ------
+    ValueError
+        A branch ends at a bus that `buses` lacks.
+
+    """
+    rows0, rows1 = _bus_positions(buses, bus0, bus1)
+    branches = len(bus0)
+    return csr_matrix(
+        (
+            np.r_[np.ones(branches), -np.ones(branches)],
+            (np.r_[rows0, rows1], np.r_[:branches, :branches]),
+        ),
+        (len(buses), branches),
+    )

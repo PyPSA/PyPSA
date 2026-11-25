@@ -53,6 +53,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Enhancements
 
+- Move the topology algorithms of the passive network (sub-networks, cycle basis, incidence, PTDF, BODF) into private functions that need no network, which the `Network` and `SubNetwork` methods call. Results are unchanged. (<!-- md:pr 2200 -->)
+    - **Behavior change**: A passive branch at a missing bus makes [`n.determine_network_topology()`][pypsa.Network.determine_network_topology] raise a `ValueError` that names the branch and the bus. Before, the error read "graph should be a square array".
 - Deprecation: [`n.plot.iplot()`][pypsa.plot.accessor.PlotAccessor.iplot] is deprecated and will be removed in PyPSA 2.0. Use [`n.plot.explore()`][pypsa.plot.accessor.PlotAccessor.explore] instead. The interactive statistics plots `n.statistics.*.iplot()` are not affected. (<!-- md:pr 2158 -->)
 - Deprecation: `pypsa.network.power_flow.aggregate_multi_graph` is deprecated and will be removed in PyPSA 2.0 without replacement. (<!-- md:pr 2158 -->)
 - Deprecation: `c.n_save` and `c.attached` of [`Components`][pypsa.Components] are deprecated and will be removed in PyPSA 2.0. Components are attached to a network, use `c.n`. (<!-- md:pr 2106 -->)
@@ -72,6 +74,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix building multi-period models with [`n.optimize(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.__call__] when a link is inactive in some investment periods, which raised a `ValueError` about NaN constants with the stricter arithmetic of upcoming linopy releases. (<!-- md:pr 2180 -->)
 - Re-exporting a network to an existing CSV folder now removes the files of components that no longer exist. Before, the stale files were kept and the removed components reappeared on import. (<!-- md:pr 2158 -->)
 - Fix importing networks from Excel files given as a URL, which raised a `FileNotFoundError`. (<!-- md:pr 2158 -->)
+- Fix the warning about zero series impedances in [`sub_network.calculate_B_H()`][pypsa.SubNetwork.calculate_B_H], which never fired. (<!-- md:pr 2200 -->)
 - Fix ramp limits raising an error with linopy versions after 0.9.1 when optimizing only part of the snapshots of a network with investment periods, e.g. in [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon]. (<!-- md:pr 2079 -->)
 - Re-adding an existing component with piecewise data via `n.add()` without `overwrite=True` no longer appends a second curve to it. (<!-- md:pr 2153 -->)
 - Fix [`n.pf(distribute_slack=True)`][pypsa.Network.pf] on single-bus sub-networks with `slack_weights` `"p_nom"`, `"p_nom_opt"` or custom weights. (<!-- md:pr 2152 -->)
@@ -96,6 +99,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix the `"bfs-refined"` cycle basis depending on `PYTHONHASHSEED`. Start, direction and refinement order of each cycle now follow the bus order, so two runs write the same KVL constraints and LP files. The basis can differ from v1.4.0, the optimum does not. (<!-- md:pr 2023 -->)
 - Fix [`n.lpf_contingency()`][pypsa.Network.lpf_contingency] returning `NaN` for branches in AC sub-networks unaffected by the outage. Those branches now keep their base-case flows. (<!-- md:pr 2068 -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] leaving `n.buses_t.v_ang` with only the last window's snapshots when a sub-network has a single bus. The voltage angles now cover all snapshots, like the other time-varying outputs. (<!-- md:pr 2064 -->)
+- Fix capacity statistics of [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) ports with a time-varying efficiency using a stale static value. They now use the mean of the series, weighted by the generator snapshot weightings. (<!-- md:pr 2193 -->)
 - Fix [`n.add()`][pypsa.Network.add] silently dropping custom time-varying attributes of all but the first call. Later calls now add their columns to the existing frame, and `overwrite=True` replaces them. (<!-- md:pr 2063 -->)
 - Fix [`n.statistics.prices(weighting="load")`][pypsa.statistics.StatisticsAccessor.prices] on stochastic networks and network collections. Before, the load weights were dropped and the prices silently fell back to time weighting. Each scenario and each collection member is now weighted by its own withdrawal. (<!-- md:pr 2054 -->)
 - Fix `KeyError` in [`rename_component_names`][pypsa.Components.rename_component_names] when renaming non-bus components (such as links, lines, and carriers) in an attached network ([#2057](https://github.com/PyPSA/PyPSA/issues/2057)).
