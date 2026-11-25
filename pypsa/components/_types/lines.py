@@ -50,8 +50,7 @@ class Lines(Components):
 
     _operational_variables = ["s"]
     _formulation = (
-        "extendable",
-        "carrier_expansion",
+        "capacity",
         "transmission_expansion",
         "passive_branch",
     )

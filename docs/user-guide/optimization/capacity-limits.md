@@ -12,7 +12,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ## Upper and Lower Bounds
 
-If the nominal capacity of a component is also the subject of optimisation (e.g. with decision variable $G_{i}$ for generators), limits on the installable capacity may also be introduced (e.g. $\underline{G}_{i}$ and $\bar{G}_{i}$). The [trait `extendable`](formulation/traits/extendable.md) states them:
+If the nominal capacity of a component is also the subject of optimisation (e.g. with decision variable $G_{i}$ for generators), limits on the installable capacity may also be introduced (e.g. $\underline{G}_{i}$ and $\bar{G}_{i}$). The [trait `capacity`](formulation/traits/capacity.md) states them:
 
 <!-- md:spec-table Generator_ext_p_nom_lower Generator_ext_p_nom_upper Link_ext_p_nom_lower Link_ext_p_nom_upper Process_ext_p_nom_lower Process_ext_p_nom_upper Line_ext_s_nom_lower Line_ext_s_nom_upper Transformer_ext_s_nom_lower Transformer_ext_s_nom_upper Store_ext_e_nom_lower Store_ext_e_nom_upper StorageUnit_ext_p_nom_lower StorageUnit_ext_p_nom_upper -->
 

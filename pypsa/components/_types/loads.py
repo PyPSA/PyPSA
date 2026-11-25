@@ -35,7 +35,7 @@ class Loads(Components):
 
     """
 
-    _formulation = ("single_bus",)
+    _formulation = ("oneport",)
 
     def add(
         self,

@@ -45,11 +45,10 @@ class Stores(Components):
     _operational_variables = ["e", "p", "p_store"]
     _power_variable = "p"
     _formulation = (
-        "extendable",
-        "carrier_expansion",
+        "capacity",
         "marginal_cost",
         "dispatch",
-        "single_bus",
+        "oneport",
         "primary_energy",
         "storage",
     )
