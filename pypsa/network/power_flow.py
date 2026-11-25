@@ -1139,7 +1139,11 @@ class SubNetworkPowerFlowMixin:
         self.PTDF = _ptdf(self.B, self.H)
 
     def calculate_B_H(self, skip_pre: bool = False) -> None:
-        """Calculate B and H matrices for AC or DC sub-networks."""
+        """Calculate B and H matrices for AC or DC sub-networks.
+
+        Stochastic networks use the first scenario's bus order, impedances
+        and transformer phase shifts.
+        """
         n = self.n
 
         if not skip_pre:
@@ -1151,15 +1155,23 @@ class SubNetworkPowerFlowMixin:
         else:
             attribute = "x_pu_eff"
 
-        # following leans heavily on pypower.makeBdc
+        impedances = []
+        shifts = []
+        for c in self.components:
+            if c.name not in n.passive_branch_components:
+                continue
+            branches = c.static
+            if n.has_scenarios and not branches.empty:
+                branches = branches.xs(n.scenarios[0], level="scenario")
+            active = branches.loc[branches.active]
+            impedances.append(active[attribute].to_numpy())
+            shifts.append(
+                np.deg2rad(active.phase_shift.to_numpy())
+                if c.name == "Transformer"
+                else np.zeros(len(active))
+            )
 
-        z = np.concatenate(
-            [
-                (c.static.loc[c.static.query("active").index, attribute]).values
-                for c in self.components
-                if c.name in n.passive_branch_components
-            ]
-        )
+        z = np.concatenate(impedances)
         self.K = self.incidence_matrix(busorder=self.buses_o)
         b, self.H, self.B = _susceptance_matrices(z, self.K)
         if (z == 0).any():
@@ -1167,19 +1179,7 @@ class SubNetworkPowerFlowMixin:
                 "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
             )
 
-        phase_shift = np.concatenate(
-            [
-                (
-                    (c.static.loc[c.static.query("active").index, "phase_shift"]).values
-                    * np.pi
-                    / 180.0
-                    if c.name == "Transformer"
-                    else np.zeros((len(c.static.query("active").index),))
-                )
-                for c in self.components
-                if c.name in n.passive_branch_components
-            ]
-        )
+        phase_shift = np.concatenate(shifts)
         self.p_branch_shift = np.multiply(
             -b, phase_shift, where=b != np.inf, out=np.zeros_like(b)
         )
@@ -1285,47 +1285,40 @@ class SubNetworkPowerFlowMixin:
     def find_slack_bus(self) -> None:
         """Find the slack bus in a connected sub-network."""
         gens = self.c.generators.static
-        gen_names = gens.index.get_level_values("name")
 
-        if len(gens) == 0:
+        if gens.empty:
             self.slack_generator = None
             self.slack_bus = self.c.buses.static.index.get_level_values("name")[0]
-
         else:
-            slacks = gens[gens.control == "Slack"].index.unique("name")
-            network_gen_names = self.n.c.generators.static.index.get_level_values(
-                "name"
+            # One slack bus is shared by all scenarios. Choose it using the
+            # same generator order as the first scenario's deterministic network.
+            first = (
+                gens.xs(self.n.scenarios[0], level="scenario")
+                if self.n.has_scenarios
+                else gens
             )
+            slacks = first.index[first.control == "Slack"]
+            self.slack_generator = slacks[0] if len(slacks) else first.index[0]
+            self.slack_bus = first.at[self.slack_generator, "bus"]
 
-            if len(slacks) == 0:
-                self.slack_generator = gen_names[0]
-
-                is_slack_generators = network_gen_names == self.slack_generator
-                self.n.c.generators.static.loc[is_slack_generators, "control"] = "Slack"
+            names = gens.index.get_level_values("name")
+            selected = names == self.slack_generator
+            controls = self.n.c.generators.static
+            controls.loc[gens.index[selected], "control"] = "Slack"
+            extra = ~selected & (gens.control == "Slack")
+            controls.loc[gens.index[extra], "control"] = "PV"
+            if not len(slacks):
                 logger.debug(
                     "No slack generator found in sub-network %s, using %s as the slack generator",
                     self.name,
                     self.slack_generator,
                 )
-
-            elif len(slacks) == 1:
-                self.slack_generator = slacks[0]
-            else:
-                self.slack_generator = slacks[0]
-                non_slack_generators = network_gen_names.isin(slacks[1:])
-                self.n.c.generators.static.loc[non_slack_generators, "control"] = "PV"
+            elif len(slacks) > 1:
                 logger.debug(
                     "More than one slack generator found in sub-network %s, using %s as the slack generator",
                     self.name,
                     self.slack_generator,
                 )
-
-            if isinstance(gens.index, pd.MultiIndex):
-                self.slack_bus = gens.bus.xs(self.slack_generator, level="name").values[
-                    0
-                ]
-            else:
-                self.slack_bus = gens.bus.loc[self.slack_generator]
         # also put it into the dataframe
         self.n.c.sub_networks.static.at[self.name, "slack_bus"] = self.slack_bus
 
@@ -1352,9 +1345,17 @@ class SubNetworkPowerFlowMixin:
         n.c.buses.static.loc[buses_i, "control"] = "PQ"
 
         # find all buses with one or more gens with PV
-        pvs = gens[gens.control == "PV"].index.to_series()
-        if len(pvs) > 0:
-            pvs = pvs.groupby(gens.bus).first()
+        pv_gens = gens[gens.control == "PV"]
+        if not pv_gens.empty:
+            group = [pv_gens.bus]
+            if n.has_scenarios:
+                group.insert(0, pv_gens.index.get_level_values("scenario"))
+            pvs = (
+                pv_gens.index.get_level_values("name")
+                .to_series(index=pv_gens.index)
+                .groupby(group)
+                .first()
+            )
             n.c.buses.static.loc[pvs.index, "control"] = "PV"
             n.c.buses.static.loc[pvs.index, "generator"] = pvs
 
@@ -1365,6 +1366,8 @@ class SubNetworkPowerFlowMixin:
         )
 
         buses_control = n.c.buses.static.loc[buses_i, "control"]
+        if n.has_scenarios:
+            buses_control = buses_control.xs(n.scenarios[0], level="scenario")
         self.pvs = buses_control.index[buses_control == "PV"]
         self.pqs = buses_control.index[buses_control == "PQ"]
 

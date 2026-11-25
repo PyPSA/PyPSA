@@ -1224,3 +1224,14 @@ def test_determine_network_topology_missing_bus(end):
     n.c.lines.static.loc["l", end] = "x"
     with pytest.raises(ValueError, match="l at x"):
         n.determine_network_topology()
+
+
+def test_incidence_matrix_missing_link_bus():
+    n = pypsa.Network()
+    n.add("Bus", ["a", "b"])
+    n.add("Link", "tie", bus0="a", bus1="b")
+    n.c.links.static.at["tie", "bus1"] = "missing"
+    with pytest.raises(
+        ValueError, match="^Branches end at buses that do not exist: tie at missing"
+    ):
+        n.incidence_matrix()
