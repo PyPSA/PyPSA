@@ -5,7 +5,10 @@
 """Render a spec from its system file, each component's traits and its own file.
 
 A file under `traits/` states a formulation once for every component that
-declares the trait in `_formulation`. It is a spec of its own, which reads
+declares the trait in `_formulation`. A trait holds one topic, as `ramping`
+or `storage`. A component renders a trait whole, so a topic splits where
+its entries serve different components, as `transmission_expansion` apart
+from `capacity`. It is a spec of its own, which reads
 under `given:` what another file declares, written over placeholder names.
 `mathspec.rename` gives it the names of each component, and its
 descriptions too. A word of a name or description, between `_` or `-`,
