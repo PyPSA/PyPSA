@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import pandas as pd
 import pytest
 import yaml
 from mathspec.errors import LanguageError
@@ -31,6 +32,19 @@ constraints:
     expression: >-
       sum(Generator_p * snapshot_weighting_generators, over=snapshot)
       >= Generator_full_load_hours_min * Generator_p_nom_ext
+"""
+CABLE = """
+dimensions:
+  cable: {description: "cables, each with a converter at both ends"}
+relations:
+  Link_cable_end0: {key: Link, values: cable, missing: absent}
+  Link_cable_end1: {key: Link, values: cable, missing: absent}
+constraints:
+  Link_cable_rating:
+    dims: [scenario, cable]
+    expression: >-
+      sum(Link_p_nom_effective, over=Link, by=Link_cable_end0[cable])
+      == sum(Link_p_nom_effective, over=Link, by=Link_cable_end1[cable])
 """
 
 
@@ -98,3 +112,47 @@ def test_an_override_of_another_type_fails(ac_dc_network, override):
 def test_an_override_is_kept_by_its_content():
     assert spec(overrides=[OVERRIDE]) is spec(overrides=[yaml.safe_dump(OVERRIDE)])
     assert spec(overrides=[OVERRIDE]) is not spec()
+
+
+@pytest.mark.parametrize("blank", [float("nan"), ""])
+def test_an_added_relation_reads_a_static_column(ac_dc_network, blank):
+    n = ac_dc_network
+    links = n.c.links.static
+    links["cable_end0"] = links["cable_end1"] = pd.Series(blank, links.index, object)
+    links.loc["Norwich Converter", "cable_end0"] = "north sea"
+    links.loc["Bremen Converter", "cable_end1"] = "north sea"
+    links.loc["Bremen Converter", ["p_nom", "p_nom_extendable"]] = [400.0, False]
+    n.optimize(overrides=[CABLE])
+    assert list(n.model.constraints["Link_cable_rating"].indexes["cable"]) == [
+        "north sea"
+    ]
+    assert links.p_nom_opt["Norwich Converter"] == pytest.approx(400)
+
+
+@pytest.mark.parametrize(
+    ("override", "match"),
+    [
+        (
+            {"relations": {"Link_cable_end1": {"key": "Link", "values": "bus"}}},
+            "has no column cable_end1",
+        ),
+        (
+            {
+                "relations": {
+                    "Link_ends": {"key": "Link", "values": {"a": "bus", "b": "bus"}}
+                }
+            },
+            "maps Link to one dimension",
+        ),
+        (
+            {
+                "dimensions": {"cable": {}},
+                "parameters": {"cable_length": {"dims": ["cable"]}},
+            },
+            "no data prep for cable",
+        ),
+    ],
+)
+def test_added_data_without_a_source_fails(ac_dc_network, override, match):
+    with pytest.raises(NotImplementedError, match=match):
+        ac_dc_network.optimize.create_model(overrides=[override])

@@ -178,19 +178,62 @@ class NetworkSources(Mapping[str, Any]):
         return self.frame(name, value) if isinstance(value, xr.DataArray) else value
 
     def derivation(self, name: str) -> Callable[[], Any]:
-        """Return the derivation of `name`: its provider, else the PyPSA attribute it names.
+        """Return the derivation of `name`: its provider, else the PyPSA data it names.
+
+        A parameter `<Component>_<attr>` reads the attribute, a relation
+        `<Component>_<column>` reads the static column, and a dimension takes
+        the labels the relations map into it.
 
         Raises:
-            NotImplementedError: `name` has neither.
+            NotImplementedError: `name` has none of these.
 
         """
         if name in self._providers:
             return functools.partial(self._providers[name], self, name)
-        if name in self.spec.parameters and (c := self.component(name)) is not None:
+        c = self.component(name)
+        if name in self.spec.parameters and c is not None:
             self.attr(c, name)
             return functools.partial(self.attribute, c, name)
+        if name in self.spec.relations and c is not None:
+            return functools.partial(self.mapping, c, name)
+        if name in self.spec.dimensions and self.mapped_into(name):
+            return functools.partial(self.mapped, name)
         msg = f"no data prep for {name}"
         raise NotImplementedError(msg)
+
+    def mapping(self, c: Components, name: str) -> pd.DataFrame:
+        """Map each unit to the label in the static column a relation `<Component>_<column>` names; a blank cell maps it to none.
+
+        Raises:
+            NotImplementedError: The relation is not keyed by the units alone
+                with one dimension as its values, or `c` has no such column.
+
+        """
+        relation = self.spec.relations[name]
+        column = name.removeprefix(f"{c.name}_")
+        if relation.key != c._unit_dim or not isinstance(relation.values, str):
+            msg = f"no data prep for {name}: a relation read off a column maps {c._unit_dim} to one dimension"
+            raise NotImplementedError(msg)
+        if column not in c.static:
+            msg = f"no data prep for {name}: {c.name} has no column {column}"
+            raise NotImplementedError(msg)
+        labels = self.static(c)[column]
+        kept = labels.notna() & (labels != "")
+        return pd.DataFrame(
+            {
+                c._unit_dim: labels.index[kept].to_numpy(dtype=object),
+                relation.values: labels[kept].to_numpy(dtype=object),
+            }
+        )
+
+    def mapped_into(self, dim: str) -> list[str]:
+        """Return the relations that map units into dimension `dim`."""
+        return [k for k, r in self.spec.relations.items() if r.values == dim]
+
+    def mapped(self, dim: str) -> pd.Index:
+        """Return the labels the relations map into dimension `dim`, in their order of first appearance."""
+        labels = [self[k][dim] for k in self.mapped_into(dim)]
+        return pd.Index(pd.unique(pd.concat(labels)), dtype=object)
 
     def component(self, name: str) -> Components | None:
         """Return the component a source name opens with, None for another name."""
