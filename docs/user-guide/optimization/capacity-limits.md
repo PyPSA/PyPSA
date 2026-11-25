@@ -236,6 +236,8 @@ The capacity is constrained to be a multiple of the module size:
     |-------------------|------------------|
     | $G_{n,s} = n^{\textrm{mod}}_{n,s} \cdot \tilde{G}_{n,s}$ | `Generator-p_nom_modularity` |
     | $0 \leq u_{n,s,t} \leq n^{\textrm{mod}}_{n,s}$ | `Generator-status-p_nom-variable-upper` |
+    | $su_{n,s,t} \leq n^{\textrm{mod}}_{n,s}$ | `Generator-start_up-p_nom-variable-upper` |
+    | $sd_{n,s,t} \leq n^{\textrm{mod}}_{n,s} + u_{n,s,0} \cdot [t = 1]$ | `Generator-shut_down-p_nom-variable-upper` |
 
 === "Link"
 
@@ -243,6 +245,10 @@ The capacity is constrained to be a multiple of the module size:
     |-------------------|------------------|
     | $F_{l} = n^{\textrm{mod}}_{l} \cdot \tilde{F}_{l}$ | `Link-p_nom_modularity` |
     | $0 \leq u_{l,t} \leq n^{\textrm{mod}}_{l}$ | `Link-status-p_nom-variable-upper` |
+    | $su_{l,t} \leq n^{\textrm{mod}}_{l}$ | `Link-start_up-p_nom-variable-upper` |
+    | $sd_{l,t} \leq n^{\textrm{mod}}_{l} + u_{l,0} \cdot [t = 1]$ | `Link-shut_down-p_nom-variable-upper` |
+
+Here $u_{*,0}$ is the status before the first snapshot, so a module that is initially committed can shut down in the first snapshot even if no module is built.
 
 The dispatch constraints enforce that power output respects the number of committed modules:
 
@@ -330,12 +336,16 @@ The status is additionally limited by the build decision, and the dispatch of an
 | $u_{l,t} \leq n^{\textrm{mod}}_{l}$ | `Link-status-p_nom-variable-upper` |
 | $g_{n,s,t} \geq -M \cdot u_{n,s,t}$ | `Generator-com-ext-p-lower-semi-continuous` |
 | $f_{l,t} \geq -M \cdot u_{l,t}$ | `Link-com-ext-p-lower-semi-continuous` |
+| $n^{\textrm{mod}}_{n,s} \leq \bar{n}^{\textrm{mod}}_{n,s} \cdot u_{n,s,t}$ | `Generator-com-up-time-n_mod` |
+| $n^{\textrm{mod}}_{l} \leq \bar{n}^{\textrm{mod}}_{l} \cdot u_{l,t}$ | `Link-com-up-time-n_mod` |
 
 An asset that is not built has $G_{n,s} = 0$ and $u_{n,s,t} = 0$, so its dispatch is zero, also with a negative `p_min_pu`.
 An offline asset that is built also has zero dispatch.
 An asset that is built behaves exactly as an ordinary committable, extendable component.
 The status, start-up and shut-down variables stay binary, and the start-up and shut-down variables are not limited by the build decision.
 That is, an asset that is committed before the optimisation horizon can shut down in the first snapshot without being built.
+The last constraint applies in the snapshots in which a start-up before the optimisation horizon still holds the asset up through its [minimum up time](unit-commitment.md), so this only binds if the asset is built.
+It also applies to extendable modular committables, where $\bar{n}^{\textrm{mod}}_{*}$ is the largest possible number of modules, and is 1 for semi-continuous assets.
 
 With `n.optimize(linearized_unit_commitment=True)`, the status is relaxed but the build decision stays binary.
 In contrast, fixed-size modular committables cannot be linearised and raise a `ValueError`.
