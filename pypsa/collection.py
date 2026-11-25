@@ -91,7 +91,7 @@ class NetworkCollection:
                                Frankfurt Wind    Frankfurt  ...                        0.0
                                Frankfurt Gas     Frankfurt  ...                        0.0
     <BLANKLINE>
-    [12 rows x 47 columns]
+    [12 rows x 48 columns]
 
 
     >>> nc.statistics.energy_balance()  # doctest: +ELLIPSIS
