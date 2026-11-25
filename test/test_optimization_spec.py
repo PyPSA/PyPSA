@@ -119,12 +119,21 @@ def test_a_constraint_states_its_scaling_rule_apart_from_the_spec(
     assert data["constraints"]["COMPONENT_x"] == {"dims": []}
 
 
-SHARED = {"dimensions": {"bus": {"description": "nodes"}}, "parameters": {"p": {}}}
+SHARED = {
+    "dimensions": {"bus": {"description": "nodes"}},
+    "parameters": {"p": {}},
+    "macros": {"m": {"args": ["x"], "template": "2 * x"}},
+}
 
 
 def test_a_merge_drops_given_and_keeps_a_shared_entry_stated_alike():
     spec = {k: dict(v) for k, v in SHARED.items()}
-    _merge(spec, {"dimensions": {"bus": {}}, "given": {"parameters": {"q": {}}}}, "f")
+    fragment = {
+        "dimensions": {"bus": {}},
+        "macros": {"m": {"args": ["x"], "template": "2 * x"}},
+        "given": {"parameters": {"q": {}}},
+    }
+    _merge(spec, fragment, "f")
     assert spec == SHARED
 
 
@@ -133,6 +142,7 @@ def test_a_merge_drops_given_and_keeps_a_shared_entry_stated_alike():
     [
         ({"dimensions": {"bus": {"dtype": "int"}}}, "dimensions"),
         ({"parameters": {"p": {}}}, "parameters"),
+        ({"macros": {"m": {"args": ["x"], "template": "3 * x"}}}, "macros"),
     ],
 )
 def test_a_merge_refuses_an_entry_stated_twice(fragment, section):

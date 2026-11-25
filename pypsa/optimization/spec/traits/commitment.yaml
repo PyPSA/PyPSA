@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: mathspec Contributors
+# SPDX-FileCopyrightText: PyPSA Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -102,6 +102,14 @@ parameters:
 relations:
   snapshot_period: {key: snapshot, values: period}
 
+macros:
+  COMPONENT_operating_cost:
+    description: a cost per snapshot, weighted by the snapshot's hours and its period, summed
+    args: [cost]
+    template: >-
+      sum(sum((cost * snapshot_weightings_objective) * at(period_weight_objective,
+      by=snapshot_period[period]), over=UNIT), over=snapshot)
+
 variables:
   COMPONENT_status:
     name: COMPONENT-status
@@ -178,8 +186,7 @@ expressions:
     otherwise: COMPONENT_previous_status
   COMPONENT_commitment_opex:
     expression: >-
-      sum(sum((COMPONENT_status * COMPONENT_stand_by_cost * snapshot_weightings_objective)
-      * at(period_weight_objective, by=snapshot_period[period]), over=UNIT), over=snapshot)
+      COMPONENT_operating_cost(COMPONENT_status * COMPONENT_stand_by_cost)
       + sum(sum((COMPONENT_start_up * COMPONENT_start_up_cost) * at(period_weight_objective,
       by=snapshot_period[period]), over=UNIT), over=snapshot)
       + sum(sum((COMPONENT_shut_down * COMPONENT_shut_down_cost) * at(period_weight_objective,
