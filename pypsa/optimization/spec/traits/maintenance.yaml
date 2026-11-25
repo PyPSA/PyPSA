@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: mathspec Contributors
+# SPDX-FileCopyrightText: PyPSA Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -11,7 +11,7 @@ given:
     COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
     COMPONENT_committable: {dims: [UNIT], dtype: bool}
     COMPONENT_modules_installed: {dims: [scenario, UNIT]}
-    snapshot_weightings_generators: {dims: [snapshot]}
+    snapshot_weighting_generators: {dims: [snapshot]}
   variables:
     COMPONENT_NOM_ext: {dims: [UNIT]}
     COMPONENT_status: {dims: [scenario, snapshot, UNIT]}
@@ -228,13 +228,13 @@ assumptions:
     where: COMPONENT_maintainable
     description: an event lasts longer than zero
   COMPONENT_maintenance_duration_fits_the_horizon:
-    holds: COMPONENT_maintenance_duration <= sum(snapshot_weightings_generators, over=snapshot)
+    holds: COMPONENT_maintenance_duration <= sum(snapshot_weighting_generators, over=snapshot)
     where: COMPONENT_maintainable
     description: one event fits into the horizon
   COMPONENT_maintenance_events_fit_the_horizon:
     holds: >-
       COMPONENT_maintenance_duration * COMPONENT_maintenance_events <=
-      sum(snapshot_weightings_generators, over=snapshot)
+      sum(snapshot_weighting_generators, over=snapshot)
     where: COMPONENT_maintainable
     description: all events together fit into the horizon
   COMPONENT_maintenance_build_cap_is_finite:

@@ -140,7 +140,7 @@ This carrier-specific constraint type implements absolute and relative growth li
 
 With the growth limit constraint, for each carrier $\sigma$ and investment period $a$, the new installed capacity of all components with carrier $\sigma$ is limited by the absolute growth limit `max_growth` plus the relative growth limit `max_relative_growth` times the capacity added in the previous period:
 
-<!-- md:spec Carrier_growth_limit Carrier_additions Carrier_relative_growth Generator_additions -->
+<!-- md:spec Carrier_growth_limit Carrier_additions Carrier_max_relative_growth_nonneg Generator_additions -->
 
 The other components add their newly built capacities in the same way as `Generator_additions`. This constraint only applies to networks with multiple investment periods and only considers components that are newly activated in each period. For the constraint to take effect, at least one of the attributes `max_growth` or `max_relative_growth` must be set to a finite value for the carrier.
 

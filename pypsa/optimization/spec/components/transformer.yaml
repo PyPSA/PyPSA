@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: mathspec Contributors
+# SPDX-FileCopyrightText: PyPSA Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -44,7 +44,8 @@ expressions:
     expression: >-
       sum(Transformer_s * at(Transformer_cycle_weight, by=snapshot_period[period]), over=Transformer)
       + sum(Transformer_phase_shift_weight, over=Transformer)
-      + sum(Transformer_phase_shift * at(Transformer_phase_shift_cycle_weight, by=snapshot_period[period]), over=Transformer)
+      + sum(Transformer_phase_shift
+      * at(Transformer_phase_shift_cycle_weight, by=snapshot_period[period]), over=Transformer)
 
 constraints:
   Transformer_v_ang_lower:
@@ -52,22 +53,28 @@ constraints:
     description: a fixed transformer carries at least the flow of the most negative angle difference, net of its shift
     dims: [scenario, snapshot, Transformer]
     where: Transformer_v_ang_max AND NOT Transformer_phase_shift_varying AND Transformer_active
-    expression: Transformer_s >= -(Transformer_v_ang_max + Transformer_phase_shift_fixed) * deg2rad / Transformer_x_pu_eff
+    expression: >-
+      Transformer_s >= -(Transformer_v_ang_max + Transformer_phase_shift_fixed) * deg2rad / Transformer_x_pu_eff
   Transformer_v_ang_upper:
     name: Transformer-v_ang-upper
     description: a fixed transformer carries at most the flow of the largest angle difference, net of its shift
     dims: [scenario, snapshot, Transformer]
     where: Transformer_v_ang_max AND NOT Transformer_phase_shift_varying AND Transformer_active
-    expression: Transformer_s <= (Transformer_v_ang_max - Transformer_phase_shift_fixed) * deg2rad / Transformer_x_pu_eff
+    expression: >-
+      Transformer_s <= (Transformer_v_ang_max - Transformer_phase_shift_fixed) * deg2rad / Transformer_x_pu_eff
   Transformer_v_ang_var_lower:
     name: Transformer-v_ang-var-lower
     description: the same lower bound for a varying transformer, its shift a decision
     dims: [scenario, snapshot, Transformer]
     where: Transformer_v_ang_max AND Transformer_phase_shift_varying AND Transformer_active
-    expression: Transformer_s + Transformer_phase_shift * deg2rad / Transformer_x_pu_eff >= -Transformer_v_ang_max * deg2rad / Transformer_x_pu_eff
+    expression: >-
+      Transformer_s + Transformer_phase_shift * deg2rad / Transformer_x_pu_eff >=
+      -Transformer_v_ang_max * deg2rad / Transformer_x_pu_eff
   Transformer_v_ang_var_upper:
     name: Transformer-v_ang-var-upper
     description: the same upper bound for a varying transformer, its shift a decision
     dims: [scenario, snapshot, Transformer]
     where: Transformer_v_ang_max AND Transformer_phase_shift_varying AND Transformer_active
-    expression: Transformer_s + Transformer_phase_shift * deg2rad / Transformer_x_pu_eff <= Transformer_v_ang_max * deg2rad / Transformer_x_pu_eff
+    expression: >-
+      Transformer_s + Transformer_phase_shift * deg2rad / Transformer_x_pu_eff <=
+      Transformer_v_ang_max * deg2rad / Transformer_x_pu_eff

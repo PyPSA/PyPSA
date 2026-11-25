@@ -58,7 +58,7 @@ def _cycle_matrices(s: NetworkSources) -> dict[int, tuple[pd.DataFrame, pd.DataF
     """Each period's cycle matrix, plain and weighted, NaN off its cycles."""
     matrices = {}
     for period in s.periods:
-        pair = s.n._cycle_matrices(_investment_period(s, period), s.cycle_basis_method)
+        pair = s.cycle_matrices(_investment_period(s, period))
         renamed = (C.rename(columns=str) for C in pair)
         matrices[period] = tuple(C.where(C != 0) for C in renamed)
     return matrices
@@ -300,27 +300,13 @@ def _outage_branch(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
 
 def _bodf(s: NetworkSources) -> dict[int, pd.DataFrame]:
     """Each period's outage factors, branches by outages, of its sub-networks."""
-    n = s.n
     outages = _outages(s)
     if outages.empty:
         return {period: pd.DataFrame() for period in s.periods}
-    topology = n.get_scenario(n.scenarios[0]) if n.has_scenarios else n
-    factors = {}
-    for period in s.periods:
-        topology.determine_network_topology(
-            investment_period=_investment_period(s, period), skip_isolated_buses=True
-        )
-        frames = []
-        for sub_network in topology.c.sub_networks.static.obj:
-            branches = sub_network.branches_i()
-            outaged = branches.intersection(outages)
-            if outaged.empty:
-                continue
-            sub_network.calculate_BODF()
-            frame = pd.DataFrame(sub_network.BODF, index=branches, columns=branches)
-            frames.append(frame[outaged].droplevel(0, axis=1))
-        factors[period] = pd.concat(frames) if frames else pd.DataFrame()
-    return factors
+    return {
+        period: s.outage_factors(_investment_period(s, period), outages)
+        for period in s.periods
+    }
 
 
 @source("COMPONENT_BODF")

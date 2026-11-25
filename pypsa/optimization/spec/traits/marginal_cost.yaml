@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: mathspec Contributors
+# SPDX-FileCopyrightText: PyPSA Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -11,8 +11,8 @@ given:
     COMPONENT_active_asset: {dims: [UNIT], dtype: bool}
     COMPONENT_marginal_cost_curve_cost: {dims: [UNIT, breakpoint]}
     COMPONENT_marginal_cost_curve_p: {dims: [UNIT, breakpoint]}
-    period_weight_objective: {dims: [period]}
-    snapshot_weightings_objective: {dims: [snapshot]}
+    period_weighting_objective: {dims: [period]}
+    snapshot_weighting_objective: {dims: [snapshot]}
   variables:
     COMPONENT_POWER: {dims: [scenario, snapshot, UNIT]}
 
@@ -23,6 +23,14 @@ dimensions:
   period: {dtype: int, ordered: true}
   breakpoint: {dtype: int, ordered: true}
 
+parameters:
+  COMPONENT_marginal_cost:
+    description: cost of one unit of energy dispatched
+    dims: [scenario, snapshot, UNIT]
+  COMPONENT_marginal_cost_quadratic:
+    description: cost of the square of one unit of energy dispatched
+    dims: [scenario, snapshot, UNIT]
+
 relations:
   snapshot_period: {key: snapshot, values: period}
 
@@ -31,16 +39,8 @@ macros:
     description: a cost per snapshot, weighted by the snapshot's hours and its period, summed
     args: [cost]
     template: >-
-      sum(sum((cost * snapshot_weightings_objective) * at(period_weight_objective,
+      sum(sum((cost * snapshot_weighting_objective) * at(period_weighting_objective,
       by=snapshot_period[period]), over=UNIT), over=snapshot)
-
-parameters:
-  COMPONENT_marginal_cost:
-    description: cost of one unit of energy dispatched
-    dims: [scenario, snapshot, UNIT]
-  COMPONENT_marginal_cost_quadratic:
-    description: cost of the square of one unit of energy dispatched
-    dims: [scenario, snapshot, UNIT]
 
 variables:
   COMPONENT_marginal_cost_piecewise:
@@ -73,19 +73,22 @@ conditions:
       COMPONENT_marginal_cost_curve_p
       AND shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=1)
       AND shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=-1)
-      AND (COMPONENT_marginal_cost_curve_cost - shift(COMPONENT_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      AND (COMPONENT_marginal_cost_curve_cost
+      - shift(COMPONENT_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
       * (shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - COMPONENT_marginal_cost_curve_p)
-      > (shift(COMPONENT_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0) - COMPONENT_marginal_cost_curve_cost)
+      > (shift(COMPONENT_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0)
+      - COMPONENT_marginal_cost_curve_cost)
       * (COMPONENT_marginal_cost_curve_p - shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
   COMPONENT_marginal_cost_convex:
     description: true where every `marginal_cost` curve of the component is convex
     condition: >-
-      count(COMPONENT_marginal_cost_curve AND count(COMPONENT_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=UNIT) == 0
+      count(COMPONENT_marginal_cost_curve
+      AND count(COMPONENT_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=UNIT) == 0
 
 assumptions:
   COMPONENT_marginal_cost_curve_on_a_fixed_build:
-    holds: "NOT COMPONENT_NOM_extendable AND COMPONENT_NOM > 0 AND COMPONENT_NOM < inf"
-    where: "COMPONENT_marginal_cost_curve"
+    holds: NOT COMPONENT_NOM_extendable AND COMPONENT_NOM > 0 AND COMPONENT_NOM < inf
+    where: COMPONENT_marginal_cost_curve
     description: a `marginal_cost` curve needs a fixed, positive, finite nominal capacity
   COMPONENT_marginal_cost_quadratic_without_risk_preference:
     holds: COMPONENT_marginal_cost_quadratic == 0

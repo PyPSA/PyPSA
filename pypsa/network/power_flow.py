@@ -31,9 +31,7 @@ from pypsa.common import (
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
-from pypsa.network.graph import (
-    bfs_refined_cycle_basis,
-)
+from pypsa.network.graph import _cycle_matrix
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -722,56 +720,88 @@ def find_cycles(
         ``"paton"``.
 
     """
-    if cycle_basis_method not in ("bfs-refined", "paton"):
-        msg = 'cycle_basis_method must be one of "bfs-refined" or "paton"'
-        raise ValueError(msg)
+    branches = sub_network.branches()
+    buses_i = sub_network.c.buses.static.index
+    if sub_network.n.has_scenarios:
+        buses_i = buses_i.unique("name")
+        if not branches.empty:
+            branches = branches.xs(sub_network.n.scenarios[0], level="scenario")
+    finite = ~np.isinf(branches[weight]) if weight in branches else True
+    edges = (branches["active"] & finite).astype(bool)
+    sub_network.C = _cycle_matrix(
+        buses_i, branches["bus0"], branches["bus1"], edges, cycle_basis_method
+    )
 
-    branches_bus0 = sub_network.branches()["bus0"]
 
-    if sub_network.n.has_scenarios and not branches_bus0.empty:
-        first_scenario = sub_network.n.scenarios[0]
-        branches_bus0 = branches_bus0.xs(first_scenario, level="scenario")
+def _susceptance_matrices(
+    z: np.ndarray, K: csr_matrix
+) -> tuple[np.ndarray, csr_matrix, csr_matrix]:
+    """Return the susceptance of each branch, and the matrices `H` and `B` of the linear power flow.
 
-    branches_i = branches_bus0.index
+    Parameters
+    ----------
+    z : numpy.ndarray
+        The series impedance of each branch.
+    K : scipy.sparse.csr_matrix
+        The incidence matrix, buses by branches.
 
-    # reduce to a non-multi-graph for cycles with > 2 edges
-    mgraph = sub_network.graph(weight=weight, inf_weight=False, include_inactive=False)
-    graph = nx.Graph(mgraph)
+    """
+    b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
+    b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
+    H = b_diag * K.T
+    return b, H, K * H
 
-    if cycle_basis_method == "paton":
-        cycles = nx.cycle_basis(graph)
-    else:
-        cycles = bfs_refined_cycle_basis(graph)
 
-    # number of 2-edge cycles
-    num_multi = len(mgraph.edges()) - len(graph.edges())
+def _ptdf(B: csr_matrix, H: csr_matrix) -> np.ndarray:
+    """Return the power transfer distribution factors, branches by buses.
 
-    sub_network.C = dok_matrix((len(branches_bus0), len(cycles) + num_multi))
+    Parameters
+    ----------
+    B : scipy.sparse.csr_matrix
+        The weighted Laplacian, buses by buses; the first bus is the slack.
+    H : scipy.sparse.csr_matrix
+        The susceptance times the transposed incidence, branches by buses.
 
-    for j, cycle in enumerate(cycles):
-        for i in range(len(cycle)):
-            branch = next(iter(mgraph[cycle[i]][cycle[(i + 1) % len(cycle)]].keys()))
-            branch_i = branches_i.get_loc(branch)
-            sign = +1 if branches_bus0.iat[branch_i] == cycle[i] else -1
-            sub_network.C[branch_i, j] += sign
+    """
+    n_pvpq = B.shape[0] - 1
+    index = np.r_[:n_pvpq]
+    identity = csc_matrix((np.ones(n_pvpq), (index, index)))
+    B_inverse = spsolve(csc_matrix(B[1:, 1:]), identity)
+    if issparse(B_inverse):
+        B_inverse = B_inverse.toarray()
+    elif B_inverse.shape == (1,):
+        B_inverse = B_inverse.reshape((1, 1))
+    B_inverse = np.hstack((np.zeros((n_pvpq, 1)), B_inverse))
+    B_inverse = np.vstack((np.zeros(n_pvpq + 1), B_inverse))
+    return H * B_inverse
 
-    # counter for multis
-    c = len(cycles)
 
-    # add multi-graph 2-edge cycles for multiple branches between same pairs of buses
-    for u, v in graph.edges():
-        bs = list(mgraph[u][v].keys())
-        if len(bs) > 1:
-            first = bs[0]
-            first_i = branches_i.get_loc(first)
-            for b in bs[1:]:
-                b_i = branches_i.get_loc(b)
-                sign = (
-                    -1 if branches_bus0.iat[b_i] == branches_bus0.iat[first_i] else +1
-                )
-                sub_network.C[first_i, c] = 1
-                sub_network.C[b_i, c] = sign
-                c += 1
+def _bodf(PTDF: np.ndarray, K: csr_matrix) -> np.ndarray:
+    """Return the branch outage distribution factors, branches by outaged branches.
+
+    After the outage of branch `l`, the flow on branch `k` is its flow
+    before plus `BODF[k, l]` times the flow on `l` before.
+
+    Parameters
+    ----------
+    PTDF : numpy.ndarray
+        The power transfer distribution factors, branches by buses.
+    K : scipy.sparse.csr_matrix
+        The incidence matrix, buses by branches.
+
+    """
+    num_branches = PTDF.shape[0]
+    branch_PTDF = PTDF * K
+    with np.errstate(divide="ignore"):
+        denominator = csr_matrix(
+            (
+                1 / (1 - np.diag(branch_PTDF)),
+                (np.r_[:num_branches], np.r_[:num_branches]),
+            )
+        )
+    factors = branch_PTDF * denominator
+    np.fill_diagonal(factors, -1)
+    return factors
 
 
 @deprecated_common_kwargs
@@ -1089,20 +1119,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             self.calculate_PTDF()
 
-        num_branches = self.PTDF.shape[0]
-
-        # build LxL version of PTDF
-        branch_PTDF = self.PTDF * self.K
-
-        with np.errstate(divide="ignore"):
-            denominator = csr_matrix(
-                (1 / (1 - np.diag(branch_PTDF)), (r_[:num_branches], r_[:num_branches]))
-            )
-
-        self.BODF = branch_PTDF * denominator
-
-        # make sure the flow on the branch itself is zero
-        np.fill_diagonal(self.BODF, -1)
+        self.BODF = _bodf(self.PTDF, self.K)
 
     def calculate_PTDF(self, skip_pre: bool = False) -> None:
         """Calculate the Power Transfer Distribution Factor (PTDF) for sub_network.
@@ -1119,26 +1136,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             self.calculate_B_H()
 
-        # calculate inverse of B with slack removed
-
-        n_pvpq = len(self.pvpqs)
-        index = np.r_[:n_pvpq]
-
-        identity = csc_matrix((np.ones(n_pvpq), (index, index)))
-
-        B_inverse = spsolve(csc_matrix(self.B[1:, 1:]), identity)
-
-        # exception for two-node networks, where B_inverse is a 1d array
-        if issparse(B_inverse):
-            B_inverse = B_inverse.toarray()
-        elif B_inverse.shape == (1,):
-            B_inverse = B_inverse.reshape((1, 1))
-
-        # add back in zeroes for slack
-        B_inverse = np.hstack((np.zeros((n_pvpq, 1)), B_inverse))
-        B_inverse = np.vstack((np.zeros(n_pvpq + 1), B_inverse))
-
-        self.PTDF = self.H * B_inverse
+        self.PTDF = _ptdf(self.B, self.H)
 
     def calculate_B_H(self, skip_pre: bool = False) -> None:
         """Calculate B and H matrices for AC or DC sub-networks."""
@@ -1162,22 +1160,12 @@ class SubNetworkPowerFlowMixin:
                 if c.name in n.passive_branch_components
             ]
         )
-        # susceptances
-        b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
-
-        if np.isnan(b).any():
+        self.K = self.incidence_matrix(busorder=self.buses_o)
+        b, self.H, self.B = _susceptance_matrices(z, self.K)
+        if (z == 0).any():
             logger.warning(
                 "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
             )
-        b_diag = csr_matrix((b, (r_[: len(b)], r_[: len(b)])))
-
-        # incidence matrix
-        self.K = self.incidence_matrix(busorder=self.buses_o)
-
-        self.H = b_diag * self.K.T
-
-        # weighted Laplacian
-        self.B = self.K * self.H
 
         phase_shift = np.concatenate(
             [

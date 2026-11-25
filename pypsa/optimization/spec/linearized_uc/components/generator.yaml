@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: mathspec Contributors
+# SPDX-FileCopyrightText: PyPSA Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -9,6 +9,6 @@ piecewise:
 
 assumptions:
   Generator_efficiency_curve_is_not_committable:
-    holds: "NOT Generator_committable"
-    where: "Generator_efficiency_curve"
+    holds: NOT Generator_committable
+    where: Generator_efficiency_curve
     description: a generator with an `efficiency` curve is not committable, as a status gate needs integers

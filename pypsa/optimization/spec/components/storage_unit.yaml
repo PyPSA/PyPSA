@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: mathspec Contributors
+# SPDX-FileCopyrightText: PyPSA Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -58,13 +58,13 @@ constraints:
     description: dispatch is at most `p_max_pu` times the nominal power
     dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_p_max_pu == 0)
-    expression: StorageUnit_p_dispatch <= StorageUnit_p_max_pu * StorageUnit_p_nom_rated
+    expression: StorageUnit_p_dispatch <= StorageUnit_p_max_pu * StorageUnit_p_nom_finite
   StorageUnit_fix_p_store_upper:
     name: StorageUnit-fix-p_store-upper
     description: storing is at most `-p_min_pu` times the nominal power
     dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_p_min_pu == 0)
-    expression: StorageUnit_p_store <= -StorageUnit_p_min_pu * StorageUnit_p_nom_rated
+    expression: StorageUnit_p_store <= -StorageUnit_p_min_pu * StorageUnit_p_nom_finite
   StorageUnit_fix_state_of_charge_lower:
     name: StorageUnit-fix-state_of_charge-lower
     description: the state of charge is not negative
@@ -76,7 +76,7 @@ constraints:
     description: the state of charge is at most `max_hours` times the nominal power
     dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_fix AND (StorageUnit_p_nom < inf OR StorageUnit_max_hours == 0)
-    expression: StorageUnit_state_of_charge <= StorageUnit_max_hours * StorageUnit_p_nom_rated
+    expression: StorageUnit_state_of_charge <= StorageUnit_max_hours * StorageUnit_p_nom_finite
   StorageUnit_ext_p_dispatch_lower:
     name: StorageUnit-ext-p_dispatch-lower
     description: dispatch is not negative
@@ -116,9 +116,9 @@ constraints:
     where: StorageUnit_active
     expression: >-
       StorageUnit_level_carried_in
-      + StorageUnit_efficiency_store * StorageUnit_p_store * snapshot_weightings_stores
-      - StorageUnit_p_dispatch * snapshot_weightings_stores / StorageUnit_efficiency_dispatch
-      + (StorageUnit_inflow - StorageUnit_spill) * snapshot_weightings_stores
+      + StorageUnit_efficiency_store * StorageUnit_p_store * snapshot_weighting_stores
+      - StorageUnit_p_dispatch * snapshot_weighting_stores / StorageUnit_efficiency_dispatch
+      + (StorageUnit_inflow - StorageUnit_spill) * snapshot_weighting_stores
       == StorageUnit_state_of_charge
   StorageUnit_p_set:
     name: StorageUnit-p_set

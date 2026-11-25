@@ -1214,3 +1214,13 @@ def test_components_api_legacy_accessors_silent(flag):
         warnings.simplefilter("error", pypsa.PyPSA2Warning)
         n.buses = n.c.buses.static
         assert isinstance(n.lines, pd.DataFrame)
+
+
+@pytest.mark.parametrize("end", ["bus0", "bus1"])
+def test_determine_network_topology_missing_bus(end):
+    n = pypsa.Network()
+    n.add("Bus", ["a", "b"])
+    n.add("Line", "l", bus0="a", bus1="b", x=0.1)
+    n.c.lines.static.loc["l", end] = "x"
+    with pytest.raises(ValueError, match="l at x"):
+        n.determine_network_topology()

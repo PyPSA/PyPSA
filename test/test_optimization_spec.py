@@ -119,12 +119,21 @@ def test_a_constraint_states_its_scaling_rule_apart_from_the_spec(
     assert data["constraints"]["COMPONENT_x"] == {"dims": []}
 
 
-SHARED = {"dimensions": {"bus": {"description": "nodes"}}, "parameters": {"p": {}}}
+SHARED = {
+    "dimensions": {"bus": {"description": "nodes"}},
+    "parameters": {"p": {}},
+    "macros": {"m": {"args": ["x"], "template": "2 * x"}},
+}
 
 
 def test_a_merge_drops_given_and_keeps_a_shared_entry_stated_alike():
     spec = {k: dict(v) for k, v in SHARED.items()}
-    _merge(spec, {"dimensions": {"bus": {}}, "given": {"parameters": {"q": {}}}}, "f")
+    fragment = {
+        "dimensions": {"bus": {}},
+        "macros": {"m": {"args": ["x"], "template": "2 * x"}},
+        "given": {"parameters": {"q": {}}},
+    }
+    _merge(spec, fragment, "f")
     assert spec == SHARED
 
 
@@ -133,6 +142,7 @@ def test_a_merge_drops_given_and_keeps_a_shared_entry_stated_alike():
     [
         ({"dimensions": {"bus": {"dtype": "int"}}}, "dimensions"),
         ({"parameters": {"p": {}}}, "parameters"),
+        ({"macros": {"m": {"args": ["x"], "template": "3 * x"}}}, "macros"),
     ],
 )
 def test_a_merge_refuses_an_entry_stated_twice(fragment, section):
@@ -150,6 +160,22 @@ def test_a_source_name_takes_one_derivation(monkeypatch):
     monkeypatch.setitem(_SOURCES, "Generator_active", lambda s, name: None)
     with pytest.raises(ValueError, match="Generator_active has two derivations"):
         _providers(formulated(pypsa.Network()))
+
+
+def test_a_subclass_extends_the_source_registry(ac_dc_network):
+    class Extended(NetworkSources):
+        def __init__(self, *args, **kwargs) -> None:
+            super().__init__(*args, **kwargs)
+            extra = {"COMPONENT_tag": lambda s, name, c: s.filled(name, 2.0)}
+            self._providers = _providers(self.units.values(), _SOURCES | extra)
+
+    n = ac_dc_network
+    s = mathspec.override(
+        spec(), [{"parameters": {"Generator_tag": {"dims": ["Generator"]}}}]
+    )
+    assert (Extended(n, s, n.snapshots, n.snapshots)["Generator_tag"] == 2.0).all()
+    with pytest.raises(NotImplementedError):
+        NetworkSources(n, s, n.snapshots, n.snapshots)["Generator_tag"]
 
 
 @pytest.mark.parametrize(

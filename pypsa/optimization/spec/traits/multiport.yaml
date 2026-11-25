@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: mathspec Contributors
+# SPDX-FileCopyrightText: PyPSA Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -54,7 +54,7 @@ relations:
       within the period where the port is cyclic. No row where the energy has
       not arrived yet, or where the port has no delay
     key: [UNIT, port, snapshot]
-    values: { source: snapshot }
+    values: {source: snapshot}
     missing: absent
 
 variables:
@@ -102,6 +102,7 @@ conditions:
 
 assumptions:
   COMPONENT_COEF_curve_on_a_fixed_build:
-    holds: "at(NOT COMPONENT_NOM_extendable AND COMPONENT_NOM != 0 AND COMPONENT_NOM < inf, by=COMPONENT_port_UNIT[owner])"
-    where: "COMPONENT_COEF_curve"
+    holds: >-
+      at(NOT COMPONENT_NOM_extendable AND COMPONENT_NOM != 0 AND COMPONENT_NOM < inf, by=COMPONENT_port_UNIT[owner])
+    where: COMPONENT_COEF_curve
     description: a port's curve needs a fixed, non-zero, finite nominal capacity

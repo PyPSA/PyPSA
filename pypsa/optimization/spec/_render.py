@@ -154,7 +154,7 @@ def _claim(entry: dict[str, Any]) -> dict[str, Any]:
 def _merge(spec: dict[str, Any], fragment: dict[str, Any], origin: str) -> None:
     """Add the entries of *fragment* to *spec*, but its `given:`.
 
-    A dimension or relation may repeat where it states what it stated before.
+    A dimension, relation or macro may repeat where it states what it stated before.
     """
     for section, body in fragment.items():
         if not isinstance(body, dict):
@@ -163,7 +163,7 @@ def _merge(spec: dict[str, Any], fragment: dict[str, Any], origin: str) -> None:
         if section == "given":
             continue
         held = spec.setdefault(section, {})
-        shared = section in ("dimensions", "relations")
+        shared = section in ("dimensions", "relations", "macros")
         twice = [
             k
             for k in body
