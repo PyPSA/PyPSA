@@ -1,0 +1,110 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+[workspace]
+name = "pypsa"
+channels = ["conda-forge", "gurobi"]
+platforms = ["linux-64", { name = "osx-arm64-macos14", platform = "osx-arm64", macos = "14.0" }, "win-64"]
+requires-pixi = ">=0.84"
+exclude-newer = "7d"
+
+[dependencies]
+python = ">=3.11"
+netcdf4 = "*"
+numpy = "<=2.4.6"
+pandas = "<=3.0.5"
+scikit-learn = "<=1.9.1"
+scipy = "<=1.18.1"
+
+[pypi-dependencies]
+pypsa = { path = ".", editable = true }
+
+[feature.test.dependencies]
+highspy = "*"
+gurobi = { version = "*", channel = "gurobi" }
+pytables = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-mpl = "*"
+pytest-xdist = "*"
+scikit-learn = "*"
+
+[feature.test.pypi-dependencies]
+pypsa = { path = ".", editable = true, extras = ["hdf5", "cartopy", "excel", "cloudpath", "dotenv", "tsam"] }
+pypower = "*"
+pandapower = ">=2.14.11"
+
+[feature.test.tasks]
+test = "pytest"
+test-cov = "pytest -n logical --cov=pypsa --cov-report=xml --junitxml=junit.xml -o junit_family=legacy"
+test-docs = "pytest test/test_docs.py --test-docs"
+
+[feature.docs.dependencies]
+cairo = "*"
+pandoc = "*"
+cairosvg = "*"
+pillow = "*"
+gurobi = { version = "*", channel = "gurobi" }
+mkdocs-material = "*"
+mkdocs-redirects = "*"
+mkdocs-video = "*"
+mkdocs-git-revision-date-localized-plugin = "*"
+mkdocs-table-reader-plugin = "*"
+mkdocstrings-python = "*"
+mkdocs-jupyter = "*"
+salib = "*"
+pytest = "*"
+jupyter = ">=1.1.1"
+
+[feature.docs.pypi-dependencies]
+pypsa = { path = ".", editable = true, extras = ["cartopy", "excel", "tsam"] }
+mkdocs-ezlinks-plugin = "*"
+mkdocs-autolinks-plugin = "*"
+
+[feature.docs.tasks]
+docs = "mkdocs build"
+docs-serve = "mkdocs serve"
+
+[feature.dev.dependencies]
+pre-commit = "*"
+ruff = "*"
+mypy = "*"
+typing_extensions = ">=4.14.0"
+reuse = ">=5.1.1"
+
+[feature.dev.tasks]
+lint = "pre-commit run --all-files"
+typecheck = "mypy ."
+ci = { depends-on = ["lint", "typecheck", "test", "docs"] }
+
+[feature.linopy-master.pypi-dependencies]
+linopy = { git = "https://github.com/PyPSA/linopy.git", branch = "master" }
+
+[feature.py311.dependencies]
+python = "3.11.*"
+
+[feature.py312.dependencies]
+python = "3.12.*"
+
+[feature.py313.dependencies]
+python = "3.13.*"
+
+[feature.py314.dependencies]
+python = "3.14.*"
+
+[environments]
+test = { features = ["test", "py313"], solve-group = "default" }
+default = { features = ["test", "docs", "dev", "py313"], solve-group = "default" }
+test-py311 = ["test", "py311"]
+test-py312 = ["test", "py312"]
+test-py313 = ["test", "py313"]
+test-py314 = ["test", "py314"]
+test-linopy-master = ["test", "py313", "linopy-master"]
+
+[environments.docs]
+features = ["docs", "py313"]
+solve-group = "default"
+
+[environments.docs.dependencies]
+gurobi = "13.*"
