@@ -160,8 +160,8 @@ name in `n.model`. Added entries read their data from the network:
 * a parameter `<Component>_<attr>` reads the column `<attr>` of the
   component's static data;
 * a relation `<Component>_<column>` maps each unit to the label in the column
-  `<column>`. A blank cell maps the unit to none, so declare the relation
-  `missing: absent`;
+  `<column>`. The column must be the same in every scenario. Where a cell is
+  blank, the unit maps to none; declare such a relation `missing: absent`;
 * a dimension takes the labels its relations map units to.
 
 For example, a combined heat and power plant that must cover a heat demand, or
@@ -227,6 +227,8 @@ n.optimize(overrides=["battery_inverter.yaml"])
 
 `Link_p_nom_effective` is the chosen rating of an extendable link and the given
 rating of a fixed link, so the constraint also holds when one side is fixed.
+A side whose link is not built, as an inactive one, sums to zero and so holds
+the other side at zero.
 
 Removing an entry takes one line each. A quick screening run may ignore the
 ramp limits of generators:
