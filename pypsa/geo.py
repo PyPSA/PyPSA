@@ -186,10 +186,11 @@ def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
 
     """
     import cartopy.crs as ccrs  # noqa: PLC0415
+    from pyproj.exceptions import CRSError  # noqa: PLC0415
 
     try:
         return ccrs.epsg(crs)
-    except ValueError:
+    except (ValueError, CRSError):
         pass
 
     if crs != 4326 and not str(crs).endswith("4326"):

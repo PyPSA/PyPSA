@@ -49,3 +49,23 @@ def test_haversine_matrix_matches_pairwise():
 def test_haversine_wrong_shape_raises():
     with pytest.raises(ValueError, match="shape"):
         haversine([1.0, 2.0, 3.0], [[0.0, 0.0]])
+
+
+@pytest.mark.parametrize("crs", [999999, "+proj=merc", "EPSG:3035"])
+def test_get_projection_from_crs_falls_back(crs, caplog):
+    ccrs = pytest.importorskip("cartopy.crs")
+    from pypsa.geo import get_projection_from_crs
+
+    with caplog.at_level("WARNING", logger="pypsa.geo"):
+        projection = get_projection_from_crs(crs)
+
+    assert isinstance(projection, ccrs.PlateCarree)
+    assert "Could not find projection" in caplog.text
+
+
+def test_get_projection_from_crs_known_code():
+    ccrs = pytest.importorskip("cartopy.crs")
+    from pypsa.geo import get_projection_from_crs
+
+    assert isinstance(get_projection_from_crs(4326), ccrs.PlateCarree)
+    assert not isinstance(get_projection_from_crs(3035), ccrs.PlateCarree)
