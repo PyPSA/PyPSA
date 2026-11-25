@@ -32,7 +32,6 @@ import pandas as pd
 import pyproj
 import validators
 from pyproj import CRS, Transformer
-from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import (
@@ -44,7 +43,7 @@ from pypsa.consistency import NetworkConsistencyMixin
 from pypsa.definitions.structures import Dict
 from pypsa.network.components import NetworkComponentsMixin
 from pypsa.network.descriptors import NetworkDescriptorsMixin
-from pypsa.network.graph import NetworkGraphMixin
+from pypsa.network.graph import NetworkGraphMixin, _sub_network_labels
 from pypsa.network.index import NetworkIndexMixin
 from pypsa.network.io import NetworkIOMixin
 from pypsa.network.power_flow import (
@@ -1263,15 +1262,12 @@ class Network(
             ``"bfs-refined"`` or ``"paton"``.
 
         """
-        adjacency_matrix = self.adjacency_matrix(
-            branch_components=self.passive_branch_components,
-            investment_period=investment_period,
-            return_dataframe=True,
+        buses = self.c.buses.static.index.unique("name")
+        ends = pd.concat(
+            c.static.loc[c.get_active_assets(investment_period), ["bus0", "bus1"]]
+            for c in map(self.components.__getitem__, self.passive_branch_components)
         )
-        n_components, labels = csgraph.connected_components(
-            adjacency_matrix.values, directed=False
-        )
-        labels = pd.Series(labels, adjacency_matrix.index, name="sub_network")
+        labels = _sub_network_labels(buses, ends.bus0, ends.bus1)
         sub_network_map = labels.astype(str)
 
         # remove all old sub_networks
@@ -1296,7 +1292,7 @@ class Network(
         else:
             bus_carrier = self.c.buses.static.carrier
 
-        for i in np.arange(n_components):
+        for i in np.unique(labels):
             # index of first bus
             buses = labels.index[labels == i]
 
