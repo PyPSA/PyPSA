@@ -15,10 +15,12 @@ saved files work as before.
 
 ## Defining a type
 
-A definition is a YAML file, YAML text or a dictionary with four sections:
+A definition is a YAML file, YAML text or a dictionary. It has a `name` and
+four sections:
 
 * `parameters`: what `n.add` takes, each with its default. `null` makes a
-  parameter required.
+  parameter required. Each parameter is read by a template or by the math,
+  not by both.
 * `components`: the members per component class, each a template of
   attributes. A value `$<parameter>` takes the parameter, a value `@<member>`
   the name of another member of the same instance. Quote it in YAML, as
@@ -68,7 +70,11 @@ for each type:
   column per member. `at(Link_p_nom_effective, by=battery_members[charger])`
   reads the rating of each instance's charger;
 * a parameter `battery_<parameter>` for each parameter the math reads, as
-  `battery_max_hours`.
+  `battery_max_hours`. Its default sets its dtype: `true` or `false` makes it
+  a bool, a text a str, a number a float. So it cannot be required.
+
+Where the math needs an attribute a template sets, it reads it from the
+member, as `at(Link_efficiency, by=battery_members[charger])`.
 
 `Link_p_nom_effective` is the chosen rating of an extendable link and the given
 rating of a fixed one, so the math holds when a member is fixed.
@@ -81,15 +87,18 @@ n.add("battery", ["north", "south"], bus=["north", "south"], max_hours=[4, 8])
 n.optimize()
 ```
 
-`n.composites.battery.add(...)` does the same as `n.add("battery", ...)`. A
-parameter is a scalar for all instances, a list or a Series over the instances,
-or, for a time-varying attribute of a member, a DataFrame with the instances as
-columns. A member is named `<instance> <member>`, as `north charger`, and
+`n.composites.battery.add(...)` does the same as `n.add("battery", ...)`, and
+takes a `suffix` alike. A parameter is a scalar for all instances, a list or a
+Series over the instances, or, for a time-varying attribute of a member, a
+DataFrame with the instances as columns or a Series over the snapshots for all
+of them. If `add` fails, it adds nothing. A member is named `<instance> <member>`, as `north charger`, and
 carries three columns: `composite` with its instance, `composite_type` and
 `composite_member`. The parameters of the math take one value per instance.
 They are stored in the columns `<type>_<parameter>` of the first member listed,
 here the bus `dc`, as `n.c.buses.static["battery_max_hours"]`. In a stochastic
 network, that column may differ by scenario.
+
+`n.remove("battery", "north")` removes every member of an instance.
 
 ## Reading instances
 
@@ -102,9 +111,12 @@ n.statistics.energy_balance(groupby="composite")
 ## Rules
 
 * The definition is stored in `n.meta`, so a copy or a saved network keeps its
-  composites.
-* `n.add` takes no `suffix` or `overwrite` for a composite, and refuses an
-  instance whose member names exist.
+  composites. `n.merge`, `n[buses]` and clustering do not keep it; the build
+  then refuses the tagged members until the type is registered again.
+* `register` checks the math against the formulation, so a wrong name fails
+  there, not at the build.
+* `n.add` takes no `overwrite` for a composite, and refuses an instance whose
+  member names exist.
 * Every key of the math starts with `<type>_`. The math adds to the
   formulation; it does not change or remove an entry. Use
   [overrides](custom-constraints.md#overriding-the-formulation) for that.

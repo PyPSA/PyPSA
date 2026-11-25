@@ -149,11 +149,11 @@ class NetworkSources(Mapping[str, Any]):
         self.branch_outages = branch_outages
         self.units = {c._unit_dim: c for c in formulated(n)}
         self._providers = _providers(self.units.values())
-        clash = self._providers.keys() & dict(providers or {}).keys()
-        if clash:
+        providers = dict(providers or {})
+        if clash := self._providers.keys() & providers.keys():
             msg = f"{sorted(clash)} have two derivations."
             raise ValueError(msg)
-        self._providers |= dict(providers or {})
+        self._providers |= providers
         self._keys = dict.fromkeys(
             [*spec.dimensions, *spec.relations, *spec.parameters]
         )

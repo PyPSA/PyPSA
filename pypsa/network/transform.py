@@ -146,7 +146,9 @@ class NetworkTransformMixin(_NetworkABC):
         ----------
         class_name : str
             Component class name in ("Bus", "Generator", "Load", "StorageUnit",
-            "Store", "ShuntImpedance", "Line", "Transformer", "Link", "Process").
+            "Store", "ShuntImpedance", "Line", "Transformer", "Link", "Process"),
+            or a registered composite type, which adds its instances. See
+            [composites](../../user-guide/optimization/composites.md).
         name : str or int or list of str or list of int
             Component name(s)
         suffix : str or list of str, default ""
@@ -218,10 +220,10 @@ class NetworkTransformMixin(_NetworkABC):
             return_names = options.params.add.return_names
 
         if isinstance(class_name, str) and class_name in self.composites:
-            if suffix or overwrite:
-                msg = "A composite takes no `suffix` or `overwrite`; name its instances in full."
+            if overwrite:
+                msg = "A composite takes no `overwrite`; remove its instances first."
                 raise ValueError(msg)
-            names = self.composites[class_name].add(name, **kwargs)
+            names = self.composites[class_name].add(name, suffix, **kwargs)
             return names if return_names else None
 
         c = as_components(self, class_name)
@@ -473,7 +475,8 @@ class NetworkTransformMixin(_NetworkABC):
         Parameters
         ----------
         class_name : str
-            Component class name
+            Component class name, or a registered composite type, which
+            removes every member of its instances.
         name : str, int, list-like or pandas.Index
             Component name(s)
         suffix : str or list of str, default ""
@@ -521,6 +524,10 @@ class NetworkTransformMixin(_NetworkABC):
         Index: []
 
         """
+        if isinstance(class_name, str) and class_name in self.composites:
+            self.composites[class_name].remove(name, suffix)
+            return
+
         c = as_components(self, class_name)
 
         # Process name/names to pandas.Index of strings and add suffix

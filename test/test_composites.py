@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
+from mathspec.errors import LanguageError
 
 import pypsa
 
@@ -118,46 +119,55 @@ def test_add_lays_values_over_the_instances(n):
     assert list(static.bus) == ["north", "south"]
     assert list(static.efficiency) == [0.9, 0.8]
     assert list(static.max_hours) == [8, 8]
+    n.add("battery", "solo", bus="north", availability=pd.Series(0.25, n.snapshots))
     p_max_pu = n.c.links.dynamic.p_max_pu
     assert (p_max_pu["bat south discharger"] == 0.5).all()
+    assert (p_max_pu["solo discharger"] == 0.25).all()
 
 
 @pytest.mark.parametrize(
-    ("kwargs", "match"),
+    ("names", "kwargs", "match"),
     [
-        ({"bus": "north", "volume": 3}, r"unknown \['volume'\]"),
-        ({}, r"missing \['bus'\]"),
+        ("x", {"bus": "north", "volume": 3}, r"unknown \['volume'\]"),
+        ("x", {}, r"missing \['bus'\]"),
+        ("x", {"bus": "north", "max_hours": pd.DataFrame({"x": [1.0]})}, "time series"),
+        (["x", "z"], {"bus": pd.Series({"x": "north", "y": "south"})}, "lacks"),
+        (["x", "z"], {"bus": pd.Series(["north", "south"])}, "lacks"),
+        (["x", "z"], {"bus": "north", "efficiency": [0.9, 0.8, 0.7]}, "length 3"),
         (
-            {"bus": "north", "max_hours": pd.DataFrame({"x": [1.0]})},
-            "not a time series",
+            ["x", "z"],
+            {"bus": "north", "availability": pd.DataFrame({"x": [1.0], "z": [1.0]})},
+            "align",
         ),
-        ({"bus": "north", "max_hours": pd.Series({"x": 3, "y": 4})}, "lacks"),
-        ({"bus": "north", "availability": pd.DataFrame({"y": [1.0]})}, "lacks"),
+        ("bat north", {"bus": "north"}, "are taken"),
+        ("", {"bus": "north"}, "empty"),
+        ("y", {"bus": "north"}, "exist"),
     ],
 )
-def test_add_refuses_wrong_parameters(n, kwargs, match):
-    with pytest.raises(ValueError, match=match):
-        n.add("battery", ["x", "z"], **kwargs)
-    assert "x dc" not in n.c.buses.static.index
-
-
-def test_add_refuses_a_taken_member_name_before_adding(n):
-    n.add("Link", "x discharger", bus0="north", bus1="south")
-    with pytest.raises(ValueError, match="exist"):
-        n.add("battery", "x", bus="north")
-    assert "x dc" not in n.c.buses.static.index
-    n.add("battery", "y", bus="north")
-
-
-def test_add_refuses_a_suffix(n):
-    with pytest.raises(ValueError, match="suffix"):
-        n.add("battery", "x", suffix=" 1", bus="north")
-
-
-def test_add_refuses_a_taken_name(n):
+def test_a_refused_add_leaves_the_network_unchanged(n, names, kwargs, match):
     _add(n)
-    with pytest.raises(ValueError, match="are taken"):
-        n.add("battery", "bat north", bus="north")
+    n.add("Link", "y discharger", bus0="north", bus1="south")
+    sizes = {c.name: len(c.static) for c in n.components}
+    with pytest.raises(ValueError, match=match):
+        n.add("battery", names, **kwargs)
+    assert {c.name: len(c.static) for c in n.components} == sizes
+    n.add("battery", "w", bus="north")
+
+
+def test_add_takes_a_suffix_and_refuses_overwrite(n):
+    names = n.add("battery", "bat", suffix=[" a", " b"], bus="north", return_names=True)
+    assert list(names) == list(n.composites.battery.members.index) == ["bat a", "bat b"]
+    with pytest.raises(ValueError, match="overwrite"):
+        n.add("battery", "bat a", overwrite=True, bus="north")
+
+
+def test_remove_drops_every_member_of_an_instance(n):
+    _add(n)
+    n.remove("battery", "bat north")
+    assert list(n.composites.battery.members.index) == ["bat south"]
+    assert not n.c.links.static.index.str.startswith("bat north").any()
+    with pytest.raises(ValueError, match="no battery instances"):
+        n.remove("battery", "bat north")
 
 
 def test_the_math_ties_the_members(n):
@@ -169,12 +179,16 @@ def test_the_math_ties_the_members(n):
     e_nom = n.c.stores.static.e_nom_opt
     assert p_nom["bat north charger"] == pytest.approx(p_nom["bat north discharger"])
     assert p_nom["bat south discharger"] == pytest.approx(7)
-    assert e_nom["bat north store"] <= 2 * p_nom["bat north discharger"] + 1e-6
     assert e_nom["bat south store"] <= 6 * 7 + 1e-6
     assert e_nom["bat north store"] == pytest.approx(2 * p_nom["bat north discharger"])
 
 
-def test_a_bool_parameter_masks_rows(n):
+@pytest.mark.parametrize("anchor", ["Bus", "Link"])
+def test_a_bool_parameter_masks_rows(anchor):
+    n = pypsa.Network()
+    n.add("Bus", ["north", "south"])
+    components = BATTERY["components"]
+    n.composites.register(_with(components={anchor: components[anchor], **components}))
     n.add("battery", INSTANCES, bus=["north", "south"], shared_inverter=[True, False])
     m = n.optimize.create_model()
     rows = (m.constraints["battery_inverter"].labels != -1).any("scenario")
@@ -227,11 +241,11 @@ def test_a_type_without_instances_adds_no_rows(n):
     assert "battery_inverter" not in n.model.constraints
 
 
-def test_composites_survive_copy_and_netcdf(n, tmp_path):
+def test_composites_survive_copy_netcdf_and_hdf5(n, tmp_path):
     _add(n)
-    path = tmp_path / "net.nc"
-    n.export_to_netcdf(path)
-    others = [n.copy(), pypsa.Network(path)]
+    n.export_to_netcdf(tmp_path / "net.nc")
+    n.export_to_hdf5(tmp_path / "net.h5")
+    others = [n.copy(), *(pypsa.Network(tmp_path / f) for f in ("net.nc", "net.h5"))]
     n.optimize()
     for other in others:
         assert other.composites.battery.members.equals(n.composites.battery.members)
@@ -243,6 +257,17 @@ def test_an_incomplete_instance_fails(n):
     _add(n)
     n.remove("Store", "bat north store")
     with pytest.raises(ValueError, match=r"\['bat north'\] lack members"):
+        n.optimize.create_model()
+    n.remove("battery", "bat north")
+    n.optimize.create_model()
+
+
+def test_tags_without_their_type_fail(n):
+    _add(n)
+    n.meta = {}
+    with pytest.raises(
+        ValueError, match=r"types \['battery'\], which are not registered"
+    ):
         n.optimize.create_model()
 
 
@@ -267,12 +292,30 @@ def _with(**changes):
     [
         (_with(name="Link"), "named by an identifier"),
         (_with(name="bus"), "named by an identifier"),
+        (_with(name="register"), "named by an identifier"),
         (_with(volume=1), "sections"),
         (_with(components={"Battery": {"x": {}}}), "by component class"),
         (_with(components={"Carrier": {"x": {}}}), "by component class"),
-        (_with(parameters={"members": 1}), "cannot name a parameter"),
-        (_with(components={"Link": {"a": {"bus0": "@b"}}}), "refers to @b"),
-        (_with(components={"Link": {"a": {"bus0": "$b"}}}), "refers to \\$b"),
+        (_with(parameters={**BATTERY["parameters"], "name": 1}), "cannot name"),
+        (
+            _with(parameters={**BATTERY["parameters"], "note": 1}),
+            r"uses the parameters \['note'\]",
+        ),
+        (
+            _with(parameters={**BATTERY["parameters"], "max_hours": None}),
+            "take a default",
+        ),
+        (_with(components={"Link": {"a": {"bus0": "@b"}}}), r"refers to \['@b'\]"),
+        (_with(components={"Link": {"a": {"bus0": "$b"}}}), r"refers to \['\$b'\]"),
+        (
+            _with(
+                components={
+                    **BATTERY["components"],
+                    "Store": {"store": {"bus": "@dc", "e_nom": "$max_hours"}},
+                }
+            ),
+            r"sets \['max_hours'\]",
+        ),
         (_with(math={"objective": {}}), "has the sections"),
         (_with(math={"constraints": {"inverter": {}}}), "cannot add 'inverter'"),
         (
@@ -283,6 +326,19 @@ def _with(**changes):
 )
 def test_a_malformed_definition_is_refused(definition, match):
     with pytest.raises(ValueError, match=match):
+        pypsa.Network().composites.register(definition)
+
+
+@pytest.mark.parametrize(
+    ("typo", "match"),
+    [
+        (("Store_e_nom_effective", "Store_e_nom_eff"), "'Store_e_nom_eff' not found"),
+        (("battery_members[store]", "battery_members[stor]"), "no column"),
+    ],
+)
+def test_wrong_math_is_refused_at_register(typo, match):
+    definition = yaml.safe_load(yaml.safe_dump(BATTERY).replace(*typo))
+    with pytest.raises(LanguageError, match=match):
         pypsa.Network().composites.register(definition)
 
 

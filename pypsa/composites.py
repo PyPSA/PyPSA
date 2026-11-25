@@ -13,11 +13,9 @@ stored in `n.meta`, so copies and saved networks keep their composites.
 
 from __future__ import annotations
 
-import functools
-import json
 import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -25,7 +23,7 @@ import pandas as pd
 import xarray as xr
 
 from pypsa.components.types import component_types_df
-from pypsa.statistics.grouping import groupers
+from pypsa.network.transform import _build_suffixed_names
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -38,13 +36,30 @@ META = "composites"
 SECTIONS = {"name", "description", "parameters", "components", "math"}
 #: The sections of the math of a definition.
 MATH = {"variables", "expressions", "constraints"}
-#: The parameter names a type declares itself.
-RESERVED = {"members"}
+#: The parameter names a type cannot take: its relation and the arguments of `n.add`.
+RESERVED = {"members", "class_name", "name", "suffix", "overwrite", "return_names"}
+#: The columns that tag a member.
+TAGS = ["composite", "composite_type", "composite_member"]
 
 
 def _dim(class_name: str) -> str:
     """Return the spec dimension over the components of a class."""
     return "bus" if class_name == "Bus" else class_name
+
+
+def _tags(n: Network) -> pd.DataFrame:
+    """Return every member of a composite: its class, its name and its tags."""
+    from pypsa.optimization.spec.sources import of_scenario  # noqa: PLC0415
+
+    frames = [
+        of_scenario(c.static, n)[TAGS].assign(class_name=c.name)
+        for c in n.components
+        if "composite_type" in c.static
+    ]
+    if not frames:
+        return pd.DataFrame(columns=["name", *TAGS, "class_name"])
+    tags = pd.concat(frames).rename_axis("name").reset_index()
+    return tags[tags.composite_type.notna() & (tags.composite_type != "")]
 
 
 def _text(entry: Any) -> Iterator[str]:
@@ -106,7 +121,7 @@ class CompositeType:
         d = _layer(definition)
         unknown = d.keys() - SECTIONS
         if unknown or "name" not in d:
-            msg = f"A composite definition has a name and the sections {sorted(SECTIONS - {'name'})}, not {sorted(unknown)}."
+            msg = f"A composite definition has a name and the sections {sorted(SECTIONS - {'name'})}; it has {sorted(d)}."
             raise ValueError(msg)
         t = cls(
             name=d["name"],
@@ -118,20 +133,15 @@ class CompositeType:
         t._check()
         return t
 
-    def to_dict(self) -> dict[str, Any]:
-        """Return the definition as a mapping `read` takes back."""
-        return {
-            "name": self.name,
-            "description": self.description,
-            "parameters": self.parameters,
-            "components": self.components,
-            "math": self.math,
-        }
-
     @property
     def members(self) -> dict[str, str]:
         """Return the class of each member."""
         return {m: c for c, ms in self.components.items() for m in ms}
+
+    @property
+    def templates(self) -> dict[str, dict[str, Any]]:
+        """Return the template of each member."""
+        return {m: a for ms in self.components.values() for m, a in ms.items()}
 
     @property
     def anchor(self) -> str:
@@ -144,6 +154,17 @@ class CompositeType:
         text = " ".join(_text(self.math))
         used = set(re.findall(rf"\b{self.name}_(\w+)\b", text))
         return [p for p in self.parameters if p in used]
+
+    @property
+    def homes(self) -> dict[str, tuple[str, str]]:
+        """Return the member and the attribute that hold each parameter."""
+        homes = {
+            v[1:]: (m, a)
+            for m, template in self.templates.items()
+            for a, v in template.items()
+            if isinstance(v, str) and v.startswith("$")
+        }
+        return homes | {p: (self.anchor, self.column(p)) for p in self.math_parameters}
 
     def column(self, parameter: str) -> str:
         """Return the column of the anchor that holds a parameter of the math."""
@@ -178,9 +199,9 @@ class CompositeType:
         t = self.name
         base = spec()
         taken = {*component_types_df.index, *component_types_df.list_name}
-        taken |= {*base.dimensions, *PLACEHOLDERS}
+        taken |= {*base.dimensions, *PLACEHOLDERS, *dir(Composites)}
         if not isinstance(t, str) or not t.isidentifier() or t in taken:
-            msg = f"A composite type is named by an identifier that is no component, dimension or placeholder, not {t!r}."
+            msg = f"A composite type is named by an identifier that is no component, dimension, placeholder or attribute of `n.composites`, not {t!r}."
             raise ValueError(msg)
         unknown = [c for c in self.components if _dim(c) not in base.dimensions]
         if unknown or not self.components:
@@ -195,14 +216,16 @@ class CompositeType:
         ):
             msg = f"The members of {t} have unique identifiers as names, not {members}."
             raise ValueError(msg)
-        for template in (a for ms in self.components.values() for a in ms.values()):
-            for value in template.values():
-                if isinstance(value, str) and (
-                    (value.startswith("$") and value[1:] not in self.parameters)
-                    or (value.startswith("@") and value[1:] not in members)
-                ):
-                    msg = f"{t} refers to {value}, which it does not define."
-                    raise ValueError(msg)
+        refs = {
+            v
+            for template in self.templates.values()
+            for v in template.values()
+            if isinstance(v, str) and v[:1] in ("$", "@")
+        }
+        known = {f"${p}" for p in self.parameters} | {f"@{m}" for m in members}
+        if refs - known:
+            msg = f"{t} refers to {sorted(refs - known)}, which it does not define."
+            raise ValueError(msg)
         if not self.math.keys() <= MATH:
             msg = f"The math of {t} has the sections {sorted(MATH)}, not {sorted(self.math)}."
             raise ValueError(msg)
@@ -211,6 +234,19 @@ class CompositeType:
             if not key.startswith(f"{t}_") or key in existing or entry is None:
                 msg = f"The math of {t} adds entries keyed `{t}_<name>`; it cannot add {key!r}, nor change or remove the formulation."
                 raise ValueError(msg)
+        math = set(self.math_parameters)
+        templated = {v[1:] for v in refs if v.startswith("$")}
+        if math & templated:
+            msg = f"A template of {t} sets {sorted(math & templated)}, so the math reads it from the member, as `at(Link_efficiency, by={t}_members[charger])`, not as `{t}_<parameter>`."
+            raise ValueError(msg)
+        if unused := sorted(self.parameters.keys() - math - templated):
+            msg = (
+                f"Neither a template nor the math of {t} uses the parameters {unused}."
+            )
+            raise ValueError(msg)
+        if untyped := [p for p in math if self.parameters[p] is None]:
+            msg = f"The math of {t} reads {untyped}, so they take a default, which sets their dtype."
+            raise ValueError(msg)
 
 
 class Composite:
@@ -223,24 +259,34 @@ class Composite:
 
     def __repr__(self) -> str:
         """Name the type and count its instances."""
-        return f"Composite '{self.type.name}' with {len(self.members)} instances"
+        tags = _tags(self.n)
+        count = tags.composite[tags.composite_type == self.name].nunique()
+        return f"Composite '{self.name}' with {count} instances"
 
     @property
     def name(self) -> str:
         """Return the type's name."""
         return self.type.name
 
-    def add(self, name: str | int | Sequence[int | str], **kwargs: Any) -> pd.Index:
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str | Sequence[str] = "",
+        **kwargs: Any,
+    ) -> pd.Index:
         """Add instances: each member of each instance, tagged with its instance.
 
         Parameters
         ----------
         name : str or sequence of str
             The names of the instances. A member is named `<instance> <member>`.
+        suffix : str or sequence of str, default ""
+            Suffix added to each instance name, as in `n.add`.
         **kwargs
             The parameters of the type. A value is a scalar for all instances,
             a sequence or a Series over the instances, or for a time-varying
-            attribute a DataFrame with the instances as columns.
+            attribute a DataFrame with the instances as columns, or a Series
+            over the snapshots for all of them.
 
         Returns
         -------
@@ -250,12 +296,10 @@ class Composite:
         Raises
         ------
             ValueError: A parameter is unknown or missing, or an instance name
-                is taken.
+                is empty or taken. Nothing is added then.
 
         """
-        names = pd.Index([name] if isinstance(name, str | int) else list(name)).astype(
-            str
-        )
+        names = _build_suffixed_names(name, suffix)
         unknown = kwargs.keys() - self.type.parameters.keys()
         values = self.type.parameters | kwargs
         missing = [p for p, v in values.items() if v is None]
@@ -263,20 +307,52 @@ class Composite:
             msg = f"{self.name} takes the parameters {sorted(self.type.parameters)}; unknown {sorted(unknown)}, missing {missing}."
             raise ValueError(msg)
         taken = names.intersection(self.n.composites.instances)
-        if names.has_duplicates or len(taken):
-            msg = f"Composite instances have unique names; {list(taken) or list(names[names.duplicated()])} are taken."
+        bad = [*taken, *names[names.duplicated() | (names == "")]]
+        if bad:
+            msg = f"Composite instances have unique, non-empty names; {bad} are taken or empty."
             raise ValueError(msg)
         laid = [self._laid(m, c, values, names) for m, c in self.type.members.items()]
-        for member, class_name, labels, attrs in laid:
-            self.n.add(
-                class_name,
-                labels,
-                **attrs,
-                composite=names,
-                composite_type=self.name,
-                composite_member=member,
+        added: list[tuple[str, pd.Index]] = []
+        try:
+            for member, class_name, labels, attrs in laid:
+                self.n.add(
+                    class_name,
+                    labels,
+                    **attrs,
+                    composite=names,
+                    composite_type=self.name,
+                    composite_member=member,
+                )
+                added.append((class_name, labels))
+        except Exception:
+            for class_name, labels in added:
+                self.n.remove(class_name, labels)
+            raise
+        static = self.n.c[self.type.members[self.type.anchor]].static
+        for p in self.type.math_parameters:
+            column = self.type.column(p)
+            static[column] = (
+                static[column].fillna(self.type.parameters[p]).infer_objects()
             )
         return names
+
+    def remove(
+        self, name: str | int | Sequence[int | str], suffix: str | Sequence[str] = ""
+    ) -> None:
+        """Remove instances: every member of each.
+
+        Raises:
+            ValueError: An instance does not exist.
+
+        """
+        names = _build_suffixed_names(name, suffix)
+        tags = _tags(self.n)
+        tags = tags[tags.composite_type == self.name]
+        if len(unknown := names.difference(tags.composite)):
+            msg = f"There are no {self.name} instances {list(unknown)}."
+            raise ValueError(msg)
+        for class_name, rows in tags[tags.composite.isin(names)].groupby("class_name"):
+            self.n.remove(class_name, rows.name)
 
     def _laid(
         self, member: str, class_name: str, values: dict[str, Any], names: pd.Index
@@ -287,16 +363,11 @@ class Composite:
             ValueError: A member of that name exists.
 
         """
-        from pypsa.optimization.spec.sources import of_scenario  # noqa: PLC0415
-
         labels = names + f" {member}"
-        exist = labels.intersection(
-            of_scenario(self.n.c[class_name].static, self.n).index
-        )
-        if len(exist):
+        if len(exist := labels.intersection(self.n.c[class_name].names)):
             msg = f"The {class_name} components {list(exist)} exist."
             raise ValueError(msg)
-        template = self.type.components[class_name][member]
+        template = self.type.templates[member]
         attrs = {a: self._value(v, values, names, labels) for a, v in template.items()}
         if member == self.type.anchor:
             for p in self.type.math_parameters:
@@ -314,30 +385,33 @@ class Composite:
             return (names + f" {value[1:]}").to_numpy(dtype=object)
         return value
 
-    @staticmethod
     def _per_instance(
-        value: Any, names: pd.Index, labels: pd.Index, scalar: str = ""
+        self, value: Any, names: pd.Index, labels: pd.Index, parameter: str = ""
     ) -> Any:
-        """Return a parameter laid over the members: by instance where it varies by instance.
+        """Return a parameter laid over the members: by instance where it is a Series or a DataFrame.
+
+        A Series over the snapshots is a time series for all instances.
 
         Raises:
             ValueError: A math parameter is a time series, or a value by
                 instance leaves an instance out.
 
         """
-        if isinstance(value, pd.DataFrame) and scalar:
-            msg = f"The math parameter {scalar} takes one value per instance, not a time series."
+        frame = isinstance(value, pd.DataFrame)
+        series = isinstance(value, pd.Series)
+        timed = frame or (series and value.index.equals(self.n.snapshots))
+        if parameter and timed:
+            msg = f"The math parameter {parameter} takes one value per instance, not a time series."
             raise ValueError(msg)
-        by_instance = isinstance(value, pd.DataFrame) or (
-            isinstance(value, pd.Series) and value.index.isin(names).any()
-        )
-        if not by_instance:
+        if series and timed:
+            return pd.DataFrame(dict.fromkeys(labels, value))
+        if not (frame or series):
             return value
-        index = value.columns if isinstance(value, pd.DataFrame) else value.index
+        index = value.columns if frame else value.index
         if not names.isin(index).all():
             msg = f"A value by instance covers every instance; it lacks {list(names.difference(index))}."
             raise ValueError(msg)
-        if isinstance(value, pd.DataFrame):
+        if frame:
             return value[names].set_axis(labels, axis=1)
         return value.reindex(names).to_numpy()
 
@@ -349,25 +423,18 @@ class Composite:
             ValueError: An instance lacks a member.
 
         """
-        from pypsa.optimization.spec.sources import of_scenario  # noqa: PLC0415
-
-        columns = {}
-        for member, class_name in self.type.members.items():
-            static = of_scenario(self.n.c[class_name].static, self.n)
-            if "composite_type" not in static:
-                columns[member] = pd.Series(dtype=object)
-                continue
-            tagged = static[
-                (static.composite_type == self.name)
-                & (static.composite_member == member)
-            ]
-            columns[member] = pd.Series(tagged.index, index=tagged.composite)
-        members = pd.DataFrame(columns)
-        members.index = pd.Index(members.index, dtype=object, name=self.name)
+        tags = _tags(self.n)
+        tags = tags[tags.composite_type == self.name]
+        members = (
+            tags.pivot(index="composite", columns="composite_member", values="name")
+            .reindex(index=tags.composite.unique(), columns=list(self.type.members))
+            .rename_axis(index=self.name, columns=None)
+        )
         incomplete = members.isna().any(axis=1)
         if incomplete.any():
             msg = f"The {self.name} instances {list(members.index[incomplete])} lack members; remove or add them in full."
             raise ValueError(msg)
+        members.index = members.index.astype(object)
         return members.astype(object)
 
     @property
@@ -377,24 +444,10 @@ class Composite:
 
         members = self.members
         read = {}
-        for p in self.type.parameters:
-            member, attr = self._home(p)
+        for p, (member, attr) in self.type.homes.items():
             static = of_scenario(self.n.c[self.type.members[member]].static, self.n)
             read[p] = static[attr].reindex(members[member]).to_numpy()
-        return pd.DataFrame(read, index=members.index)
-
-    def _home(self, parameter: str) -> tuple[str, str]:
-        """Return the member and attribute that hold a parameter."""
-        if parameter in self.type.math_parameters:
-            return self.type.anchor, self.type.column(parameter)
-        for member, template in (
-            (m, a) for ms in self.type.components.values() for m, a in ms.items()
-        ):
-            for attr, value in template.items():
-                if value == f"${parameter}":
-                    return member, attr
-        msg = f"{self.name} stores no parameter {parameter}."
-        raise KeyError(msg)
+        return pd.DataFrame(read, index=members.index)[list(self.type.parameters)]
 
     def providers(self) -> dict[str, Callable[[NetworkSources, str], Any]]:
         """Return the data of the type's dimension, relation and parameters for a build."""
@@ -472,8 +525,7 @@ class Composites(Mapping[str, Composite]):
 
     def __getitem__(self, name: str) -> Composite:
         """Return the instances of a registered type."""
-        definition = json.dumps(self._definitions()[name], sort_keys=True)
-        return Composite(self.n, _parsed(definition))
+        return Composite(self.n, CompositeType.read(self._definitions()[name]))
 
     def __contains__(self, name: object) -> bool:
         """Whether a type of this name is registered."""
@@ -500,43 +552,40 @@ class Composites(Mapping[str, Composite]):
         Raises:
             ValueError: The definition is malformed, or another type of the
                 same name is registered.
+            mathspec.errors.LanguageError: The math does not hold with the
+                formulation.
 
         """
+        from pypsa.optimization.spec.build import spec  # noqa: PLC0415
+
         t = CompositeType.read(definition)
         known = self._definitions().get(t.name)
-        if known is not None and known != t.to_dict():
+        if known is not None and known != asdict(t):
             msg = f"Another composite type {t.name!r} is registered."
             raise ValueError(msg)
-        self.n.meta.setdefault(META, {})[t.name] = t.to_dict()
+        spec(overrides=[t.patch()])
+        self.n.meta.setdefault(META, {})[t.name] = asdict(t)
         return self[t.name]
 
     @property
     def instances(self) -> pd.Index:
         """Return the names of all instances of all types."""
-        return pd.Index([i for c in self.values() for i in c.members.index])
+        return pd.Index(_tags(self.n).composite.unique(), dtype=object)
 
     def patches(self) -> list[dict[str, Any]]:
-        """Return the spec patch of each registered type."""
+        """Return the spec patch of each registered type.
+
+        Raises:
+            ValueError: Components are tagged with a type that is not
+                registered, as after `n.merge` or `n[buses]`.
+
+        """
+        unknown = set(_tags(self.n).composite_type) - set(self)
+        if unknown:
+            msg = f"Components are tagged with the composite types {sorted(unknown)}, which are not registered; register them with `n.composites.register`."
+            raise ValueError(msg)
         return [c.type.patch() for c in self.values()]
 
     def providers(self) -> dict[str, Callable[[NetworkSources, str], Any]]:
         """Return the data of every registered type for a build."""
         return {k: f for c in self.values() for k, f in c.providers().items()}
-
-
-@functools.lru_cache(maxsize=64)
-def _parsed(definition: str) -> CompositeType:
-    """Return the type a definition in JSON states, checked once per process."""
-    return CompositeType.read(json.loads(definition))
-
-
-def _composite(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> pd.Series:
-    """Group components by the composite instance they belong to; `""` for none."""
-    static = n.c[c].static
-    tags = static["composite"] if "composite" in static else pd.Series("", static.index)
-    return tags.fillna("").rename("composite")
-
-
-groupers.add_grouper("composite", _composite)

@@ -142,7 +142,7 @@ def spec(
     piecewise_options: Sequence[PiecewiseOptions] = (),
     overrides: Sequence[Override] = (),
 ) -> Spec:
-    """Return the spec of `n.optimize()`, patched for linearised unit commitment and piecewise options on request, with *overrides* laid over it in turn."""
+    """Return the spec of `n.optimize()` for a network without composites, patched for linearised unit commitment and piecewise options on request, with *overrides* laid over it in turn."""
     return _formulation(linearized_unit_commitment, piecewise_options, overrides)[0]
 
 
