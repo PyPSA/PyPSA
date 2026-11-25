@@ -32,7 +32,7 @@ def _maintenance_windows(
     Both are (unit, scenario, snapshot). A window runs from its start until the
     generator weightings reach `maintenance_duration`.
     """
-    weighting = s["snapshot_weightings_generators"].to_numpy()
+    weighting = s["snapshot_weighting_generators"].to_numpy()
     cum = weighting.cumsum()
     before = xr.DataArray(cum - weighting, coords={"snapshot": s.snapshots})
     target = s.da(c, "maintenance_duration") * (1 - 1e-6) + before

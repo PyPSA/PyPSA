@@ -11,8 +11,8 @@ given:
     COMPONENT_maintenance_pu: {dims: [scenario, UNIT]}
     COMPONENT_p_max_pu: {dims: [scenario, snapshot, UNIT]}
     COMPONENT_p_min_pu: {dims: [scenario, snapshot, UNIT]}
-    period_weight_objective: {dims: [period]}
-    snapshot_weightings_objective: {dims: [snapshot]}
+    period_weighting_objective: {dims: [period]}
+    snapshot_weighting_objective: {dims: [snapshot]}
   variables:
     COMPONENT_NOM_ext: {dims: [UNIT]}
     COMPONENT_maintenance_capacity: {dims: [scenario, snapshot, UNIT]}
@@ -107,7 +107,7 @@ macros:
     description: a cost per snapshot, weighted by the snapshot's hours and its period, summed
     args: [cost]
     template: >-
-      sum(sum((cost * snapshot_weightings_objective) * at(period_weight_objective,
+      sum(sum((cost * snapshot_weighting_objective) * at(period_weighting_objective,
       by=snapshot_period[period]), over=UNIT), over=snapshot)
 
 variables:
@@ -187,9 +187,9 @@ expressions:
   COMPONENT_commitment_opex:
     expression: >-
       COMPONENT_operating_cost(COMPONENT_status * COMPONENT_stand_by_cost)
-      + sum(sum((COMPONENT_start_up * COMPONENT_start_up_cost) * at(period_weight_objective,
+      + sum(sum((COMPONENT_start_up * COMPONENT_start_up_cost) * at(period_weighting_objective,
       by=snapshot_period[period]), over=UNIT), over=snapshot)
-      + sum(sum((COMPONENT_shut_down * COMPONENT_shut_down_cost) * at(period_weight_objective,
+      + sum(sum((COMPONENT_shut_down * COMPONENT_shut_down_cost) * at(period_weighting_objective,
       by=snapshot_period[period]), over=UNIT), over=snapshot)
 
 conditions:

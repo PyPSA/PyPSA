@@ -152,9 +152,9 @@ constraints:
     where: Store_active
     expression: >-
       Store_level_carried_in
-      - Store_p * snapshot_weightings_stores / Store_efficiency_dispatch
-      + (Store_efficiency_store - 1 / Store_efficiency_dispatch) * Store_p_store * snapshot_weightings_stores
-      + (Store_inflow - Store_spill) * snapshot_weightings_stores
+      - Store_p * snapshot_weighting_stores / Store_efficiency_dispatch
+      + (Store_efficiency_store - 1 / Store_efficiency_dispatch) * Store_p_store * snapshot_weighting_stores
+      + (Store_inflow - Store_spill) * snapshot_weighting_stores
       == Store_e
   Store_cycles_max:
     name: Store-cycles_max
@@ -162,7 +162,7 @@ constraints:
     dims: [scenario, Store]
     where: Store_cycles_max AND Store_active_asset
     expression: >-
-      sum((Store_p + Store_p_store) * snapshot_weightings_stores, over=snapshot) <=
+      sum((Store_p + Store_p_store) * snapshot_weighting_stores, over=snapshot) <=
       Store_cycles_max * Store_e_nom_effective
   Store_e_set:
     name: Store-e_set

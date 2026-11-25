@@ -11,8 +11,8 @@ given:
     COMPONENT_active_asset: {dims: [UNIT], dtype: bool}
     COMPONENT_marginal_cost_curve_cost: {dims: [UNIT, breakpoint]}
     COMPONENT_marginal_cost_curve_p: {dims: [UNIT, breakpoint]}
-    period_weight_objective: {dims: [period]}
-    snapshot_weightings_objective: {dims: [snapshot]}
+    period_weighting_objective: {dims: [period]}
+    snapshot_weighting_objective: {dims: [snapshot]}
   variables:
     COMPONENT_POWER: {dims: [scenario, snapshot, UNIT]}
 
@@ -39,7 +39,7 @@ macros:
     description: a cost per snapshot, weighted by the snapshot's hours and its period, summed
     args: [cost]
     template: >-
-      sum(sum((cost * snapshot_weightings_objective) * at(period_weight_objective,
+      sum(sum((cost * snapshot_weighting_objective) * at(period_weighting_objective,
       by=snapshot_period[period]), over=UNIT), over=snapshot)
 
 variables:

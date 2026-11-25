@@ -116,9 +116,9 @@ constraints:
     where: StorageUnit_active
     expression: >-
       StorageUnit_level_carried_in
-      + StorageUnit_efficiency_store * StorageUnit_p_store * snapshot_weightings_stores
-      - StorageUnit_p_dispatch * snapshot_weightings_stores / StorageUnit_efficiency_dispatch
-      + (StorageUnit_inflow - StorageUnit_spill) * snapshot_weightings_stores
+      + StorageUnit_efficiency_store * StorageUnit_p_store * snapshot_weighting_stores
+      - StorageUnit_p_dispatch * snapshot_weighting_stores / StorageUnit_efficiency_dispatch
+      + (StorageUnit_inflow - StorageUnit_spill) * snapshot_weighting_stores
       == StorageUnit_state_of_charge
   StorageUnit_p_set:
     name: StorageUnit-p_set

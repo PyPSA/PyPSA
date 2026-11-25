@@ -7,10 +7,10 @@ given:
     GlobalConstraint_counts_snapshot: {dims: [scenario, snapshot, global_constraint], dtype: bool}
     COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
     COMPONENT_operational_limit_weight: {dims: [scenario, UNIT, global_constraint]}
-    period_weight_objective: {dims: [period]}
-    period_weight_years: {dims: [period]}
-    snapshot_weightings_objective: {dims: [snapshot]}
-    snapshot_weightings_stores: {dims: [snapshot]}
+    period_weighting_objective: {dims: [period]}
+    period_weighting_years: {dims: [period]}
+    snapshot_weighting_objective: {dims: [snapshot]}
+    snapshot_weighting_stores: {dims: [snapshot]}
   variables:
     COMPONENT_LEVEL: {dims: [scenario, snapshot, UNIT]}
     COMPONENT_POWER: {dims: [scenario, snapshot, UNIT]}
@@ -102,7 +102,7 @@ macros:
     description: a cost per snapshot, weighted by the snapshot's hours and its period, summed
     args: [cost]
     template: >-
-      sum(sum((cost * snapshot_weightings_objective) * at(period_weight_objective,
+      sum(sum((cost * snapshot_weighting_objective) * at(period_weighting_objective,
       by=snapshot_period[period]), over=UNIT), over=snapshot)
 
 variables:
@@ -162,7 +162,7 @@ expressions:
     cases:
       counted:
         when: GlobalConstraint_counts_snapshot AND COMPONENT_active
-        expression: at(period_weight_years, by=snapshot_period[period])
+        expression: at(period_weighting_years, by=snapshot_period[period])
     otherwise: 0
   COMPONENT_opening_weight:
     description: >-
@@ -193,7 +193,7 @@ expressions:
     expression: >-
       sum(COMPONENT_level_before * COMPONENT_opening_weight, over=snapshot)
       - sum(COMPONENT_LEVEL * COMPONENT_closing_weight, over=snapshot)
-      + sum((COMPONENT_inflow - COMPONENT_spill) * snapshot_weightings_stores * COMPONENT_counted_years, over=snapshot)
+      + sum((COMPONENT_inflow - COMPONENT_spill) * snapshot_weighting_stores * COMPONENT_counted_years, over=snapshot)
   COMPONENT_primary_energy:
     expression: sum(COMPONENT_withdrawal * COMPONENT_primary_energy_weight, over=UNIT)
   COMPONENT_operational_limit:
@@ -281,14 +281,14 @@ assumptions:
       position(snapshot) > 0
     description: "`opens_late` marks every first active snapshot after the first of the horizon"
   COMPONENT_primary_energy_carried_over_has_unit_years:
-    holds: at(period_weight_years == 1, by=snapshot_period[period])
+    holds: at(period_weighting_years == 1, by=snapshot_period[period])
     where: >-
       COMPONENT_primary_energy_weight AND GlobalConstraint_counts_snapshot
       AND NOT COMPONENT_LEVEL_initial_per_period AND NOT COMPONENT_CYCLIC AND NOT COMPONENT_CYCLIC_per_period
       AND count(GlobalConstraint_counts_snapshot AND COMPONENT_active, over=snapshot) > 0
     description: a `primary_energy` row counts a level carried over between periods only in periods that weigh one year
   COMPONENT_operational_limit_carried_over_has_unit_years:
-    holds: at(period_weight_years == 1, by=snapshot_period[period])
+    holds: at(period_weighting_years == 1, by=snapshot_period[period])
     where: >-
       COMPONENT_operational_limit_weight AND GlobalConstraint_counts_snapshot
       AND NOT COMPONENT_LEVEL_initial_per_period AND NOT COMPONENT_CYCLIC AND NOT COMPONENT_CYCLIC_per_period

@@ -67,22 +67,22 @@ dimensions:
     description: energy carriers
 
 parameters:
-  snapshot_weightings_objective:
+  snapshot_weighting_objective:
     description: hours a snapshot weighs in the objective
     dims: [snapshot]
-  snapshot_weightings_stores:
+  snapshot_weighting_stores:
     description: hours a snapshot weighs in a storage balance
     dims: [snapshot]
-  snapshot_weightings_generators:
+  snapshot_weighting_generators:
     description: hours a snapshot weighs in an energy total
     dims: [snapshot]
   scenario_weight:
     description: the probability of a scenario
     dims: [scenario]
-  period_weight_objective:
+  period_weighting_objective:
     description: what a period's cost weighs in the objective
     dims: [period]
-  period_weight_years:
+  period_weighting_years:
     description: the years a period's energy counts for in an energy total
     dims: [period]
   Bus_attached:
@@ -209,7 +209,7 @@ expressions:
   energy_limit_weight:
     description: what one unit of power counts for in an `e_sum` row, hours times the period's years
     dims: [snapshot]
-    expression: snapshot_weightings_generators * at(period_weight_years, by=snapshot_period[period])
+    expression: snapshot_weighting_generators * at(period_weighting_years, by=snapshot_period[period])
   Bus_injection:
     description: what every component puts into a bus, less what it takes out
     dims: [scenario, snapshot, bus]
