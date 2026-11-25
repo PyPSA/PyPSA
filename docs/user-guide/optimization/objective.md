@@ -94,6 +94,55 @@ n.generators.loc["wind", "fom_cost"] = 0.02 * n.generators.loc["wind", "overnigh
     | $n$               | `n.{generators,...}.lifetime` | Parameter |
     | $c_{\text{fom}}$  | `n.{generators,...}.fom_cost` | Parameter |
 
+## Build Costs
+
+For [semi-continuous and modular components](capacity-limits.md#modularity-constraints),
+a capacity-independent investment cost is charged for every module that is built:
+
+$$+ \sum_{n,s} bc_{n,s} n^{\textrm{mod}}_{n,s} + \sum_{l} bc_{l} n^{\textrm{mod}}_{l} + \sum_{m} bc_{m} n^{\textrm{mod}}_{m}$$
+
+where $bc_{*}$ are the build costs and $n^{\textrm{mod}}_{*} \in \mathbb{N}$ are the
+integer numbers of modules. Unlike the capital costs above, build costs are _not_
+multiplied by a capacity. For a semi-continuous asset (`build_mode="semi_continuous"`),
+$n^{\textrm{mod}}_{*}$ is the binary build decision, so the build cost is a one-off
+cost such as grid connection, land acquisition or project development. For fixed
+module sizes (`build_mode="modular"` with `{p,s,e}_nom_mod > 0`), the build cost is charged per module. Like
+capital costs, they are weighted by the investment period weightings in a
+[pathway optimisation](pathway-planning.md).
+The build costs are part of `n.statistics.capex()` and
+`n.optimize.expressions.capex()`, and count towards a
+`transmission_expansion_cost_limit` global constraint.
+
+As for `capital_cost`, the build cost can either be given directly as a
+periodized value via `build_cost`, or as an upfront value via
+`build_cost_overnight` which is annuitised with `discount_rate` and `lifetime`:
+
+$$bc = bc_{\text{overnight}} \cdot \text{annuity}(r, n) \cdot N_{\text{years}}$$
+
+If `build_cost_overnight` is given, it takes precedence over `build_cost`.
+
+``` py
+n.add("Generator", "wind",
+      bus="bus",
+      p_nom_extendable=True,
+      p_nom_max=500,
+      capital_cost=50000,         # €/MW
+      build_mode="semi_continuous",
+      build_cost_overnight=2e6,  # one-off €, e.g. grid connection
+      discount_rate=0.07,
+      lifetime=25)
+```
+
+??? note "Mapping of symbols to attributes"
+
+    | Symbol | Attribute | Type |
+    |-------------------|-----------|-------------|
+    | $n^{\textrm{mod}}_{n,s}$ | `n.{generators,storage_units,stores}.n_mod_opt` | Decision variable |
+    | $n^{\textrm{mod}}_{l}$ | `n.{links,lines,transformers}.n_mod_opt` | Decision variable |
+    | $n^{\textrm{mod}}_{m}$ | `n.processes.n_mod_opt` | Decision variable |
+    | $bc_{*}$          | `n.{generators,...}.build_cost` | Parameter |
+    | $bc_{\text{overnight}}$ | `n.{generators,...}.build_cost_overnight` | Parameter |
+
 ## Marginal Costs
 
 The marginal costs of dispatch are given by

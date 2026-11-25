@@ -268,6 +268,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](piecewise-constraints.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Piecewise investment with modular and semi-continuous expansion**
+
+    Combines a piecewise capital cost curve with modular expansion (a fleet discount) and with a binary build decision and a build cost.
+
+    [:octicons-arrow-right-24: Go to example](piecewise-investment-modular.ipynb)
+
 </div>
 
 ## Sector Coupling

@@ -9,6 +9,7 @@ from numpy.testing import assert_array_almost_equal as almost_equal
 
 import pypsa
 from pypsa.clustering.spatial import (
+    aggregatelines,
     aggregateoneport,
     busmap_by_hac,
     busmap_by_kmeans,
@@ -16,6 +17,7 @@ from pypsa.clustering.spatial import (
     get_clustering_from_busmap,
     normed_or_uniform,
 )
+from pypsa.geo import haversine_pts
 
 pytest.importorskip("sklearn")
 
@@ -87,6 +89,60 @@ def test_aggregate_generators_consent_error(ac_dc_network):
 
     with pytest.raises(ValueError):
         df, dynamic = aggregateoneport(n, busmap, "Generator")
+
+
+def test_aggregate_generators_build_mode(ac_dc_network):
+    n = ac_dc_network
+    wind = n.c.generators.static.query("carrier == 'wind'").index
+    n.c.generators.static.loc[wind, "build_mode"] = "semi_continuous"
+    n.c.generators.static.loc[wind, "build_cost"] = [100.0, 200.0, 300.0]
+
+    busmap = pd.Series("all", n.c.buses.static.index)
+    df, _ = aggregateoneport(n, busmap, "Generator")
+
+    capacity_norm = normed_or_uniform(n.c.generators.static.loc[wind, "p_nom"])
+    assert df.loc["all wind", "build_mode"] == "semi_continuous"
+    assert df.loc["all gas", "build_mode"] == "continuous"
+    assert df.loc["all wind", "build_cost"] == pytest.approx(
+        (n.c.generators.static.loc[wind, "build_cost"] * capacity_norm).sum()
+    )
+
+    n.c.generators.static.loc[wind[0], "build_mode"] = "continuous"
+    with pytest.raises(ValueError, match="build_mode do not agree"):
+        aggregateoneport(n, busmap, "Generator")
+
+
+@pytest.mark.parametrize("line_length_factor", [1.0, 1.5])
+def test_aggregate_lines_build_cost(line_length_factor):
+    n = pypsa.Network()
+    n.add("Bus", ["a1", "a2"], x=0, y=0)
+    n.add("Bus", "b", x=1, y=0)
+    n.add(
+        "Line",
+        ["l1", "l2"],
+        bus0=["a1", "a2"],
+        bus1="b",
+        x=0.1,
+        s_nom=[100, 300],
+        length=haversine_pts([0, 0], [1, 0]),
+        s_nom_extendable=True,
+        s_nom_max=1000,
+        build_mode="semi_continuous",
+        build_cost=[100, 200],
+    )
+    busmap = pd.Series({"a1": "A", "a2": "A", "b": "B"})
+
+    lines, _, _ = aggregatelines(n, busmap, line_length_factor=line_length_factor)
+
+    assert lines["build_mode"].item() == "semi_continuous"
+    capacity_weighted = (100 * 100 + 200 * 300) / 400
+    assert lines["build_cost"].item() == pytest.approx(
+        capacity_weighted * line_length_factor
+    )
+
+    n.c.lines.static.loc["l1", "build_mode"] = "continuous"
+    with pytest.raises(ValueError, match="build_mode do not agree"):
+        aggregatelines(n, busmap)
 
 
 def test_aggregate_storage_units(ac_dc_network):

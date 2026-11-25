@@ -286,6 +286,15 @@ def define_operational_constraints_for_extendables(
     )
 
 
+def _max_modules(c: Components, names: pd.Index) -> DataArray:
+    nom_max = c.da[f"{c._operational_attrs['nom']}_max"].sel(name=names)
+    nom_max = nom_max.where(np.isfinite(nom_max), c._resolve_big_m_default(None))
+    is_modular = DataArray(names.isin(c.modulars), coords=[names])
+    nom_mod = c.da[c._operational_attrs["nom_mod"]].sel(name=names)
+    modules = -(-nom_max // nom_mod.where(is_modular, 1))
+    return modules.where(is_modular, 1)
+
+
 def _lagged(arr: DataArray, lags: range) -> DataArray:
     """Relabel the `snapshot` dim of `arr` as `lag`, newest snapshot first."""
     arr = arr.transpose("snapshot", ...)
@@ -477,6 +486,17 @@ def define_operational_constraints_for_committables(
             mask=active_ext,
             scaling=scaling,
         )
+
+        semi_i = com_ext_i.intersection(c._semi_continuous)
+        if not semi_i.empty:
+            lhs_semi = (p_ext + M_values * status_ext).sel(name=semi_i)
+            n.model.add_constraints(
+                lhs_semi,
+                ">=",
+                0,
+                name=f"{c.name}-com-ext-p-lower-semi-continuous",
+                mask=active_ext.sel(name=semi_i),
+            )
 
         dims_excl_name = [dim for dim in min_pu_ext.dims if dim != "name"]
         if dims_excl_name:
@@ -675,11 +695,26 @@ def define_operational_constraints_for_committables(
             n_mod = n.model[f"{c.name}-n_mod"].sel(name=com_mod_ext_i)
             lhs = lhs.add(-n_mod, join="left")
         past = (-sign * switches).clip(min=0)
-        rhs = bound - (past * (past.lag + pos < min_time)).sum("lag")
+        held = (past * (past.lag + pos < min_time)).sum("lag")
+        n_mod_i = com_i.intersection(c._n_mod_assets)
+        if kind == "up" and not n_mod_i.empty:
+            held_if_built = held.sel(name=n_mod_i)
+            held = held.where(~held["name"].isin(n_mod_i), 0)
+        rhs = bound - held
         mask = active & (min_time > 0)
         n.model.add_constraints(
             lhs, "<=", rhs, name=f"{c.name}-com-{kind}-time", mask=mask
         )
+        if kind == "up" and not n_mod_i.empty:
+            n_mod = n.model[f"{c.name}-n_mod"].sel(name=n_mod_i)
+            lhs = n_mod - _max_modules(c, n_mod_i) * status.sel(name=n_mod_i)
+            n.model.add_constraints(
+                lhs,
+                "<=",
+                0,
+                name=f"{c.name}-com-up-time-n_mod",
+                mask=mask.sel(name=n_mod_i) & (held_if_built > 0),
+            )
 
     # linearized approximation because committable can partly start up and shut down
     start_up_cost = c.da.start_up_cost.sel(name=com_i)
@@ -878,7 +913,8 @@ def define_maintenance_constraints(n: Network, sns: pd.Index, component: str) ->
     if not maint_ext_i.empty:
         nom_attr = c._operational_attrs["nom"]
         p_nom = n.model[f"{c.name}-{nom_attr}"].sel(name=maint_ext_i)
-        p_nom_min = c.da[f"{nom_attr}_min"].sel(name=maint_ext_i)
+        is_semi = DataArray(maint_ext_i.isin(c._semi_continuous), coords=[maint_ext_i])
+        p_nom_min = c.da[f"{nom_attr}_min"].sel(name=maint_ext_i).where(~is_semi, 0)
         p_nom_max = c.da[f"{nom_attr}_max"].sel(name=maint_ext_i)
         m = maintenance.sel(name=maint_ext_i)
         z = n.model[f"{c.name}-maintenance_capacity"].sel(name=maint_ext_i)
@@ -955,10 +991,37 @@ def define_nominal_constraints_for_extendables(
     lower = c.da[attr + "_min"].sel(name=ext_i)
     upper = c.da[attr + "_max"].sel(name=ext_i)
 
+    semi_i = c._semi_continuous.intersection(ext_i)
+    plain_i = ext_i.difference(semi_i)
     scaling = c._scaling(ext_i)
-    n.model.add_constraints(
-        capacity, ">=", lower, name=f"{c.name}-ext-{attr}-lower", scaling=scaling
-    )
+    if not plain_i.empty:
+        n.model.add_constraints(
+            capacity.sel(name=plain_i),
+            ">=",
+            lower.sel(name=plain_i),
+            name=f"{c.name}-ext-{attr}-lower",
+            scaling=c._scaling(plain_i),
+        )
+    if not semi_i.empty:
+        n_mod = n.model[f"{c.name}-n_mod"].sel(name=semi_i)
+        capacity_semi = capacity.sel(name=semi_i)
+        lhs_lower = capacity_semi - n_mod * lower.sel(name=semi_i)
+        lhs_upper = capacity_semi - n_mod * upper.sel(name=semi_i)
+        scaling_semi = c._scaling(semi_i)
+        n.model.add_constraints(
+            lhs_lower,
+            ">=",
+            0,
+            name=f"{c.name}-ext-{attr}-lower-semi-continuous",
+            scaling=scaling_semi,
+        )
+        n.model.add_constraints(
+            lhs_upper,
+            "<=",
+            0,
+            name=f"{c.name}-ext-{attr}-upper-semi-continuous",
+            scaling=scaling_semi,
+        )
 
     is_finite = upper != inf
     if is_finite.any():
@@ -1939,7 +2002,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     specified size of each module.
 
     Applies to Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
-    Store (e_nom), StorageUnit (p_nom).
+    Process (p_nom), Store (e_nom), StorageUnit (p_nom).
 
     Parameters
     ----------
@@ -1957,32 +2020,25 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     of many energy system technologies.
 
     The function only applies to components that are both extendable and have
-    a positive module size specified in the '{attr}_mod' attribute.
+    a positive module size specified in the '{attr}_mod' attribute. The binary
+    build decision of semi-continuous components (`build_mode="semi_continuous"`) is linked to
+    the capacity bounds in `define_nominal_constraints_for_extendables`.
 
     """
     m = n.model
     c = as_components(n, component)
 
-    # Get components that are both extendable and modular
-    mod_i = c.extendables.intersection(c.modulars).intersection(c.active_assets)
-
-    # Unique component names for modular components (in absence of c.modulars helper)
-    if isinstance(mod_i, pd.MultiIndex):
-        mod_i = mod_i.unique(level="name")
-
+    mod_i = c.modulars.intersection(c._n_mod_assets).intersection(c.active_assets)
     if mod_i.empty:
         return
 
-    # Get modular capacity values
     mod_attr = c._operational_attrs["nom_mod"]
     modular_capacity = c.da[mod_attr].sel(name=mod_i)
+    capacity = m[f"{c.name}-{attr}"].sel(name=mod_i)
+    n_mod = m[f"{c.name}-n_mod"].sel(name=mod_i)
 
-    # Get variables
-    modularity = m[f"{c.name}-n_mod"]
-    capacity = m.variables[f"{c.name}-{attr}"].loc[mod_i]
-
-    con = capacity - modularity * modular_capacity == 0
-    n.model.add_constraints(
+    con = capacity - n_mod * modular_capacity == 0
+    m.add_constraints(
         con, name=f"{c.name}-{attr}_modularity", scaling=c._scaling(mod_i)
     )
 
@@ -2115,6 +2171,10 @@ def define_committability_variables_constraints_with_variable_upper_limit(
     This function is part of the modular unit commitment formulation that allows
     committable and extendable components to have discrete capacity expansion.
     The number of committed units is constrained by the optimized number of modules.
+    Start-up and shut-down of semi-continuous components are not limited by
+    `n_mod`. For modular components, shut-down in the first snapshot is limited
+    by `n_mod` plus the initially committed module, so that an asset which is
+    initially up can shut down in the first snapshot even if it is not built.
 
     """
     c = as_components(n, component)
@@ -2122,10 +2182,7 @@ def define_committability_variables_constraints_with_variable_upper_limit(
 
     # Get committable, extendable, and modular component indices
     com_i = c.committables.intersection(c.active_assets)
-    ext_i = c.extendables
-    mod_i = c.modulars
-
-    inter_i = com_i.intersection(mod_i).intersection(ext_i)
+    inter_i = com_i.intersection(c._n_mod_assets)
 
     if inter_i.empty:
         return
@@ -2140,16 +2197,26 @@ def define_committability_variables_constraints_with_variable_upper_limit(
         lhs, "<=", 0, name=f"{component}-status-{attr}-variable-upper", mask=active
     )
 
-    start_up = m.variables[f"{component}-start_up"].sel(snapshot=sns, name=inter_i)
+    mod_i = inter_i.intersection(c.modulars)
+    if mod_i.empty:
+        return
+
+    n_mod = n_mod.loc[mod_i]
+    if active is not None:
+        active = active.sel(name=mod_i)
+
+    start_up = m.variables[f"{component}-start_up"].sel(snapshot=sns, name=mod_i)
     lhs = ((1, start_up), (-1, n_mod))
     m.add_constraints(
         lhs, "<=", 0, name=f"{component}-start_up-{attr}-variable-upper", mask=active
     )
 
-    shut_down = m.variables[f"{component}-shut_down"].sel(snapshot=sns, name=inter_i)
+    shut_down = m.variables[f"{component}-shut_down"].sel(snapshot=sns, name=mod_i)
+    status_before = _status_history(n, c, mod_i, sns, 1).sel(lag=1, drop=True)
+    rhs = status_before * snapshot_array([1] + [0] * (len(sns) - 1), sns)
     lhs = ((1, shut_down), (-1, n_mod))
     m.add_constraints(
-        lhs, "<=", 0, name=f"{component}-shut_down-{attr}-variable-upper", mask=active
+        lhs, "<=", rhs, name=f"{component}-shut_down-{attr}-variable-upper", mask=active
     )
 
 

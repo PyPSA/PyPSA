@@ -1112,21 +1112,21 @@ class Network(
         Examples
         --------
         >>> n.branches() # doctest: +ELLIPSIS
-                                 active    b  ...      x_pu  x_pu_eff
-        component name                            ...
-        Line      0                    True  0.0  ...  0.000006  0.000006
-                  1                    True  0.0  ...  0.000003  0.000003
-                  2                    True  0.0  ...  0.000000  0.000000
-                  3                    True  0.0  ...  0.000000  0.000000
-                  4                    True  0.0  ...  0.000000  0.000000
-                  5                    True  0.0  ...  0.000002  0.000002
-                  6                    True  0.0  ...  0.000003  0.000003
-        Link      Norwich Converter    True  NaN  ...       NaN       NaN
-                  Norway Converter     True  NaN  ...       NaN       NaN
-                  Bremen Converter     True  NaN  ...       NaN       NaN
-                  DC link              True  NaN  ...       NaN       NaN
+                                     active    b  b_pu  ...         x      x_pu  x_pu_eff
+        component name                                  ...
+        Line      0                    True  0.0   0.0  ...  0.796878  0.000006  0.000006
+                  1                    True  0.0   0.0  ...  0.391560  0.000003  0.000003
+                  2                    True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  3                    True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  4                    True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  5                    True  0.0   0.0  ...  0.238800  0.000002  0.000002
+                  6                    True  0.0   0.0  ...  0.400000  0.000003  0.000003
+        Link      Norwich Converter    True  NaN   NaN  ...       NaN       NaN       NaN
+                  Norway Converter     True  NaN   NaN  ...       NaN       NaN       NaN
+                  Bremen Converter     True  NaN   NaN  ...       NaN       NaN       NaN
+                  DC link              True  NaN   NaN  ...       NaN       NaN       NaN
         <BLANKLINE>
-        [11 rows x 84 columns]
+        [11 rows x 88 columns]
 
         See Also
         --------
@@ -1172,7 +1172,7 @@ class Network(
                   5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
                   6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 44 columns]
+        [7 rows x 48 columns]
 
         """
         comps = sorted(
@@ -1205,14 +1205,14 @@ class Network(
         Examples
         --------
         >>> n.controllable_branches() # doctest: +ELLIPSIS
-                                     active  build_year  ... type up_time_before
+                                     active  build_cost  ...  type up_time_before
         component name                                   ...
-        Link      Norwich Converter    True           0  ...                   1
-                  Norway Converter     True           0  ...                   1
-                  Bremen Converter     True           0  ...                   1
-                  DC link              True           0  ...                   1
+        Link      Norwich Converter    True         0.0  ...                    1
+                  Norway Converter     True         0.0  ...                    1
+                  Bremen Converter     True         0.0  ...                    1
+                  DC link              True         0.0  ...                    1
         <BLANKLINE>
-        [4 rows x 54 columns]
+        [4 rows x 58 columns]
 
         See Also
         --------

@@ -720,6 +720,8 @@ def _define_transmission_expansion_limit(
     sns: Sequence,
     kind: str,
     coefficient: Callable[[Components, pd.Index, Any, Any], pd.Series],
+    module_coefficient: Callable[[Components, pd.Index, Any, Any], pd.Series]
+    | None = None,
 ) -> None:
     """Add per-scenario limits on weighted Line and Link nominal capacities.
 
@@ -734,6 +736,9 @@ def _define_transmission_expansion_limit(
     coefficient : callable
         Returns the coefficients of the extendable assets for a component, asset
         names, scenario selector and investment period filter.
+    module_coefficient : callable, optional
+        Returns the coefficients of the module counts `n_mod`, with the same
+        arguments as `coefficient`.
 
     """
     m = n.model
@@ -771,6 +776,13 @@ def _define_transmission_expansion_limit(
                 coeff = coefficient(c, ext_i, scenario, period_filter)
                 vars = m[f"{c.name}-{nominal_attrs[c.name]}"].loc[ext_i]
                 lhs.append(m.linexpr((coeff, vars)).sum())
+
+                mod_i = ext_i.intersection(c._n_mod_assets)
+                if module_coefficient is None or mod_i.empty:
+                    continue
+                coeff = module_coefficient(c, mod_i, scenario, period_filter)
+                n_mod = m[f"{c.name}-n_mod"].loc[mod_i]
+                lhs.append(m.linexpr((coeff, n_mod)).sum())
 
             if lhs:
                 scenarios.append(scenario)
@@ -834,17 +846,27 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
     """
     weightings = n.investment_period_weightings.objective
 
-    def cost(
+    def weighted(
+        cost: pd.Series, c: Components, idx: pd.Index, scenario: Any, period_filter: Any
+    ) -> pd.Series:
+        cost = cost.loc[scenario].reindex(idx)
+        if not isinstance(period_filter, list):
+            return cost
+        active = pd.DataFrame(
+            {p: idx.isin(c._active_names(p)) for p in period_filter}, index=idx
+        )
+        return cost * (active @ weightings[period_filter])
+
+    def capital_cost(
         c: Components, ext_i: pd.Index, scenario: Any, period_filter: Any
     ) -> pd.Series:
-        capital_cost = c.capital_cost.loc[scenario].reindex(ext_i)
-        if not isinstance(period_filter, list):
-            return capital_cost
-        active = pd.DataFrame(
-            {p: ext_i.isin(c._active_names(p)) for p in period_filter}, index=ext_i
-        )
-        return capital_cost * (active @ weightings[period_filter])
+        return weighted(c.capital_cost, c, ext_i, scenario, period_filter)
+
+    def build_cost(
+        c: Components, mod_i: pd.Index, scenario: Any, period_filter: Any
+    ) -> pd.Series:
+        return weighted(c.build_cost, c, mod_i, scenario, period_filter)
 
     _define_transmission_expansion_limit(
-        n, sns, "transmission_expansion_cost_limit", cost
+        n, sns, "transmission_expansion_cost_limit", capital_cost, build_cost
     )

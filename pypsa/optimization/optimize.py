@@ -31,6 +31,7 @@ from pypsa.components.common import as_components
 from pypsa.consistency import (
     OPTIMIZE_STRICT_CHECKS,
     check_big_m_exceeded,
+    check_modular_consistency,
     check_no_modular_committables,
 )
 from pypsa.constants import PYPSA_DATA_DIR
@@ -430,6 +431,13 @@ def define_objective(
             caps_lin = m[f"{c.name}-{attr}"].sel(name=ext_i)
             lin_weight = cost_weight.sel(name=ext_i)
             capex_terms.append((caps_lin * lin_weight * periodic_cost).sum(dim=sum_dim))
+        mod_i = c._n_mod_assets.intersection(c.active_assets)
+        if not mod_i.empty:
+            build_cost = c.periodized_build_cost.sel(name=mod_i)
+            if not (build_cost == 0).all():
+                n_mod = m[f"{c.name}-n_mod"].sel(name=mod_i)
+                mod_weight = cost_weight.sel(name=mod_i)
+                capex_terms.append((build_cost * mod_weight * n_mod).sum(dim=sum_dim))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -825,6 +833,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 for opt in (piecewise_options or [])
             }
         )
+        check_modular_consistency(n)
+
         if linearized_unit_commitment:
             check_no_modular_committables(n)
 
@@ -1190,13 +1200,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
                 else:
                     _set_dynamic_data(n, c.name, attr, df)
-            # Ignore `n_mod`
-            elif attr == "n_mod":
-                pass
             else:
                 c.static.update(
                     df.replace(-0.0, 0.0).rename(attr + "_opt"), overwrite=True
                 )
+
         # If nominal capacity was no variable set optimal value to nominal
         for c_name, attr in lookup.query("nominal").index:
             c = n.components[c_name]

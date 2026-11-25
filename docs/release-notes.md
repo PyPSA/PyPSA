@@ -16,6 +16,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
+- Add the `build_mode` attribute to build extendable capacities as `"continuous"` (default), `"semi_continuous"` (binary build decision) or `"modular"` (fixed-size modules), and the capacity-independent `build_cost`. A new consistency check, `unused_attributes`, flags attributes that an asset does not use. See [capacity limits](./user-guide/optimization/capacity-limits.md#modularity-constraints). (<!-- md:pr 1945 -->)
 - Add [numerical scaling](./user-guide/optimization/numerical-scaling.md) of optimization problems via linopy. The new attribute `scaling` of [Bus](./user-guide/components/buses.md) and [GlobalConstraint](./user-guide/components/global-constraints.md) sets the solver unit of a bus and a global constraint row, and the new argument `objective_scaling` of [`n.optimize`][pypsa.optimization.OptimizationAccessor.__call__] and related methods scales the objective. Results are reported in original units. Requires `linopy>=0.10.0`. (<!-- md:pr 2052 -->)
 - [Store](./user-guide/components/stores.md) components now cover all functionality of [StorageUnit](./user-guide/components/storage-units.md) components. Stores gain a charging variable `p_store` next to the dispatch variable `p` with the efficiencies `efficiency_dispatch` and `efficiency_store`; a finite `max_hours` couples the power limits to the energy capacity `e_nom`; and `inflow` with `spill_cost` model exogenous inflow and spillage. The new attributes `marginal_cost_dispatch` and `marginal_cost_store` price discharging and charging separately, while `marginal_cost` keeps applying to the net dispatch. The outputs `p_dispatch`, `p_store` and `spill` are added. Existing store models, their results and the model variable `Store-p` (net dispatch) are unchanged. The `StorageUnit` component is deprecated and will be removed in PyPSA 2.0; adding storage units raises a `FutureWarning`. Storage units can be converted into equivalent stores with [`n.c.storage_units.convert_to_stores()`][pypsa.components.StorageUnits.convert_to_stores]. See [#1728](https://github.com/PyPSA/PyPSA/issues/1728).
 - Add the attribute `cycles_max` to [Store](./user-guide/components/stores.md). It limits the number of equivalent full cycles over all snapshots of the optimisation, also for extendable capacities and across the windows of a rolling horizon. See the [:material-book-open-variant: user guide](./user-guide/optimization/storage.md#cycle-limits). (<!-- md:pr 2006 -->)
@@ -34,6 +35,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Deprecate `get_segment_result()`, `get_resample_result()`, `get_downsample_result()` and `get_from_snapshot_map_result()` of `n.cluster.temporal`, and the argument `solver` of `segment()`. They will be removed in PyPSA 2.0. Call a `get_*_map()` method and `from_snapshot_map()` instead.
     - **Behavior change**: `segment()` requires tsam 3 or later, and the optional dependency is pinned to `tsam>=3`.
+- Deprecate `{p,s,e}_nom_mod > 0` without `build_mode="modular"`. It will raise an error in PyPSA 2.0. (<!-- md:pr 1945 -->)
+    - **Behavior change**: [`c.modulars`][pypsa.Components.modulars] no longer includes fixed, non-committable assets with a module size.
 
 ### Enhancements
 
@@ -53,6 +56,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- Fix initially committed modular assets always building one module. (<!-- md:pr 1945 -->)
 - Fix [`n.merge`][pypsa.Network.merge] filling dynamic output data such as the links' `p0` with default values, even when the data was absent from both input networks. Empty time series are now skipped during the merge.
 - Fix modelling-to-generate-alternatives (MGA) objectives that combine weights across component types with different names under linopy v1 semantics.
 - Fix building multi-period models with [`n.optimize(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.__call__] when a link is inactive in some investment periods, which raised a `ValueError` about NaN constants with the stricter arithmetic of upcoming linopy releases. (<!-- md:pr 2180 -->)

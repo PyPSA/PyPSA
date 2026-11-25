@@ -36,6 +36,7 @@ from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
 from pypsa.constants import (
+    BUILD_MODES,
     DEFAULT_EPSG,
     DEFAULT_TIMESTAMP,
     RE_PORTS,
@@ -743,19 +744,19 @@ class Components(
         Coordinates:
           * name                        (name) object 48B 'Manchester Wind' ... 'Fran...
           * snapshot                    (snapshot) datetime64[ns] 80B 2015-01-01 ... ...
-        Data variables: (12/48)
+        Data variables: (12/52)
             bus                         (name) object 48B 'Manchester' ... 'Frankfurt'
             control                     (name) object 48B 'Slack' 'PQ' ... 'Slack' 'PQ'
             type                        (name) object 48B '' '' '' '' '' ''
             p_nom                       (name) float64 48B 80.0 5e+04 ... 110.0 8e+04
             p_nom_mod                   (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
-            p_nom_extendable            (name) bool 6B True True True True True True
+            build_mode                  (name) object 48B 'continuous' ... 'continuous'
             ...                          ...
-            ramp_limit_start_up         (name) float64 48B nan nan nan nan nan nan
             ramp_limit_shut_down        (name) float64 48B nan nan nan nan nan nan
             weight                      (name) float64 48B 1.0 1.0 1.0 1.0 1.0 1.0
             p_nom_opt                   (name) float64 48B 4.091e+03 0.0 ... 982.0
             capital_cost_piecewise_opt  (name) float64 48B 0.0 0.0 0.0 0.0 0.0 0.0
+            n_mod_opt                   (name) float64 48B nan nan nan nan nan nan
             p                           (snapshot, name) float64 480B 742.0 ... 483.2
 
         """
@@ -1005,12 +1006,25 @@ class Components(
 
         return idx
 
+    def _name_index(self, mask: pd.Series) -> pd.Index:
+        """Return the single-level name index of static rows selected by mask."""
+        idx = self.static.loc[mask].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
     @property
     def modulars(self) -> pd.Index:
         """Get the index of modular elements of this component.
 
-        Modular components have a positive module size (e.g., p_nom_mod > 0)
-        which introduces integer variables for capacity expansion.
+        Modular components (`build_mode="modular"`) are built in an integer number
+        of fixed-size modules (e.g. of size `p_nom_mod`). Rows with a module size
+        and `build_mode="continuous"` count as modular if they are extendable or
+        committable (deprecated). Fixed, non-committable rows with a module size
+        and `build_mode="continuous"` are not modular.
 
         <!-- md:badge-version v1.1.0 -->
 
@@ -1020,17 +1034,67 @@ class Components(
             Single-level index of modular elements.
 
         """
-        mod_col = self._operational_attrs["nom_mod"]
-        if mod_col not in self.static.columns:
-            return self.static.iloc[:0].index
+        modular = (self._build_mode == "modular") | self._implicit_modular
+        return self._name_index(modular)
 
-        idx = self.static.loc[self.static[mod_col] > 0].index
+    @property
+    def _build_mode(self) -> pd.Series:
+        """Build mode of each row, empty if the component has no `build_mode`."""
+        if "build_mode" not in self.static.columns:
+            return pd.Series("", index=self.static.index, dtype=object)
+        build_mode = self.static["build_mode"]
+        invalid = ~build_mode.isin(BUILD_MODES)
+        if invalid.any():
+            values = sorted(set(build_mode[invalid]), key=str)
+            names = ", ".join(str(name) for name in self._name_index(invalid))
+            msg = (
+                f"Component {self.name} has assets that have an invalid `build_mode` "
+                f"{values}: {names}. Use one of {list(BUILD_MODES)}."
+            )
+            raise ValueError(msg)
+        return build_mode
 
-        # Remove scenario dimension, since they cannot vary across scenarios
-        if self.has_scenarios:
-            idx = idx.get_level_values("name").drop_duplicates()
+    @property
+    def _implicit_modular(self) -> pd.Series:
+        """Mask of rows with a module size but `build_mode="continuous"` (deprecated)."""
+        continuous = self._build_mode == "continuous"
+        if not continuous.any():
+            return continuous
+        static = self.static
+        applies = static[self._operational_attrs["nom_extendable"]]
+        if "committable" in static.columns:
+            applies = applies | static["committable"]
+        sized = static[self._operational_attrs["nom_mod"]] > 0
+        return continuous & sized & applies
 
-        return idx
+    @property
+    def _semi_continuous(self) -> pd.Index:
+        """Get the index of semi-continuous elements (`build_mode="semi_continuous"`).
+
+        Their capacity is either zero or within its bounds, decided by a binary
+        build decision `n_mod`.
+        """
+        return self._name_index(self._build_mode == "semi_continuous")
+
+    @property
+    def _n_mod_assets(self) -> pd.Index:
+        """Get the index of extendable elements with a module count `n_mod`."""
+        return self.modulars.union(self._semi_continuous).intersection(self.extendables)
+
+    def _resolve_big_m_default(self, committable_big_m: float | None) -> float:
+        """Resolve the scalar big-M fallback for committable bounds."""
+        big_m_default = committable_big_m
+        if big_m_default is None:
+            big_m_default = self.n._committable_big_m
+        if big_m_default is None:
+            return self._infer_committable_big_m_scale()
+        if not np.isfinite(big_m_default):
+            msg = f"committable_big_m must be finite, got {big_m_default}."
+            raise ValueError(msg)
+        if big_m_default <= 0:
+            msg = f"committable_big_m must be positive, got {big_m_default}."
+            raise ValueError(msg)
+        return big_m_default
 
     def _scaling(self, names: pd.Index) -> xarray.DataArray | float:
         """Return the numerical scaling factors of the assets `names`.
@@ -1134,18 +1198,7 @@ class Components(
         if "snapshot" in max_pu_values.dims:
             max_pu_values = max_pu_values.max("snapshot")
 
-        big_m_default = committable_big_m
-        if big_m_default is None:
-            big_m_default = self.n._committable_big_m
-        if big_m_default is None:
-            big_m_default = self._infer_committable_big_m_scale()
-        else:
-            if not np.isfinite(big_m_default):
-                msg = f"committable_big_m must be finite, got {big_m_default}."
-                raise ValueError(msg)
-            if big_m_default <= 0:
-                msg = f"committable_big_m must be positive, got {big_m_default}."
-                raise ValueError(msg)
+        big_m_default = self._resolve_big_m_default(committable_big_m)
 
         fallback_values = big_m_default * max_pu_values.fillna(1)
         return xarray.where(
@@ -1201,6 +1254,44 @@ class Components(
         )
 
     @property
+    def build_cost(self) -> pd.Series:
+        """Calculate periodized investment cost per module.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        See Also
+        --------
+        `pypsa.costs.periodized_cost`
+        `periodized_build_cost` : Same values as xarray DataArray.
+
+        """
+        static = self.static
+        return periodized_cost(
+            capital_cost=static["build_cost"],
+            overnight_cost=static["build_cost_overnight"],
+            discount_rate=static["discount_rate"],
+            lifetime=static["lifetime"],
+            fom_cost=0,
+            nyears=self.nyears,
+        )
+
+    @property
+    def periodized_build_cost(self) -> xarray.DataArray:
+        """Calculate periodized module investment cost from component attributes as xarray DataArray.
+
+        <!-- md:badge-version v1.1.0 -->
+
+        See Also
+        --------
+        `pypsa.costs.periodized_cost`
+
+        """
+        da = xarray.DataArray(self.build_cost)
+        if self.has_scenarios:
+            da = da.unstack().reindex(name=self.names, scenario=self.scenarios)
+        return da
+
+    @property
     def nyears(self) -> float | pd.Series:
         """Return the modeled time horizon in years.
 
@@ -1245,6 +1336,34 @@ class Components(
         lifetime = static["lifetime"]
         return annuity(discount_rate, lifetime)
 
+    def _overnight_from_annuitized(
+        self, annuitized: pd.Series, overnight: pd.Series, label: str
+    ) -> pd.Series:
+        """Back-calculate overnight cost from an annuitized cost where missing."""
+        static = self.static
+        has_overnight = overnight.notna()
+
+        needs_back_calc = ~has_overnight & (annuitized != 0)
+        discount_rate = static["discount_rate"]
+        lifetime = static["lifetime"]
+        missing_params = needs_back_calc & (discount_rate.isna() | lifetime.isna())
+
+        if missing_params.any():
+            bad = static.index[missing_params].tolist()
+            msg = (
+                f"Cannot back-calculate {label} for {bad}: "
+                "both 'discount_rate' and 'lifetime' must be provided "
+                f"when '{label}' is not set."
+            )
+            raise ValueError(msg)
+
+        ann_factor = self.annuity
+        nyears = self.nyears
+        nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
+        back_calculated = annuitized / (ann_factor * nyears_scalar)
+
+        return overnight.where(has_overnight, back_calculated)
+
     @property
     def overnight_cost(self) -> pd.Series:
         """Calculate overnight cost from component attributes.
@@ -1278,30 +1397,37 @@ class Components(
 
         """
         static = self.static
-        overnight = static["overnight_cost"]
-        capital = static["capital_cost"]
-        has_overnight = overnight.notna()
+        return self._overnight_from_annuitized(
+            static["capital_cost"], static["overnight_cost"], "overnight_cost"
+        )
 
-        needs_back_calc = ~has_overnight & (capital != 0)
-        discount_rate = static["discount_rate"]
-        lifetime = static["lifetime"]
-        missing_params = needs_back_calc & (discount_rate.isna() | lifetime.isna())
+    @property
+    def overnight_build_cost(self) -> pd.Series:
+        """Calculate overnight module investment cost from component attributes.
 
-        if missing_params.any():
-            bad = static.index[missing_params].tolist()
-            msg = (
-                f"Cannot back-calculate overnight_cost for {bad}: "
-                "both 'discount_rate' and 'lifetime' must be provided "
-                "when 'overnight_cost' is not set."
-            )
-            raise ValueError(msg)
+        <!-- md:badge-version v1.1.0 -->
 
-        ann_factor = self.annuity
-        nyears = self.nyears
-        nyears_scalar = nyears.mean() if isinstance(nyears, pd.Series) else nyears
-        back_calculated = capital / (ann_factor * nyears_scalar)
+        If build_cost_overnight column is provided (not NaN), returns it directly.
+        Otherwise, converts periodized build_cost back to overnight cost using
+        the formula: build_cost_overnight = build_cost / (annuity_factor × nyears).
 
-        return overnight.where(has_overnight, back_calculated)
+        Returns
+        -------
+        pd.Series
+            Overnight (upfront) investment cost per module.
+
+        See Also
+        --------
+        `periodized_build_cost` : Periodized module investment cost for the modeled horizon.
+        `overnight_cost` : Overnight cost per unit of capacity.
+
+        """
+        static = self.static
+        return self._overnight_from_annuitized(
+            static["build_cost"],
+            static["build_cost_overnight"],
+            "build_cost_overnight",
+        )
 
 
 class SubNetworkComponents:

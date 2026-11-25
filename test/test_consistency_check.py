@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import os
+import re
 
 import numpy as np
 import pandas as pd
@@ -12,13 +13,15 @@ import pypsa
 import pypsa.consistency
 
 
-def assert_log_or_error_in_consistency(n, caplog, strict=False):
+def assert_log_or_error_in_consistency(n, caplog, strict=False, match=None):
     if strict:
-        with pytest.raises(pypsa.consistency.ConsistencyError):
+        with pytest.raises(pypsa.consistency.ConsistencyError, match=match):
             n.consistency_check(strict=strict)
     else:
         n.consistency_check(strict=strict)
         assert caplog.records[-1].levelname == "WARNING"
+        if match is not None:
+            assert re.search(match, caplog.records[-1].getMessage())
 
 
 @pytest.fixture
@@ -228,6 +231,152 @@ def test_committable_down_with_p_init(consistent_n, caplog, strict):
         p_init=50,
     )
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+@pytest.mark.parametrize(
+    ("component", "name", "attrs", "attr"),
+    [
+        (
+            "Generator",
+            "gen_one",
+            {"p_nom_extendable": True, "build_cost": 1},
+            "build_cost",
+        ),
+        (
+            "Store",
+            "store_one",
+            {"e_nom_extendable": True, "build_mode": "semi_continuous", "e_nom_mod": 5},
+            "e_nom_mod",
+        ),
+    ],
+)
+def test_unused_build_attribute_raises(consistent_n, component, name, attrs, attr):
+    consistent_n.add("Store", "store_one", bus="one", e_nom_max=10)
+    consistent_n.c[component].static.loc[name, list(attrs)] = list(attrs.values())
+    with pytest.raises(pypsa.consistency.ConsistencyError, match=f"`{attr}`"):
+        consistent_n.consistency_check(strict=[])
+
+
+@pytest.mark.parametrize("strict", [[], ["unused_attributes"]])
+@pytest.mark.parametrize("attr", pypsa.consistency._COMMITMENT_ATTRS)
+def test_unused_commitment_attribute_warns(consistent_n, caplog, strict, attr):
+    consistent_n.c.generators.static.loc["gen_one", attr] = 5
+    assert_log_or_error_in_consistency(
+        consistent_n, caplog, strict=strict, match=f"(?s)`{attr}`.*gen_one"
+    )
+
+
+@pytest.mark.parametrize("strict", [[], ["unused_attributes"]])
+@pytest.mark.parametrize(
+    ("component", "name", "attrs", "attr"),
+    [
+        ("Generator", "gen_one", {"p_nom_mod": 5}, "p_nom_mod"),
+        (
+            "Generator",
+            "gen_one",
+            {"build_mode": "modular", "p_nom_mod": 5},
+            "p_nom_mod",
+        ),
+        ("Generator", "gen_one", {"build_cost": 1}, "build_cost"),
+        (
+            "Generator",
+            "gen_one",
+            {"build_cost_overnight": 1, "discount_rate": 0.07},
+            "build_cost_overnight",
+        ),
+        ("Line", "line_one", {"build_mode": "semi_continuous"}, "build_mode"),
+    ],
+)
+def test_unused_build_attribute_on_fixed_asset_warns(
+    consistent_n, caplog, strict, component, name, attrs, attr
+):
+    consistent_n.c[component].static.loc[name, list(attrs)] = list(attrs.values())
+    assert_log_or_error_in_consistency(
+        consistent_n, caplog, strict=strict, match=f"(?s)`{attr}`.*{name}"
+    )
+
+
+OVERNIGHT_ATTRS = {
+    "overnight_cost": {"p_nom_extendable": True},
+    "build_cost_overnight": {"p_nom_extendable": True, "build_mode": "semi_continuous"},
+}
+
+
+@pytest.mark.parametrize("missing", ["discount_rate", "lifetime"])
+@pytest.mark.parametrize("overnight", list(OVERNIGHT_ATTRS))
+def test_overnight_cost_without_annuity_inputs_raises(consistent_n, overnight, missing):
+    attrs = OVERNIGHT_ATTRS[overnight] | {
+        overnight: 100,
+        "discount_rate": 0.07,
+        "lifetime": 20,
+        missing: np.nan,
+    }
+    consistent_n.c.generators.static.loc["gen_one", list(attrs)] = list(attrs.values())
+    with pytest.raises(
+        pypsa.consistency.ConsistencyError, match=f"'{overnight}'.*'{missing}'"
+    ):
+        consistent_n.consistency_check(strict=[])
+
+
+@pytest.mark.parametrize("overnight", list(OVERNIGHT_ATTRS))
+def test_overnight_cost_with_zero_discount_rate_passes(consistent_n, overnight):
+    attrs = OVERNIGHT_ATTRS[overnight] | {
+        overnight: 100,
+        "discount_rate": 0.0,
+        "lifetime": 20,
+    }
+    consistent_n.c.generators.static.loc["gen_one", list(attrs)] = list(attrs.values())
+    consistent_n.consistency_check(strict=["cost_consistency", "unused_attributes"])
+
+
+@pytest.mark.parametrize(
+    ("overnight", "annuitised"),
+    [("overnight_cost", "capital_cost"), ("build_cost_overnight", "build_cost")],
+)
+def test_overnight_and_annuitised_cost_with_scenarios(
+    consistent_n, caplog, overnight, annuitised
+):
+    attrs = OVERNIGHT_ATTRS[overnight] | {
+        overnight: 100,
+        annuitised: 1,
+        "discount_rate": 0.07,
+        "lifetime": 20,
+    }
+    consistent_n.c.generators.static.loc["gen_one", list(attrs)] = list(attrs.values())
+    consistent_n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    assert_log_or_error_in_consistency(
+        consistent_n, caplog, strict=[], match=f"'{annuitised}' set: .*gen_one"
+    )
+
+
+def test_unused_time_varying_commitment_attribute_warns(consistent_n, caplog):
+    consistent_n.set_snapshots(range(2))
+    consistent_n.c.generators.dynamic.start_up_cost["gen_one"] = [0, 5]
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=[])
+    assert "start_up_cost" in caplog.records[-1].message
+
+
+@pytest.mark.parametrize(
+    "attrs",
+    [
+        {"p_nom_extendable": True, "build_mode": "semi_continuous", "build_cost": 1},
+        {"p_nom_extendable": True, "build_mode": "modular", "p_nom_mod": 5},
+        {"p_nom_extendable": True, "p_nom_mod": 5},
+        {"committable": True, "build_mode": "modular", "p_nom_mod": 5},
+        {"committable": True, "start_up_cost": 5, "min_up_time": 2},
+    ],
+    ids=[
+        "semi_continuous",
+        "modular",
+        "implicit_modular",
+        "modular_committable",
+        "committable",
+    ],
+)
+def test_used_attributes_pass(consistent_n, caplog, attrs):
+    consistent_n.c.generators.static.loc["gen_one", list(attrs)] = list(attrs.values())
+    consistent_n.consistency_check(strict=["unused_attributes"])
+    assert not caplog.records
 
 
 @pytest.mark.parametrize("component", ["StorageUnit", "Store"])
@@ -482,6 +631,7 @@ def test_p_nom_mod_invariant():
         bus="bus1",
         p_nom_extendable=True,
         p_nom_mod=0.7,
+        build_mode="modular",
     )
 
     n.set_scenarios({"s1": 0.5, "s2": 0.5})

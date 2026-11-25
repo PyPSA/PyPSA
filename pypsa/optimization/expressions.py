@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from xarray import DataArray
 
     from pypsa import Network, NetworkCollection
-    from pypsa.components.components import PortsLike
+    from pypsa.components.components import Components, PortsLike
 logger = logging.getLogger(__name__)
 
 
@@ -150,6 +150,16 @@ def _add_optional(
 ) -> LinearExpression:
     """Outer-add `other` to `expr`, passing `expr` through if there is nothing to add."""
     return expr if other is None else expr.add(other, join="outer")
+
+
+def _module_capex(m: ln.Model, c: Components) -> LinearExpression | None:
+    """Return the build cost times `n_mod`, or `None` without modules."""
+    var_name = f"{c.name}-n_mod"
+    if var_name not in m.variables:
+        return None
+    n_mod = m.variables[var_name]
+    build_cost = c._to_xarray(c.build_cost, "build_cost")
+    return n_mod * build_cost.sel(name=n_mod.indexes["name"])
 
 
 def _direct_piecewise(
@@ -358,13 +368,18 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
-        cost_attribute: str = "capital_cost",
+        cost_attribute: str | None = None,
         include_non_extendable: bool = True,
     ) -> LinearExpression:
         """Calculate the capital expenditure of the network in given currency.
 
         If `bus_carrier` is given, only components which are connected to buses
         with carrier `bus_carrier` are considered.
+
+        `cost_attribute=None` sums the capacity term (`capital_cost`) and the
+        build cost term (`build_cost` times the number of modules `n_mod`).
+        `"capital_cost"` or `"build_cost"` select one of the two terms, any
+        other column name is multiplied with the capacity.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -373,20 +388,26 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         def func(n: Network, component: str, port: str) -> pd.Series | None:
             c = n.c[component]
+            if cost_attribute == "build_cost":
+                return _module_capex(n.model, c)
+            module_capex = _module_capex(n.model, c) if cost_attribute is None else None
+
             capacity = _capacity_expression(n, component, include_non_extendable)
             if capacity is None:
                 return None
 
-            capacity, add_capex = _split_piecewise(capacity, n.model, c, cost_attribute)
+            capacity_attr = cost_attribute or "capital_cost"
+            capacity, add_capex = _split_piecewise(capacity, n.model, c, capacity_attr)
 
             costs = (
                 c.capital_cost
-                if cost_attribute == "capital_cost"
-                else c.static[cost_attribute]
+                if capacity_attr == "capital_cost"
+                else c.static[capacity_attr]
             )
-            costs = c._to_xarray(costs, cost_attribute)
+            costs = c._to_xarray(costs, capacity_attr)
             costs = costs.sel(name=capacity.indexes["name"])
-            return _add_optional(capacity * costs, add_capex)
+            capex = _add_optional(capacity * costs, add_capex)
+            return _add_optional(capex, module_capex)
 
         return self._aggregate_components(
             func,

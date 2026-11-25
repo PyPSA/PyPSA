@@ -301,6 +301,7 @@ def feature_network() -> pypsa.Network:
         **common,
         p_nom_extendable=True,
         p_nom_mod=10,
+        build_mode="modular",
         p_nom_max=200,
         committable=True,
         capital_cost=10,
