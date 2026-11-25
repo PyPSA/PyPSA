@@ -156,23 +156,37 @@ Overrides apply in turn, so a later one wins. They name entries by their keys
 in the specification, as `Generator_ext_p_upper`, not by the names of the
 built model, as `Generator-ext-p-upper`. An added entry keeps its key as its
 name in `n.model`. An added parameter `<Component>_<attr>` reads the column
-`<attr>` of the component's static data, e.g. `Generator_half` reads
-`n.c.generators.static["half"]`. Other data sources are not supported yet.
+`<attr>` of the component's static data. Other data sources are not supported
+yet.
 
-For example, this file limits each extendable generator to half of its
-capacity instead of its full capacity:
+For example, a combined heat and power plant that must cover a heat demand, or
+a plant bound by a fuel supply contract, has to run a minimum number of
+full-load hours. This file adds the parameter `Generator_full_load_hours_min`
+and a constraint on the energy each extendable generator produces:
 
-``` yaml title="half.yaml"
+``` yaml title="full_load_hours.yaml"
+parameters:
+  Generator_full_load_hours_min:
+    description: least full-load hours over the horizon
+    dims: [Generator]
 constraints:
-  Generator_ext_p_upper: null
-  Generator_p_half:
-    dims: [Generator, scenario, snapshot]
-    where: Generator_p_nom_extendable AND not Generator_committable AND Generator_active
-    expression: Generator_p <= 0.5 * Generator_p_max_pu * Generator_p_nom_ext
+  Generator_full_load_hours:
+    description: an extendable generator runs at least its full-load hours
+    dims: [scenario, Generator]
+    where: Generator_full_load_hours_min > 0 AND Generator_p_nom_extendable
+    expression: >-
+      sum(Generator_p * snapshot_weighting_generators, over=snapshot)
+      >= Generator_full_load_hours_min * Generator_p_nom_ext
 ```
 
+The parameter reads the column `full_load_hours_min`; a generator with `0` gets
+no row:
+
 ``` py
-n.optimize(overrides=["half.yaml"])
+gas = n.c.generators.static.carrier == "gas"
+n.c.generators.static["full_load_hours_min"] = 0.0
+n.c.generators.static.loc[gas, "full_load_hours_min"] = 4000
+n.optimize(overrides=["full_load_hours.yaml"])
 ```
 
 PyPSA checks the specification with its overrides once per process, so a

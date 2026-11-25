@@ -14,6 +14,18 @@ HALF = {
     "expression": "Generator_p <= 0.5 * Generator_p_max_pu * Generator_p_nom_ext",
 }
 OVERRIDE = {"constraints": {"Generator_ext_p_upper": None, "Generator_p_half": HALF}}
+FULL_LOAD_HOURS = """
+parameters:
+  Generator_full_load_hours_min:
+    dims: [Generator]
+constraints:
+  Generator_full_load_hours:
+    dims: [scenario, Generator]
+    where: Generator_full_load_hours_min > 0 AND Generator_p_nom_extendable
+    expression: >-
+      sum(Generator_p * snapshot_weighting_generators, over=snapshot)
+      >= Generator_full_load_hours_min * Generator_p_nom_ext
+"""
 
 
 def _as(form, tmp_path):
@@ -43,14 +55,16 @@ def test_an_override_changes_the_optimum(ac_dc_network):
 
 def test_an_added_parameter_reads_a_static_column(ac_dc_network):
     n = ac_dc_network
-    n.c.generators.static["half"] = 0.5
-    expression = "Generator_p <= Generator_half * Generator_p_nom_ext"
-    override = {
-        "parameters": {"Generator_half": {"dims": ["Generator"]}},
-        "constraints": {"Generator_p_half": HALF | {"expression": expression}},
-    }
-    m = n.optimize.create_model(overrides=[override])
-    assert "Generator_p_half" in m.constraints
+    gas = n.c.generators.static.carrier == "gas"
+    hours = n.snapshot_weightings.generators
+    least = 0.6 * hours.sum()
+    n.c.generators.static["full_load_hours_min"] = 0.0
+    n.c.generators.static.loc[gas, "full_load_hours_min"] = least
+    n.optimize(overrides=[FULL_LOAD_HOURS])
+    energy = n.c.generators.dynamic.p.loc[:, gas].mul(hours, axis=0).sum()
+    floor = least * n.c.generators.static.p_nom_opt[gas]
+    assert (energy >= floor - 1e-6).all()
+    assert (energy - floor).abs().min() < 1e-6
 
 
 def test_an_override_of_an_undeclared_entry_fails(ac_dc_network):
