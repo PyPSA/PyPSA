@@ -7,8 +7,11 @@
 from __future__ import annotations
 
 import functools
+import json
 import re
+from collections.abc import Mapping
 from importlib.resources import files
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -71,18 +74,76 @@ def _rendered(linearized_unit_commitment: bool) -> tuple[Spec, Names, Scalings]:
     return render(SPEC, _patch(linearized_unit_commitment))
 
 
+#: A layer over the spec: a YAML file, YAML text or a mapping, written as a `mathspec.override` patch.
+Override = str | Path | Mapping[str, Any]
+
+
+def _layer(override: Override) -> dict[str, Any]:
+    """Return *override* as the mapping it states.
+
+    Raises:
+        FileNotFoundError: A `str` with no newline names no file.
+        TypeError: *override* is not a path, YAML text or mapping.
+
+    """
+    import yaml  # noqa: PLC0415
+
+    if isinstance(override, Mapping):
+        return dict(override)
+    if isinstance(override, str) and "\n" in override:
+        return yaml.safe_load(override)
+    if isinstance(override, str | Path):
+        return yaml.safe_load(Path(override).read_text())
+    msg = f"An override is a YAML path, YAML text or a mapping, not {type(override).__name__}."
+    raise TypeError(msg)
+
+
+def _expanded(s: Spec) -> tuple[Spec, Spec]:
+    return s, s.expand("piecewise")
+
+
 @functools.cache
-def spec(
+def _base(linearized_unit_commitment: bool) -> tuple[Spec, Spec]:
+    return _expanded(_rendered(linearized_unit_commitment)[0])
+
+
+#: The most patched formulations kept in memory; the oldest go first.
+KEEP = 8
+_PATCHED: dict[str, tuple[Spec, Spec]] = {}
+
+
+def _formulation(
     linearized_unit_commitment: bool = False,
-    piecewise_options: tuple[PiecewiseOptions, ...] = (),
-) -> Spec:
-    """Return the spec of `n.optimize()`, patched for linearised unit commitment and piecewise options on request."""
+    piecewise_options: Sequence[PiecewiseOptions] = (),
+    overrides: Sequence[Override] = (),
+) -> tuple[Spec, Spec]:
+    """Return the spec of `spec()` and its piecewise curves written out, which linopy builds from."""
     import mathspec  # noqa: PLC0415
 
-    base = _rendered(linearized_unit_commitment)[0]
-    if not piecewise_options:
+    base = _base(linearized_unit_commitment)
+    piecewise = (
+        [_piecewise_patch(base[0], piecewise_options)] if piecewise_options else []
+    )
+    patches = [*piecewise, *map(_layer, overrides)]
+    if not patches:
         return base
-    return mathspec.override(base, [_piecewise_patch(base, piecewise_options)])
+    key = json.dumps(
+        [linearized_unit_commitment, patches], sort_keys=True, default=repr
+    )
+    if key not in _PATCHED:
+        _PATCHED[key] = _expanded(mathspec.override(base[0], patches))
+        while len(_PATCHED) > KEEP:
+            del _PATCHED[next(iter(_PATCHED))]
+    return _PATCHED[key]
+
+
+def spec(
+    linearized_unit_commitment: bool = False,
+    piecewise_options: Sequence[PiecewiseOptions] = (),
+    overrides: Sequence[Override] = (),
+) -> Spec:
+    """Return the spec of `n.optimize()`, patched for linearised unit commitment and piecewise options on request, with *overrides* laid over it in turn."""
+    return _formulation(linearized_unit_commitment, piecewise_options, overrides)[0]
 
 
 def _patch(linearized_unit_commitment: bool) -> Traversable | None:
@@ -486,10 +547,11 @@ def build_model(
     linearized_unit_commitment: bool = False,
     model_kwargs: dict | None = None,
     piecewise_options: Sequence[Any] = (),
+    overrides: Sequence[Override] = (),
     objective_scaling: float = 1.0,
     **options: Any,
 ) -> Model:
-    """Build the model of `n` over the build's snapshots from the spec."""
+    """Build the model of `n` over the build's snapshots from the spec, with *overrides* laid over it."""
     check(
         n,
         network_index,
@@ -499,12 +561,12 @@ def build_model(
     )
     model_kwargs = model_kwargs or {}
     n.calculate_dependent_values()
-    s = spec(linearized_unit_commitment, tuple(piecewise_options))
+    s, expanded = _formulation(linearized_unit_commitment, piecewise_options, overrides)
     sources = NetworkSources(n, s, network_index, model_index, **options)
     mode = (options.get("transmission_losses") or {}).get("mode")
     rename = _renamer(s, spec_names(linearized_unit_commitment), mode)
     m = Model.from_spec(
-        s,
+        expanded,
         sources,
         expressions=False,
         rename=rename,
