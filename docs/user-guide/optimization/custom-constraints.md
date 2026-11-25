@@ -189,6 +189,21 @@ n.c.generators.static.loc[gas, "full_load_hours_min"] = 4000
 n.optimize(overrides=["full_load_hours.yaml"])
 ```
 
+Removing an entry takes one line each. A quick screening run may ignore the
+ramp limits of generators:
+
+``` py
+n.optimize(overrides=[{
+    "constraints": {
+        "Generator_p_ramp_limit_up": None,
+        "Generator_p_ramp_limit_down": None,
+    }
+}])
+```
+
+Committable extendable generators state their ramp limits in the
+`Generator_p_ramp_limit_*_bigM` entries instead.
+
 PyPSA checks the specification with its overrides once per process, so a
 repeated build with the same overrides skips the check.
 

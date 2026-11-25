@@ -14,6 +14,12 @@ HALF = {
     "expression": "Generator_p <= 0.5 * Generator_p_max_pu * Generator_p_nom_ext",
 }
 OVERRIDE = {"constraints": {"Generator_ext_p_upper": None, "Generator_p_half": HALF}}
+NO_RAMPS = {
+    "constraints": {
+        "Generator_p_ramp_limit_up": None,
+        "Generator_p_ramp_limit_down": None,
+    }
+}
 FULL_LOAD_HOURS = """
 parameters:
   Generator_full_load_hours_min:
@@ -43,6 +49,15 @@ def test_an_override_removes_and_adds_constraints(ac_dc_network, tmp_path, form)
     m = ac_dc_network.optimize.create_model(overrides=[_as(form, tmp_path)])
     assert "Generator-ext-p-upper" not in m.constraints
     assert "Generator_p_half" in m.constraints
+
+
+def test_an_override_removes_ramp_limits(ac_dc_network):
+    n = ac_dc_network
+    n.c.generators.static[["ramp_limit_up", "ramp_limit_down"]] = 0.1
+    ramps = {f"Generator-p-ramp_limit_{d}" for d in ("up", "down")}
+    assert ramps <= set(n.optimize.create_model().constraints)
+    m = n.optimize.create_model(overrides=[NO_RAMPS])
+    assert not ramps & set(m.constraints)
 
 
 def test_an_override_changes_the_optimum(ac_dc_network):
