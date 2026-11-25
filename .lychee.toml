@@ -30,6 +30,10 @@ exclude = [
   "agora-energiewende.de",
   "isa.co",
   "tugraz.at",
+  '(\{|%7B)',
+  "example.com",
+  "data.pypsa.org/nonexistent",
+  "data.pypsa.org/networks/examples$",
 ]
 
 # Release notes are an immutable historical record whose links rot over time.

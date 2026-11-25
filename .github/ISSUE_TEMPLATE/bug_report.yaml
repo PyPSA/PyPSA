@@ -4,7 +4,6 @@
 
 name: Bug Report
 description: Create a report if something doesn't work quite right.
-labels: ["needs triage"]
 type: "Bug"
 
 body:

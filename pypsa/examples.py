@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import warnings
 from pathlib import Path
@@ -55,13 +56,15 @@ def _load_example(name: str) -> Network:
             raise ValueError(msg)
         cache.parent.mkdir(parents=True, exist_ok=True)
         logger.info("Downloading %s to %s", url, cache)
+        partial = cache.with_suffix(f".{os.getpid()}.part")
         try:
-            urlretrieve(url, cache)  # noqa: S310
+            urlretrieve(url, partial)  # noqa: S310
         except HTTPError as err:
             if err.code != 404:
                 raise
             logger.warning("404 at %s; using %s", url, fallback_url)
-            urlretrieve(fallback_url, cache)  # noqa: S310
+            urlretrieve(fallback_url, partial)  # noqa: S310
+        partial.replace(cache)
 
     # Suppress warning which occurs due to numpy version mismatch
     with warnings.catch_warnings():

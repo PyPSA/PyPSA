@@ -461,8 +461,8 @@ def test_remove_drops_piecewise_data(base_network):
 class TestPiecewiseHelpers:
     """Schema-vs-data primitives on the component class."""
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def base_network() -> pypsa.Network:
         """Minimal network with buses required by all component tests."""
         n = pypsa.Network()
@@ -550,3 +550,26 @@ class TestPiecewiseScenarios:
         n.add("Generator", "gen", bus="bus_ac", p_nom=100, marginal_cost=CURVE_DICT)
         with pytest.raises(NotImplementedError, match="not yet supported"):
             n.set_scenarios({"low": 0.5, "high": 0.5})
+
+
+@pytest.mark.parametrize("overwrite", [True, False])
+def test_readd_replaces_curve_only_with_overwrite(base_network, overwrite):
+    """Re-adding a component keeps exactly one curve, as for static and series data."""
+    n = base_network
+    n.add("Generator", ["c1", "c2"], bus="bus_ac", p_nom=100, efficiency=CURVE_DICT)
+    new_curve = {0.0: 0.0, 1.0: 0.5}
+
+    n.add(
+        "Generator",
+        "c1",
+        bus="bus_ac",
+        p_nom=100,
+        efficiency=new_curve,
+        overwrite=overwrite,
+    )
+
+    pw = n.c.generators.piecewise["efficiency"]
+    assert pw.columns.is_unique
+    c1 = pw["c1"].dropna()
+    assert dict(zip(c1.p_pu, c1.efficiency)) == (new_curve if overwrite else CURVE_DICT)
+    assert dict(zip(pw["c2"].p_pu, pw["c2"].efficiency)) == CURVE_DICT

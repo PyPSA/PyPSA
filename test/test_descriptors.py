@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import pypsa
+from pypsa._future import PyPSA2Warning
 from pypsa.common import expand_series
 from pypsa.descriptors import (
     get_bounds_pu,
@@ -37,6 +38,85 @@ def test_get_switchable_as_dense(network):
         assert (df == val).all().all()
 
 
+DENSE_INDS_WARNING = "pypsa.options.future.inds_order"
+
+
+@pytest.fixture
+def dense_network(network: pypsa.Network) -> pypsa.Network:
+    network.add("Bus", "b")
+    network.add("Generator", ["g1", "g2", "g3"], bus="b", p_max_pu=[0.1, 0.2, 0.3])
+    return network
+
+
+@pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
+@pytest.mark.parametrize(
+    ("inds", "expected"),
+    [
+        (["g3", "g1"], ["g1", "g3"]),
+        (["g1", "missing"], ["g1"]),
+        (["g1", "g1"], ["g1"]),
+        (["g1", "g3"], ["g1", "g3"]),
+    ],
+)
+def test_get_switchable_as_dense_warns_on_inds(
+    dense_network: pypsa.Network,
+    scenarios: list[str] | None,
+    inds: list[str],
+    expected: list[str],
+) -> None:
+    n = dense_network
+    if scenarios:
+        n.set_scenarios(scenarios)
+    with (
+        pypsa.option_context("future.inds_order", None),
+        pytest.warns(PyPSA2Warning, match=DENSE_INDS_WARNING) as record,
+    ):
+        res = n.get_switchable_as_dense("Generator", "p_max_pu", inds=pd.Index(inds))
+    assert record[0].filename == __file__
+    assert res.columns.unique("name").tolist() == expected
+
+
+@pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
+def test_get_switchable_as_dense_inds_order_true(
+    dense_network: pypsa.Network, scenarios: list[str] | None
+) -> None:
+    n = dense_network
+    if scenarios:
+        n.set_scenarios(scenarios)
+    with pypsa.option_context("future.inds_order", True):
+        res = n.get_switchable_as_dense(
+            "Generator", "p_max_pu", inds=pd.Index(["g3", "g1", "g3"])
+        )
+        assert res.columns.get_level_values("name").tolist() == (
+            ["g3", "g1", "g3"] * len(scenarios or [None])
+        )
+        if scenarios:
+            assert res.columns.get_level_values(0).unique().tolist() == scenarios
+        assert res.iloc[0].tolist() == [0.3, 0.1, 0.3] * len(scenarios or [None])
+        with pytest.raises(KeyError, match="missing"):
+            n.get_switchable_as_dense(
+                "Generator", "p_max_pu", inds=pd.Index(["g1", "missing"])
+            )
+
+
+@pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
+def test_get_switchable_as_dense_inds_order_false(
+    dense_network: pypsa.Network, scenarios: list[str] | None
+) -> None:
+    n = dense_network
+    if scenarios:
+        n.set_scenarios(scenarios)
+    with (
+        pypsa.option_context("future.inds_order", False),
+        warnings.catch_warnings(),
+    ):
+        warnings.simplefilter("error")
+        res = n.get_switchable_as_dense(
+            "Generator", "p_max_pu", inds=pd.Index(["g3", "g1", "missing"])
+        )
+    assert res.columns.unique("name").tolist() == ["g1", "g3"]
+
+
 def test_get_switchable_as_iter(network):
     n = network
     n.add("Bus", "bus0")
@@ -47,6 +127,50 @@ def test_get_switchable_as_iter(network):
     assert isinstance(df, pd.DataFrame)
     assert len(df) == len(n.snapshots)
     assert (df["gen0"] == 1.0).all()
+
+
+@pytest.mark.parametrize("scenarios", [None, ["s2", "s1"]])
+@pytest.mark.parametrize("inds", [None, ["a", "z", "a", "x"]])
+@pytest.mark.parametrize("varying", [None, "a", "m"])
+@pytest.mark.parametrize("method", ["dense", "iter"])
+def test_get_switchable_order(
+    network: pypsa.Network,
+    method: str,
+    varying: str | None,
+    inds: list[str] | None,
+    scenarios: list[str] | None,
+) -> None:
+    n = network
+    n.add("Bus", "bus0")
+    for name, val in [("z", 0.5), ("m", 0.4), ("a", 0.25)]:
+        n.add("Generator", name, bus="bus0", p_max_pu=val)
+    if scenarios:
+        n.set_scenarios(scenarios)
+
+    expected = n.c.generators.static.p_max_pu.copy()
+    names = expected.index.get_level_values("name")
+    if varying:
+        for i in expected.index[names == varying]:
+            n.c.generators.dynamic.p_max_pu[i] = 0.75
+            expected[i] = 0.75
+    if inds:
+        order = ["a", "z"] if method == "iter" else ["z", "a"]
+        keys = pd.MultiIndex.from_product([scenarios, order]) if scenarios else order
+        expected = expected.loc[keys]
+
+    args = ("Generator", "p_max_pu", n.snapshots, inds)
+    if method == "dense":
+        with pypsa.option_context("future.inds_order", None):
+            if inds:
+                with pytest.warns(PyPSA2Warning, match=DENSE_INDS_WARNING):
+                    result = n.get_switchable_as_dense(*args).iloc[0]
+            else:
+                result = n.get_switchable_as_dense(*args).iloc[0]
+    else:
+        result = next(n.get_switchable_as_iter(*args))
+
+    assert result.index.equals(expected.index)
+    assert (result == expected).all()
 
 
 def test_allocate_series_dataframes(network):

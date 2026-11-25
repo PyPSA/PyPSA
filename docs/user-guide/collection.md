@@ -102,29 +102,29 @@ network. They will just be concatenated across all networks in the collection.
 
 Accessing static data:
 ``` py
->>> nc.buses  # doctest: +NORMALIZE_WHITESPACE
-                       v_nom type      x  ...        generator sub_network country
-custom-dim name                           ...
-network1   London      380.0       -0.13  ...                            0      UK
-           Norwich     380.0        1.30  ...                            0      UK
-           Norwich DC  200.0        1.30  ...                            1      UK
-           Manchester  380.0       -2.20  ...  Manchester Wind           0      UK
-           Bremen      380.0        8.80  ...                            2      DE
-           Bremen DC   200.0        8.80  ...                            1      DE
-           Frankfurt   380.0        8.70  ...   Frankfurt Wind           2      DE
-           Norway      380.0       10.75  ...                            3      NO
-           Norway DC   200.0       10.75  ...                            1      NO
-network2   London      380.0       -0.13  ...                            0      UK
-           Norwich     380.0        1.30  ...                            0      UK
-           Norwich DC  200.0        1.30  ...                            1      UK
-           Manchester  380.0       -2.20  ...  Manchester Wind           0      UK
-           Bremen      380.0        8.80  ...                            2      DE
-           Bremen DC   200.0        8.80  ...                            1      DE
-           Frankfurt   380.0        8.70  ...   Frankfurt Wind           2      DE
-           Norway      380.0       10.75  ...                            3      NO
-           Norway DC   200.0       10.75  ...                            1      NO
+>>> nc.buses  # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+                       v_nom ... country
+custom-dim name             ...
+network1   London      380.0 ... UK
+           Norwich     380.0 ... UK
+           Norwich DC  200.0 ... UK
+           Manchester  380.0 ... UK
+           Bremen      380.0 ... DE
+           Bremen DC   200.0 ... DE
+           Frankfurt   380.0 ... DE
+           Norway      380.0 ... NO
+           Norway DC   200.0 ... NO
+network2   London      380.0 ... UK
+           Norwich     380.0 ... UK
+           Norwich DC  200.0 ... UK
+           Manchester  380.0 ... UK
+           Bremen      380.0 ... DE
+           Bremen DC   200.0 ... DE
+           Frankfurt   380.0 ... DE
+           Norway      380.0 ... NO
+           Norway DC   200.0 ... NO
 <BLANKLINE>
-[18 rows x 14 columns]
+[18 rows x 15 columns]
 ```
 
 Accessing time series data:

@@ -16,6 +16,7 @@ import plotly.graph_objects as go
 import plotly.offline as pltly
 import pydeck as pdk
 import pyproj
+from deprecation import deprecated
 
 from pypsa.common import _convert_to_series, deprecated_kwargs
 from pypsa.components.common import as_components
@@ -70,6 +71,11 @@ _open__mb_styles = [
 ]
 
 
+@deprecated(
+    deprecated_in="1.5.0",
+    removed_in="2.0.0",
+    details="Use `n.plot.explore()` instead.",
+)
 @deprecated_kwargs(
     deprecated_in="1.0",
     removed_in="2.0",
@@ -117,6 +123,11 @@ def iplot(
     mapbox_parameters: dict | None = None,
 ) -> dict:
     """Plot the network buses and lines interactively using plotly.
+
+    !!! warning "Deprecated in <!-- md:badge-version v1.5.0 -->"
+
+        Use [`n.plot.explore()`][pypsa.plot.accessor.PlotAccessor.explore] instead. Will be
+        removed in PyPSA 2.0.
 
     Parameters
     ----------
@@ -1028,7 +1039,7 @@ class PydeckPlotter:
                 polygons.extend(poly_pos)
 
         p_data = pd.DataFrame(polygons)
-        p_data.set_index("bus", inplace=True)
+        p_data = p_data.set_index("bus")
 
         # Tooltip
         if tooltip:

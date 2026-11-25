@@ -100,7 +100,7 @@ Frankfurt Gas     Frankfurt      PQ  ...                        0.0        NaN
 [6 rows x 51 columns]
 
 # Opt-in to new components API
->>> pypsa.options.api.new_components_api = True
+>>> pypsa.options.future.components_api = True
 
 # n.generators will now return a Components object
 >>> n.generators
@@ -122,7 +122,7 @@ Frankfurt Gas     Frankfurt      PQ  ...                        0.0        NaN
 <BLANKLINE>
 [6 rows x 51 columns]
 
->>> pypsa.options.api.new_components_api = False
+>>> pypsa.options.future.components_api = False
 ```
 
 ## Breaking Changes

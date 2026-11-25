@@ -4,6 +4,7 @@
 
 """Tests for interactive statistics plotting."""
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import pytest
@@ -409,3 +410,18 @@ class TestInteractivePlotIssue1719:
         assert large.layout.height > small.layout.height
         assert huge.layout.height <= 2000
         assert huge.layout.yaxis.dtick is None
+
+
+def test_stochastic_bar_shows_scenario_mean_and_std(ac_dc_stochastic):
+    n = ac_dc_stochastic
+    gens = n.c.generators.static
+    gens.loc["high", "p_nom"] = (gens.loc["high", "p_nom"] * 2).to_numpy()
+
+    fig = n.statistics.installed_capacity.iplot.bar(
+        components="Generator", x="value", y="bus_carrier", color="carrier"
+    )
+
+    gas = next(trace for trace in fig.data if trace.name == "gas")
+    low = gens.loc["low"].query("carrier == 'gas'").p_nom.sum()
+    np.testing.assert_allclose(gas.x, [1.5 * low])
+    np.testing.assert_allclose(gas.error_x.array, [low / np.sqrt(2)])

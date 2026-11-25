@@ -240,18 +240,18 @@ class TestGetBreakpoints:
 
 
 class TestCreateYVar:
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def pw_names() -> pd.Series:
         return pd.Index(["gen1"], name="name")
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def snapshots():
         return pd.Index([1, 2, 3], name="snapshot")
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def linopy_model(snapshots):
         m = linopy.Model()
         m.add_variables(
@@ -263,18 +263,18 @@ class TestCreateYVar:
         )
         return m
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def y_var_static(linopy_model, pw_names) -> linopy.Variable:
         return _create_y_var(
-            linopy_model, linopy_model["x_static"], pw_names, "foo-static"
+            linopy_model, linopy_model["x_static"], pw_names, "foo-static", 1.0
         )
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def y_var_dynamic(linopy_model, pw_names) -> linopy.Variable:
         return _create_y_var(
-            linopy_model, linopy_model["x_dynamic"], pw_names, "foo-dynamic"
+            linopy_model, linopy_model["x_dynamic"], pw_names, "foo-dynamic", 1.0
         )
 
     @pytest.mark.parametrize("y_var_name", ["y_var_static", "y_var_dynamic"])
@@ -313,8 +313,8 @@ class TestToDa:
 
 
 class TestDefinePiecewise:
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def snapshots():
         return pd.Index([1, 2, 3], name="snapshot")
 
@@ -343,6 +343,7 @@ class TestDefinePiecewise:
             name="Generator",
             extendables=pd.Index(["gen_extendable"], name="name"),
             _piecewise_schema=_piecewise_schema(attrs),
+            _scaling=lambda names: 1.0,
         )
         component.piecewise["efficiency"] = pd.DataFrame()
         return component
@@ -359,8 +360,8 @@ class TestDefinePiecewise:
         )
         return m
 
-    @staticmethod
     @pytest.fixture(scope="class")
+    @staticmethod
     def piecewise_options():
         options = PiecewiseOptions(
             component="Generator",

@@ -497,7 +497,7 @@ _all_components = (
 
 
 def _get_method_patterns() -> dict[str, str]:
-    new_api = options.api.new_components_api
+    new_api = options.future.components_api
     _all_component_names = (
         r"SubNetwork|Bus|Carrier|GlobalConstraint|Line|LineType|"
         "Transformer|TransformerType|Link|Process|Load|Generator|"

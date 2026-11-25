@@ -18,7 +18,6 @@ SPDX-License-Identifier: CC-BY-4.0
           - "!deprecated_kwargs"
           - "!deprecated_namespace"
           - "!pass_empty_series_if_keyerror"
-          - "!pass_none_if_keyerror ¶"
           - "!rename_deprecated_kwargs"
 ::: pypsa.geo
     options:

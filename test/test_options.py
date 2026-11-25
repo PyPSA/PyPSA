@@ -17,32 +17,7 @@ try:
 except ImportError:
     gurobi_installed = False
 
-
-@pytest.fixture(autouse=True)
-def restore_options_module():
-    """Restore _options module state after tests that use importlib.reload.
-
-    This fixture re-imports _options after each test and updates all module
-    references to ensure consistent state.
-    """
-    import sys
-
-    yield
-    from pypsa import _options
-
-    importlib.reload(_options)
-
-    # Update pypsa's references to the fresh options
-    pypsa.options = _options.options
-    pypsa.get_option = _options.options.get_option
-    pypsa.set_option = _options.options.set_option
-    pypsa.reset_option = _options.options.reset_option
-    pypsa.option_context = _options.option_context
-
-    # Update all pypsa modules that have an 'options' attribute
-    for mod_name, mod in sys.modules.items():
-        if mod_name.startswith("pypsa.") and hasattr(mod, "options"):
-            mod.options = _options.options
+pytestmark = pytest.mark.usefixtures("restore_options_module")
 
 
 @pytest.fixture

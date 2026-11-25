@@ -2,12 +2,14 @@
 #
 # SPDX-License-Identifier: MIT
 
+import importlib
 import logging
-import os
+import sys
 import warnings
 from pathlib import Path
 
 import geopandas as gpd
+import linopy
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,7 +17,44 @@ import pytest
 from shapely.geometry import Polygon
 
 import pypsa
+from pypsa._linopy_compat import V1_ONLY
 from pypsa.constants import DEFAULT_EPSG
+
+
+@pytest.fixture(autouse=True)
+def reset_future_warnings():
+    """Let the once-per-process future flag warnings fire again in every test."""
+    from pypsa import _future
+
+    _future._warned.clear()
+
+
+@pytest.fixture
+def restore_options_module():
+    """Re-import `_options` after each test and rebind pypsa's references.
+
+    Opt-in for tests that reload the module (env var tests), which would
+    otherwise leak their state. The session-wide options set in
+    `pytest_configure` (`--new-components-api`, `--linopy-sparse`) are carried
+    over.
+    """
+    components_api = pypsa.options.future.components_api
+    model_kwargs = pypsa.options.params.optimize.model_kwargs
+    yield
+    from pypsa import _options
+
+    importlib.reload(_options)
+    _options.options.future.components_api = components_api
+    _options.options.params.optimize.model_kwargs = model_kwargs
+
+    pypsa.options = _options.options
+    pypsa.get_option = _options.options.get_option
+    pypsa.set_option = _options.options.set_option
+    pypsa.reset_option = _options.options.reset_option
+    pypsa.option_context = _options.option_context
+    for mod_name, mod in sys.modules.items():
+        if mod_name.startswith("pypsa.") and hasattr(mod, "options"):
+            mod.options = _options.options
 
 
 @pytest.fixture
@@ -54,7 +93,10 @@ def no_warnings():
 def _set_test_options():
     """Ensure test-specific options are set before each test."""
     pypsa.options.debug.runtime_verification = True
-    pypsa.options.params.optimize.include_objective_constant = True
+    # Unset future flags keep the current behaviour without warning
+    for name in pypsa.options.future._children:
+        if pypsa.options.get_option(f"future.{name}") is None:
+            pypsa.options.set_option(f"future.{name}", False)
     return
 
 
@@ -72,7 +114,13 @@ def pytest_addoption(parser):
         "--new-components-api",
         action="store_true",
         default=False,
-        help="Activate the new components API (options.api.new_components_api)",
+        help="Activate the new components API (options.future.components_api)",
+    )
+    parser.addoption(
+        "--linopy-sparse",
+        action="store_true",
+        default=False,
+        help="Build optimization models on linopy's sparse backend",
     )
     parser.addoption(
         "--test-docs",
@@ -97,34 +145,14 @@ def pytest_addoption(parser):
 def pytest_configure(config):
     """Configure pytest session with custom options."""
     if config.getoption("--new-components-api"):
-        pypsa.options.api.new_components_api = True
-    _configure_linopy_semantics(config)
-
-
-def _configure_linopy_semantics(config):
-    """Select linopy arithmetic semantics and fail on divergence warnings.
-
-    Controlled via `LINOPY_SEMANTICS` (`legacy` | `v1`); no `PYPSA_`
-    prefix, to avoid PyPSA's own env-var option loader, so old linopy (without
-    the `semantics` option) is untouched. When set, any
-    `LinopySemanticsWarning` escaping PyPSA's own targeted suppression fails
-    the test. The filter is added here rather than in `pyproject.toml` because
-    the warning class only exists on linopy with v1 semantics.
-    """
-    import linopy
-
-    mode = os.environ.get("LINOPY_SEMANTICS")
-    if not mode:
-        return
-    try:
-        linopy.options["semantics"] = mode
-    except (KeyError, TypeError):
-        # linopy < 0.10 has no "semantics" option; setting it is a no-op.
-        return
-    config.addinivalue_line(
-        "filterwarnings",
-        "error::linopy.config.LinopySemanticsWarning",
-    )
+        pypsa.options.future.components_api = True
+    if config.getoption("--linopy-sparse"):
+        if not V1_ONLY:
+            linopy.options.set_value(semantics="v1")
+        pypsa.options.params.optimize.model_kwargs = {"sparse": True}
+        config.addinivalue_line(
+            "filterwarnings", "default::linopy.constants.PerformanceWarning"
+        )
 
 
 def pytest_collection_modifyitems(config, items):

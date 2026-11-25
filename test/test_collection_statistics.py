@@ -395,6 +395,25 @@ def test_network_collection_vs_single_network(ac_dc_network_r):
     )
 
 
+def test_prices_load_weighting_collection(ac_dc_network_r):
+    """Load weights align on (network, name) and are not dropped."""
+    deterministic = ac_dc_network_r.statistics.prices(weighting="load")
+    assert not deterministic.equals(ac_dc_network_r.statistics.prices(weighting="time"))
+
+    nc = pypsa.NetworkCollection(
+        [ac_dc_network_r.copy(), ac_dc_network_r.copy()],
+        index=pd.Index(["base", "variant"], name="network"),
+    )
+    load_weighted = nc.statistics.prices(weighting="load")
+
+    for network in ["base", "variant"]:
+        pd.testing.assert_series_equal(
+            load_weighted.xs(network, level="network"),
+            deterministic,
+            check_names=False,
+        )
+
+
 def test_network_collection_empty_results(ac_dc_network_r):
     """Test NetworkCollection behavior with filters that produce empty results."""
     nc = pypsa.NetworkCollection([ac_dc_network_r], index=pd.Index(["s1"]))
@@ -597,6 +616,32 @@ def test_network_collection_revenue(
         network_revenue = nc.networks.loc[scenario].statistics.revenue()
         assert (scenario_revenue == network_revenue).all(), (
             f"Revenue mismatch for scenario {scenario}"
+        )
+
+
+def test_network_collection_prices_grouped(ac_dc_network_r):
+    """Grouped prices keep the collection level and match the member networks."""
+    # Scaled prices make mixing across members fail the value check.
+    variant = ac_dc_network_r.copy()
+    variant.c.buses.dynamic.marginal_price *= 2
+    nc = pypsa.NetworkCollection(
+        [ac_dc_network_r, variant],
+        index=pd.Index(["base", "variant"], name="scenario"),
+    )
+
+    assert nc.statistics.prices(groupby="bus_carrier").index.names == [
+        "scenario",
+        "bus_carrier",
+    ]
+
+    grouped = nc.statistics.prices(groupby="bus_carrier", weighting="time")
+    assert grouped.index.names == ["scenario", "bus_carrier"]
+
+    for label, n in nc.networks.items():
+        pd.testing.assert_series_equal(
+            grouped.xs(label, level="scenario"),
+            n.statistics.prices(groupby="bus_carrier", weighting="time"),
+            check_names=False,
         )
 
 

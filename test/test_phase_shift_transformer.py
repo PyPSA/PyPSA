@@ -137,9 +137,9 @@ class TestVariablePhaseShift:
     def test_variable_preserves_set_input(self):
         """The input attribute `phase_shift` is not overwritten by the solve."""
         n = _build(phase_shift=3.0, variable=True)
-        assert n.transformers.at["T1", "phase_shift"] == 3.0
+        assert n.c.transformers.static.at["T1", "phase_shift"] == 3.0
         n.optimize(solver_name="highs")
-        assert n.transformers.at["T1", "phase_shift"] == 3.0
+        assert n.c.transformers.static.at["T1", "phase_shift"] == 3.0
 
     def test_fixed_no_variable_registered(self):
         """A fixed transformer (min == max) does not add a variable."""
@@ -152,7 +152,7 @@ class TestVariablePhaseShift:
         n = _build(phase_shift=5.0, variable=False)
         n.optimize(solver_name="highs")
         assert (n.transformers_t.phase_shift_opt["T1"].values == 5.0).all()
-        assert n.transformers.at["T1", "phase_shift"] == 5.0
+        assert n.c.transformers.static.at["T1", "phase_shift"] == 5.0
 
     def test_variable_rejects_unbounded(self):
         """An optimisable shift with a non-finite bound fails fast."""
@@ -195,7 +195,7 @@ class TestMixedFixedAndVariable:
         assert total == pytest.approx(50.0, abs=0.1)
         # Variable var present, fixed input unchanged
         assert "Transformer-phase_shift" in n.model.variables
-        assert n.transformers.at["T1", "phase_shift"] == 5.0
+        assert n.c.transformers.static.at["T1", "phase_shift"] == 5.0
         # Realised angles: fixed (T1) equals its setpoint, variable (T2) optimised
         assert (n.transformers_t.phase_shift_opt["T1"].values == 5.0).all()
         assert "T2" in n.transformers_t.phase_shift_opt.columns

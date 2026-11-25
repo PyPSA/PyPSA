@@ -14,6 +14,7 @@ Transform methods are methods which modify and restructure data.
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
+    from pypsa import Network
     from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
@@ -36,8 +38,7 @@ class ComponentsTransformMixin:
     static: pd.DataFrame
     dynamic: Dict
     piecewise: Dict
-    attached: Any
-    n_save: Any
+    n: Network
     name: Any
 
     def add(
@@ -150,14 +151,7 @@ class ComponentsTransformMixin:
         [pypsa.Network.add][]
 
         """
-        if not self.attached:
-            msg = (
-                "Currently new components can only be added when the components "
-                "are already attached to a network."
-            )
-            raise NotImplementedError(msg)
-
-        return self.n_save.add(
+        return self.n.add(
             self.name,
             name,
             suffix=suffix,
@@ -211,10 +205,10 @@ class ComponentsTransformMixin:
         for k, v in self.dynamic.items():  # Modify in place
             self.dynamic[k] = v.rename(columns=kwargs)
 
-        # Rename cross references in network (if attached to one)
-        if self.attached:
-            for component in self.n_save.components:
-                col_name = self.name.lower()  # TODO: Generalize
-                cols = [f"{col_name}{port}" for port in component.ports]
-                if cols and not component.static.empty:
-                    component.static[cols] = component.static[cols].replace(kwargs)
+        # Rename cross references in network
+        col_name = self.name.lower()  # TODO: Generalize
+        re_cols = re.compile(rf"{col_name}\d*")
+        for component in self.n.components:
+            cols = [c for c in component.static.columns if re_cols.fullmatch(c)]
+            if cols and not component.static.empty:
+                component.static[cols] = component.static[cols].replace(kwargs)

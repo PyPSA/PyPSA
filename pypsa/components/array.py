@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pypsa._future import future_flag
 from pypsa._options import options
 from pypsa.common import (
     UnexpectedError,
@@ -62,7 +63,7 @@ def _from_xarray(da: xr.DataArray, c: Components) -> pd.DataFrame | pd.Series:
     """
     # Restore the snapshot MultiIndex from a flat build's tuple labels once
     # here, rather than at every caller.
-    window = c.n_save._snapshot_window
+    window = c.n._snapshot_window
     if window is not None:
         da = window.recompose(da)
 
@@ -264,7 +265,11 @@ class ComponentsArrayMixin(_ComponentsABC):
         snapshots : pandas.Index
             Restrict to these snapshots rather than n.snapshots.
         inds : pandas.Index
-            Restrict to these components rather than n.components.index
+            Restrict to these component names rather than all components. For
+            stochastic networks, the names are selected in all scenarios. The
+            columns follow component order, duplicates are collapsed and unknown
+            names dropped. With `options.future.inds_order`, columns follow `inds`
+            order, duplicates are kept and unknown names raise a `KeyError`.
 
         Returns
         -------
@@ -281,7 +286,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         [2 rows x 6 columns]
 
         """
-        sns = as_index(self.n_save, snapshots, "snapshots")
+        sns = as_index(self.n, snapshots, "snapshots")
         index = self.static.index
 
         static = self.static.get(attr, pd.Series([], index=index[:0]))
@@ -292,8 +297,21 @@ class ComponentsArrayMixin(_ComponentsABC):
             dynamic = dynamic.reindex(sns, fill_value=np.nan)
 
         # Filter names
-        if inds is not None:
-            index = index.intersection(inds)
+        inds_order = inds is not None and future_flag("inds_order")
+        if inds is not None and inds_order:
+            unknown = pd.Index(inds).difference(index.unique("name"))
+            if len(unknown) > 0:
+                msg = f"Names not found in {self.name}: {list(unknown[:5])}"
+                raise KeyError(msg)
+            index = (
+                pd.MultiIndex.from_product(
+                    [index.unique(level=0), list(inds)], names=index.names
+                )
+                if self.has_scenarios
+                else pd.Index(list(inds), name=index.name)
+            )
+        elif inds is not None:
+            index = index[index.get_level_values("name").isin(inds)]
 
         # Find columns that need to be filled from static data
         diff = index.difference(dynamic.columns)
@@ -319,7 +337,7 @@ class ComponentsArrayMixin(_ComponentsABC):
                 res = pd.concat([dynamic, static_to_dynamic], axis=1)
                 res = res[index]
             else:
-                res = static_to_dynamic
+                res = static_to_dynamic[index] if inds_order else static_to_dynamic
 
         res.index.name = sns.name
         if self.has_scenarios:
@@ -355,11 +373,16 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         """
         if attr == "active":
-            res = xr.DataArray(self.get_activity_mask())
+            data = self.get_activity_mask()
         elif attr in self.dynamic.keys():
-            res = xr.DataArray(_strings_to_object(self._as_dynamic(attr)))
+            data = self._as_dynamic(attr)
         else:
-            res = xr.DataArray(_strings_to_object(self.static[attr]))
+            data = self.static[attr]
+        return self._to_xarray(data, attr)
+
+    def _to_xarray(self, data: pd.Series | pd.DataFrame, name: str) -> xr.DataArray:
+        """Convert component data indexed like `static` or `dynamic` to a DataArray."""
+        res = xr.DataArray(_strings_to_object(data))
 
         # Unstack the dimension that contains the scenarios
         if self.has_scenarios:
@@ -373,13 +396,13 @@ class ComponentsArrayMixin(_ComponentsABC):
             res = res.transpose(*[c for c in res.coords if c in res.dims])
 
         # Set attibute name as DataArray name
-        res.name = attr
+        res.name = name
 
         # Optional runtime verification
         if options.debug.runtime_verification:
             _assert_xarray_integrity(self, res)
 
-        window = self.n_save._snapshot_window
+        window = self.n._snapshot_window
         if window is not None:
             res = window.flatten(res)
 

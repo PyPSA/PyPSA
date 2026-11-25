@@ -13,6 +13,7 @@ from pypsa.clustering.spatial import (
     aggregateoneport,
     busmap_by_hac,
     busmap_by_kmeans,
+    busmap_by_stubs,
     get_clustering_from_busmap,
     normed_or_uniform,
 )
@@ -224,6 +225,17 @@ def test_default_clustering_hac(scipy_network):
     assert len(nc.buses) == 50
 
 
+def test_clustering_greedy_modularity(scipy_network):
+    n = scipy_network
+    for c in (n.c.buses, n.c.lines):
+        c.static = c.static.filter(c.defaults.index)
+    busmap = n.cluster.spatial.busmap_by_greedy_modularity(n_clusters=50)
+    assert busmap.index.equals(n.c.buses.static.index.astype(str))
+    assert busmap.nunique() == 50
+    nc = n.cluster.spatial.cluster_by_greedy_modularity(n_clusters=50)
+    assert len(nc.buses) == 50
+
+
 def test_cluster_accessor(scipy_network):
     n = scipy_network
     prepare_network_for_aggregation(n)
@@ -335,7 +347,7 @@ def test_aggregate_one_ports_no_time_series():
 
     assert n.storage_units_t.p.empty
 
-    busmap = pd.Series("x", n.buses.index)
+    busmap = pd.Series("x", n.c.buses.static.index)
     C = get_clustering_from_busmap(n, busmap, aggregate_one_ports=["StorageUnit"])
 
     assert C.n.storage_units_t.p.empty
@@ -368,3 +380,49 @@ def test_890():
 
     almost_equal(n.investment_periods, nc.investment_periods)
     almost_equal(n.investment_period_weightings, nc.investment_period_weightings)
+
+
+@pytest.mark.parametrize(
+    ("matching_attrs", "v_maps_to"), [(None, "y"), (["country"], "v")]
+)
+def test_busmap_by_stubs(matching_attrs, v_maps_to):
+    """Dead ends collapse iteratively into the meshed core unless attributes differ."""
+    n = pypsa.Network()
+    n.add("Bus", ["x", "y", "z", "w1", "w2"], country="DE")
+    n.add("Bus", "v", country="FR")
+    n.add(
+        "Line",
+        ["xy", "yz", "zx", "xw1", "w1w2", "yv"],
+        bus0=["x", "y", "z", "x", "w1", "y"],
+        bus1=["y", "z", "x", "w1", "w2", "v"],
+        x=0.1,
+    )
+
+    busmap = busmap_by_stubs(n, matching_attrs)
+
+    expected = {"x": "x", "y": "y", "z": "z", "w1": "x", "w2": "x", "v": v_maps_to}
+    assert busmap.to_dict() == expected
+
+
+def test_aggregate_time_varying_line_ratings():
+    """Merged lines keep the total available thermal capacity in every snapshot."""
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", ["a1", "a2", "b"], x=[0, 0, 1], y=[0, 0.1, 0])
+    s_max_pu = pd.DataFrame({"a1b": [0.5, 1.0], "a2b": [0.9, 0.6]}, n.snapshots)
+    n.add(
+        "Line",
+        ["a1b", "a2b"],
+        bus0=["a1", "a2"],
+        bus1="b",
+        x=0.1,
+        s_nom=[100, 300],
+        s_max_pu=s_max_pu,
+    )
+    busmap = pd.Series({"a1": "A", "a2": "A", "b": "B"})
+
+    m = n.cluster.spatial.cluster_by_busmap(busmap)
+
+    available = (s_max_pu * n.c.lines.static.s_nom).sum(axis=1)
+    assert m.c.lines.static.s_nom.sum() == 400
+    almost_equal(m.c.lines.dynamic.s_max_pu.squeeze() * 400, available)

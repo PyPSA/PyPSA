@@ -16,7 +16,10 @@ import xarray as xr
 from linopy import Model, merge
 from linopy.constants import BREAKPOINT_DIM, LP_PIECE_DIM, PWL_LINK_DIM, SEGMENT_DIM
 from linopy.solvers import available_solvers
+from scipy.sparse.csgraph import connected_components
+from scipy.sparse.linalg import splu
 
+from pypsa._future import future_flag
 from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import (
@@ -26,6 +29,7 @@ from pypsa.common import (
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.consistency import (
+    OPTIMIZE_STRICT_CHECKS,
     check_big_m_exceeded,
     check_modular_consistency,
     check_no_modular_committables,
@@ -52,11 +56,18 @@ from pypsa.optimization.constraints import (
     define_secant_loss_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
+    define_store_cycle_constraints,
     define_tangent_loss_constraints,
     define_total_supply_constraints,
     define_voltage_angle_constraints,
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
+from pypsa.optimization.flow_based import (
+    NET_POSITION,
+    define_flow_based_constraints,
+    define_flow_based_variables,
+    flow_based_net_position,
+)
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
@@ -96,6 +107,19 @@ lookup = pd.read_csv(
     PYPSA_DATA_DIR / "variables.csv",
     index_col=["component", "variable"],
 )
+linear_cost_types = [
+    "marginal_cost",
+    "marginal_cost_dispatch",
+    "marginal_cost_store",
+    "marginal_cost_storage",
+    "spill_cost",
+]
+
+
+def cost_variables(component: str, cost_type: str) -> pd.Index:
+    """Get the operational variables of a component a cost type applies to."""
+    rows = lookup.query(f"component == @component and {cost_type}")
+    return rows.index.get_level_values("variable")
 
 
 def _apply_delay_shift(
@@ -132,25 +156,10 @@ def _apply_delay_shift(
         port_df[cols] = delayed_values
 
 
-def _resolve_include_objective_constant(
-    value: bool | None, stacklevel: int = 3
-) -> bool:
-    """Resolve include_objective_constant from explicit value or options.
-
-    Raises FutureWarning if neither is set.
-    """
+def _resolve_include_objective_constant(value: bool | None) -> bool:
+    """Resolve include_objective_constant from explicit value or future flag."""
     if value is None:
-        value = options.params.optimize.include_objective_constant
-    if value is None:
-        warnings.warn(
-            "The default value of `include_objective_constant` will change from "
-            "True to False in version 2.0. Set `include_objective_constant` "
-            "explicitly to suppress this warning. Using False improves LP numerical "
-            "conditioning by not including the objective constant as a variable.",
-            FutureWarning,
-            stacklevel=stacklevel,
-        )
-        value = True
+        return not future_flag("exclude_objective_constant")
     return value
 
 
@@ -239,7 +248,7 @@ def define_objective(
                 active = c.da.active.sel(name=ext_i).any(dim="snapshot")
                 weighted_cost = active * periodic_cost
 
-                terms.append((weighted_cost * nominal).sum(dim=["name"]))
+            terms.append((weighted_cost * nominal).sum(dim=["name"]))
 
         constant += sum(terms)
 
@@ -258,7 +267,10 @@ def define_objective(
             has_const = constant != 0
         if has_const:
             object_const = m.add_variables(
-                constant, constant, name="objective_constant"
+                constant,
+                constant,
+                name="objective_constant",
+                scaling=m.objective.scaling,
             )
             capex_terms.append(-1 * object_const)
     else:
@@ -267,11 +279,13 @@ def define_objective(
     # Weightings
     weight = window.snapshot_weightings("objective")
     if n._multi_invest:
+        # start-up and shut-down costs are paid per event, not per elapsed hour
+        event_weight = apply_period_weighting(xr.ones_like(weight), period_weighting)
         weight = apply_period_weighting(weight, period_weighting)
 
     # marginal costs, marginal storage cost, and spill cost
 
-    for cost_type in ["marginal_cost", "marginal_cost_storage", "spill_cost"]:
+    for cost_type in linear_cost_types:
         for c_name, attr in lookup.query(cost_type).index:
             c = as_components(n, c_name)
 
@@ -300,6 +314,7 @@ def define_objective(
                     sign=">=",
                     cumulative_attr=True,
                     extra_options=extra_options,
+                    scaling=m.objective.scaling,
                     status=status,
                 )
                 if pw_cost_var is not None:
@@ -326,7 +341,7 @@ def define_objective(
         if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
             continue
 
-        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns)
+        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns, name=c.active_assets)
         if cost.size == 0 or (cost == 0).all():
             continue
 
@@ -391,6 +406,7 @@ def define_objective(
                 sign=">=",
                 cumulative_attr=True,
                 extra_options=extra_options,
+                scaling=m.objective.scaling,
             )
             if piecewise_var is not None:
                 pw_names = piecewise_var.indexes["name"]
@@ -438,6 +454,9 @@ def define_objective(
 
         if cost.size == 0 or cost.sum().item() == 0:
             continue
+
+        if n._multi_invest:
+            cost = cost * event_weight
 
         var = m[f"{c.name}-{attr}"].sel(name=com_i)
         opex_terms.append((var * cost).sum(dim=["name", "snapshot"]))
@@ -497,7 +516,9 @@ def define_objective(
 
         for s in n.scenarios:
             lhs = a.sel(scenario=s, drop=True) - scen_opex_exprs[s] + theta
-            m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
+            m.add_constraints(
+                lhs, ">=", 0, name=f"CVaR-excess-{s}", scaling=m.objective.scaling
+            )
 
         inv_tail = 1.0 / (1.0 - alpha)
         weighted_a = None
@@ -507,7 +528,13 @@ def define_objective(
         if weighted_a is None:  # mypy type guard
             msg = "No scenarios found in scenario_weightings"
             raise UnexpectedError(msg)
-        m.add_constraints(theta + inv_tail * weighted_a, "<=", cvar, name="CVaR-def")
+        m.add_constraints(
+            theta + inv_tail * weighted_a,
+            "<=",
+            cvar,
+            name="CVaR-def",
+            scaling=m.objective.scaling,
+        )
 
         # Final objective: CAPEX + (1-omega) * E[OPEX] + omega * CVaR
         obj_expr = expected_capex + (1 - omega) * expected_opex + omega * cvar
@@ -515,8 +542,7 @@ def define_objective(
         # Deterministic or no risk: CAPEX + OPEX
         obj_expr = expected_capex + expected_opex
 
-    # Set objective
-    m.objective = obj_expr
+    m.add_objective(obj_expr, overwrite=True, scaling=m.objective.scaling)
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
@@ -560,6 +586,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
+        cycle_basis_method: str = "bfs-refined",
+        objective_scaling: float = 1.0,
+        consistency_check: bool = True,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -620,8 +649,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant : bool | None, default None
             Whether to include the objective constant (capital costs of existing
             infrastructure) as a variable in the objective function. Setting to False
-            improves LP numerical conditioning. Defaults to module wide option. See
-            `pypsa.options.params.optimize.describe()` for more information.
+            improves LP numerical conditioning. If None, follows
+            `pypsa.options.future.exclude_objective_constant`.
         committable_big_m : float | None, default None
             Big-M value for committable+extendable constraints. If None, PyPSA infers
             a scale from the network (e.g. peak load). Otherwise this numeric bound
@@ -632,6 +661,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
             Each operator is interpreted as ``y operator f(x)``.
+        cycle_basis_method : str, default "bfs-refined"
+            Method used to construct the cycle basis for the Kirchhoff voltage
+            law constraints, either ``"bfs-refined"`` or ``"paton"``. The
+            default ``"bfs-refined"`` yields sparser constraints.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver. The
+            objective value and duals are reported in original units. Column
+            and row factors are set via `Bus.scaling` and
+            `GlobalConstraint.scaling`.
+        consistency_check : bool, default True
+            Whether to run the consistency check before building the model.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -665,9 +705,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         n._multi_invest = int(multi_investment_periods)
         n._linearized_uc = linearized_unit_commitment
 
-        n.consistency_check(
-            strict=["unknown_buses", "maintenance", "phase_shift_bounds"]
-        )
+        if consistency_check:
+            n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
         m = n.optimize.create_model(
             snapshots,
             multi_investment_periods,
@@ -678,6 +717,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             committable_big_m=committable_big_m,
             meshed_thresholds=meshed_thresholds,
             piecewise_options=piecewise_options,
+            cycle_basis_method=cycle_basis_method,
+            objective_scaling=objective_scaling,
             **model_kwargs,
         )
         if extra_functionality:
@@ -716,6 +757,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
+        cycle_basis_method: str = "bfs-refined",
+        objective_scaling: float = 1.0,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -749,8 +792,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         include_objective_constant : bool | None, default: None
             Whether to include the objective constant (capital costs of existing
             infrastructure) as a variable in the objective function. Setting to False
-            improves LP numerical conditioning. Defaults to module wide option. See
-            `pypsa.options.params.optimize.describe()` for more information.
+            improves LP numerical conditioning. If None, follows
+            `pypsa.options.future.exclude_objective_constant`.
         committable_big_m : float | None, default: None
             Big-M value for committable+extendable constraints. If None, PyPSA infers
             a scale from the network (e.g. peak load). Otherwise this numeric bound
@@ -761,8 +804,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         piecewise_options : list[PiecewiseOptions | dict], optional
             Options to override defaults in piecewise constraint formulation.
             Each operator is interpreted as ``y operator f(x)``.
+        cycle_basis_method : str, default "bfs-refined"
+            Method used to construct the cycle basis for the Kirchhoff voltage
+            law constraints, either ``"bfs-refined"`` or ``"paton"``. The
+            default ``"bfs-refined"`` yields sparser constraints.
+        objective_scaling : float, default 1.0
+            Factor applied to all objective coefficients in the solver. The
+            objective value and duals are reported in original units. Column
+            and row factors are set via `Bus.scaling` and
+            `GlobalConstraint.scaling`.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
+            They extend and override `options.params.optimize.model_kwargs`.
 
         Returns
         -------
@@ -803,11 +856,16 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if meshed_thresholds is None:
                 meshed_thresholds = [meshed_threshold]
 
-        kwargs.setdefault("force_dim_names", True)
+        kwargs = {
+            "force_dim_names": True,
+            **options.params.optimize.model_kwargs,
+            **kwargs,
+        }
         window = SnapshotWindow.build(n, sns, options.optimization.model_snapshot_index)
         n._optimize_window = window
         sns = window.model_index
         n._model = Model(**kwargs)
+        n.model.objective.scaling = objective_scaling
 
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
@@ -829,9 +887,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 n, sns, c, attr
             )
 
-        define_spillage_variables(n, sns)
-        define_operational_variables(n, sns, "Store", "p")
+        for c in ("StorageUnit", "Store"):
+            define_spillage_variables(n, sns, c)
         define_phase_shift_variables(n, sns)
+        flow_based_domain = define_flow_based_variables(n, sns)
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -863,8 +922,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # Handle StorageUnit p_set separately (fixes p_dispatch - p_store = p_set)
         define_fixed_operation_constraints(n, sns, "StorageUnit", "p")
-        # Handle Store p_set
-        define_fixed_operation_constraints(n, sns, "Store", "p")
 
         thresholds = (
             sorted(set(meshed_thresholds))
@@ -891,11 +948,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 )
             prev = t
 
-        define_kirchhoff_voltage_constraints(n, sns)
+        define_kirchhoff_voltage_constraints(n, sns, cycle_basis_method)
         define_voltage_angle_constraints(n, sns)
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
-        define_total_supply_constraints(n, sns)
+        define_store_cycle_constraints(n, sns)
+        for c in n.components:
+            if "e_sum_min" in c.static:
+                define_total_supply_constraints(n, sns, c.name)
 
         if transmission_losses:
             if isinstance(transmission_losses, bool):
@@ -941,6 +1001,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
+        define_flow_based_constraints(n, flow_based_domain)
 
         define_objective(n, sns, include_objective_constant, piecewise_opts)
 
@@ -956,6 +1017,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Solve an already created model and assign its solution to the network.
+
+        Scaling factors are fixed when the model is created, see the
+        `objective_scaling` argument of `create_model`.
 
         Parameters
         ----------
@@ -1046,6 +1110,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
             # Skip auxiliary CVaR variables
             if name.startswith("CVaR"):
+                continue
+            # The flow-based net position is written in `post_processing`
+            if name == NET_POSITION:
                 continue
             if any(
                 i in variable.dims
@@ -1154,6 +1221,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 storage_units.dynamic["p_dispatch"] - storage_units.dynamic["p_store"]
             )
 
+        # Split store net dispatch by sign where charging and discharging net out
+        stores = n.c.stores
+        if not stores.empty:
+            split = stores.split_dispatch(cycles=False).to_series()
+            p, p_store = stores.dynamic["p"], stores.dynamic["p_store"]
+            single = p.columns.intersection(split.index[~split])
+            p_store.loc[:, single] = -p[single].clip(upper=0)
+            stores.dynamic["p_dispatch"] = p + p_store
+
         n._objective = m.objective.value
 
     def assign_duals(self, assign_all_duals: bool = False) -> None:
@@ -1188,11 +1264,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 unassigned_constraints.append(constraint_name)
                 continue
 
-            # Add placeholder for custom constraints, marked as GlobalConstraint
+            # Add placeholder for custom constraints, marked as GlobalConstraint.
+            # Constraints with a `name` dim are already per row, e.g. `ram`.
             # TODO This should go to an actual custom constraint
             if (
                 c.name == "GlobalConstraint"
                 and suffix not in c.static.index
+                and "name" not in constraint.dims
                 and assign_all_duals
             ):
                 if c.has_scenarios:
@@ -1219,6 +1297,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 # component name instead of attribute name
                 if c.name == "GlobalConstraint":
                     dual_spec = suffix
+
+                # `mu_upper`/`mu_lower` refer to the bounds of the base operational
+                # variable; bounds of further variables (e.g. store power) get
+                # their own name, e.g. "Store-fix-p-upper" -> "mu_p_upper"
+                parts = suffix.split("-")
+                if (
+                    len(parts) == 3
+                    and parts[0] in ("fix", "ext")
+                    and parts[1] != c._operational_attrs["base"]
+                    and f"{c.name}-{c._operational_attrs['base']}" in m.variables
+                ):
+                    dual_spec = f"{parts[1]}_{parts[2]}"
 
                 # Handle special cases for dual attribute name
 
@@ -1276,7 +1366,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         )
 
         # load
-        if len(n.loads):
+        if len(n.c.loads.static):
             _set_dynamic_data(
                 n, "Load", "p", n.get_switchable_as_dense("Load", "p_set", sns)
             )
@@ -1316,29 +1406,48 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             .T.reindex(columns=n.c.buses.static.index, fill_value=0.0)
         )
 
+        if (net_position := flow_based_net_position(n)) is not None:
+            _set_dynamic_data(n, "Bus", "net_position", net_position)
+
         if not n.has_scenarios:
 
             def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
                 buses_i = sub.buses_o
                 if len(buses_i) == 1:
-                    return pd.DataFrame(0, index=sns, columns=buses_i)
+                    return pd.DataFrame(
+                        0.0, index=n.c.buses.dynamic.p.index, columns=buses_i
+                    )
                 sub.calculate_B_H(skip_pre=True)
-                Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
-                Z -= Z[sub.slack_bus]
-                return n.c.buses.dynamic.p.reindex(columns=buses_i) @ Z
+                B = sub.B.tocsc()
+                B.eliminate_zeros()
+                _, labels = connected_components(B, directed=False)
+                keep = np.ones(len(buses_i), dtype=bool)
+                keep[np.unique(labels, return_index=True)[1]] = False
+                p = n.c.buses.dynamic.p.reindex(columns=buses_i).to_numpy()
+                theta = np.zeros_like(p)
+                if keep.any():
+                    lu = splu(B[keep][:, keep])
+                    theta[:, keep] = lu.solve(p[:, keep].T).T
+                return pd.DataFrame(theta, n.c.buses.dynamic.p.index, buses_i)
 
             # TODO: if multi investment optimization, the network topology is not the necessarily the same,
             # i.e. one has to iterate over the periods in order to get the correct angles.
 
             # Determine_network_topology is not necessarily called (only if KVL was assigned)
-            if n.c.sub_networks.static.empty:
+            has_passive_branches = any(
+                not n.c[c].static.empty for c in n.passive_branch_components
+            )
+            if n.c.sub_networks.static.empty and has_passive_branches:
                 n.determine_network_topology()
 
             # Calculate voltage angles (only needed for power flow)
-            if "obj" in n.c.sub_networks.static:
-                n.c.buses.dynamic.v_ang = pd.concat(
-                    [v_ang_for_(sub) for sub in n.c.sub_networks.static.obj], axis=1
-                ).reindex(columns=n.c.buses.static.index, fill_value=0.0)
+            v_ang = pd.DataFrame(
+                0.0, index=n.c.buses.dynamic.p.index, columns=n.c.buses.static.index
+            )
+            for sub in n.c.sub_networks.static.get("obj", []):
+                angles = v_ang_for_(sub)
+                v_ang[angles.columns] = angles
+            n.c.buses.dynamic.v_ang = v_ang
 
     def fix_optimal_capacities(self) -> None:
         """Fix capacities of extendable assets to optimized capacities.
@@ -1351,7 +1460,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         for c, attr in nominal_attrs.items():
             c = n.components[c]
             ext_i = c.extendables.intersection(c.active_assets)
-            c.static.loc[ext_i, attr] = c.static.loc[ext_i, attr + "_opt"]
+            ext_b = c.static.index.get_level_values("name").isin(ext_i)
+            c.static.loc[ext_b, attr] = c.static.loc[ext_b, attr + "_opt"]
             c.static[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:
@@ -1372,6 +1482,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         sign: float | pd.Series = 1e-3,
         marginal_cost: float | pd.Series = 1e2,
         p_nom: float | pd.Series = 1e9,
+        carrier: str = "load",
     ) -> pd.Index:
         """Add load shedding in form of generators to all or a subset of buses.
 
@@ -1394,10 +1505,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Price of the load shedding. The default is 1e2.
         p_nom : float/Series, optional
             Maximal load shedding. The default is 1e9 (kW).
+        carrier : str, default: "load"
+            Carrier assigned to the load shedding generators. Created if missing.
 
         """
-        if "Load" not in self._n.c.carriers.static.index:
-            self._n.add("Carrier", "Load")
+        if carrier not in self._n.c.carriers.static.index:
+            self._n.add("Carrier", carrier)
         if buses is None:
             buses = self._n.c.buses.static.index
 
@@ -1406,7 +1519,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             buses,
             suffix,
             bus=buses,
-            carrier="load",
+            carrier=carrier,
             sign=sign,
             marginal_cost=marginal_cost,
             p_nom=p_nom,

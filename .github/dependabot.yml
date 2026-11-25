@@ -21,12 +21,25 @@ updates:
 - package-ecosystem: uv
   directory: /
   schedule:
-    interval: weekly
+    interval: monthly
+  open-pull-requests-limit: 10
   cooldown:
     default-days: 7
   allow:
   - dependency-type: all
+  # minor and patch updates land in one pull-request per kind (version or security).
+  # major updates open individually.
   groups:
     uv:
       patterns:
       - '*'
+      update-types:
+      - minor
+      - patch
+    uv-security:
+      applies-to: security-updates
+      patterns:
+      - '*'
+      update-types:
+      - minor
+      - patch

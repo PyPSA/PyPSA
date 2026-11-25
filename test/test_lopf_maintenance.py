@@ -35,8 +35,8 @@ def test_basic_maintenance_scheduling(basic_network):
     assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
-    assert maint.sum() == 3
-    diffs = np.diff(np.where(maint)[0])
+    assert maint.sum() == pytest.approx(3)
+    diffs = np.diff(np.where(maint > 0.5)[0])
     assert (diffs == 1).all()
 
 
@@ -61,7 +61,7 @@ def test_optimal_timing(basic_network):
     assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["cheap"].values
-    maint_periods = np.where(maint)[0]
+    maint_periods = np.where(maint > 0.5)[0]
     assert set(maint_periods) == {0, 1}
 
 
@@ -85,7 +85,7 @@ def test_partial_maintenance(basic_network):
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     p = n.c.generators.dynamic.p["gen"].values
-    assert maint.sum() == 2
+    assert maint.sum() == pytest.approx(2)
     for t in range(len(maint)):
         if maint[t] > 0.5:
             assert p[t] <= 50 + 1e-5
@@ -111,9 +111,11 @@ def test_multiple_events(basic_network):
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     starts = n.c.generators.dynamic.maintenance_start["gen"].values
-    assert maint.sum() == 4
-    assert starts.sum() == 2
-    assert all(maint[t : t + 2].sum() == 2 for t in np.where(starts > 0.5)[0])
+    assert maint.sum() == pytest.approx(4)
+    assert starts.sum() == pytest.approx(2)
+    assert all(
+        maint[t : t + 2].sum() == pytest.approx(2) for t in np.where(starts > 0.5)[0]
+    )
 
 
 def test_committable_maintainable(basic_network):
@@ -137,7 +139,7 @@ def test_committable_maintainable(basic_network):
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
     p = n.c.generators.dynamic.p["gen"].values
-    assert maint.sum() == 2
+    assert maint.sum() == pytest.approx(2)
     for t in range(len(maint)):
         if maint[t] > 0.5:
             assert p[t] < 1e-5
@@ -345,7 +347,7 @@ def test_link_maintenance(basic_network):
     assert status[0] == "ok"
 
     maint = n.c.links.dynamic.maintenance["link"].values
-    assert maint.sum() == 2
+    assert maint.sum() == pytest.approx(2)
     p = n.c.links.dynamic.p0["link"].values
     for t in range(len(maint)):
         if maint[t] > 0.5:
@@ -372,11 +374,77 @@ def test_process_maintenance(basic_network):
     assert status[0] == "ok"
 
     maint = n.c.processes.dynamic.maintenance["process"].values
-    assert maint.sum() == 2
+    assert maint.sum() == pytest.approx(2)
     p = n.c.processes.dynamic.p["process"].values
     for t in range(len(maint)):
         if maint[t] > 0.5:
             assert p[t] < 1e-5
+
+
+@pytest.mark.parametrize(
+    ("component", "p_attr"), [("Generator", "p"), ("Link", "p0"), ("Process", "p")]
+)
+def test_fixed_modular_committable_maintenance(component, p_attr):
+    """Fixed modular committable units take their modules out in maintenance.
+
+    The number of modules was taken from ``p_nom_max``, which is infinite for a
+    unit that is not extendable, so the solver refused the model (#2094).
+    """
+    modules = 100 / 25
+    for extendable in [False, True]:
+        n = pypsa.Network()
+        n.set_snapshots(range(6))
+        n.add("Bus", ["bus", "bus1"])
+        n.add("Generator", "supply", bus="bus", p_nom=200)
+        buses = (
+            {"bus": "bus1"}
+            if component == "Generator"
+            else {"bus0": "bus", "bus1": "bus1"}
+        )
+        n.add(
+            component,
+            "unit",
+            **buses,
+            p_nom=100,
+            p_nom_mod=25,
+            build_mode="modular",
+            p_nom_extendable=extendable,
+            p_nom_min=100 if extendable else 0,
+            p_nom_max=100 if extendable else np.inf,
+            committable=True,
+            marginal_cost=1,
+            maintainable=True,
+            maintenance_duration=2,
+            maintenance_pu=1.0,
+        )
+        n.add("Generator", "backup", bus="bus1", p_nom=200, marginal_cost=100)
+        n.add("Load", "load", bus="bus1", p_set=80)
+
+        status = n.optimize()
+        assert status == ("ok", "optimal")
+
+        le_maint = n.model.constraints[f"{component}-maint-modstatus-le-maint"]
+        lb = n.model.constraints[f"{component}-maint-modstatus-lb"]
+        bound = (
+            "modules bound is p_nom_max/p_nom_mod if extendable, else p_nom/p_nom_mod"
+        )
+        np.testing.assert_array_equal(
+            np.unique(le_maint.coeffs), [-modules, 1], err_msg=bound
+        )
+        np.testing.assert_array_equal(
+            np.unique(lb.coeffs), [-modules, -1, 1], err_msg=bound
+        )
+        np.testing.assert_array_equal(lb.rhs, -modules, err_msg=bound)
+
+        c = n.c[component]
+        in_maint = c.dynamic.maintenance["unit"].values > 0.5
+        p = c.dynamic[p_attr]["unit"].values
+        assert in_maint.sum() == 2
+        np.testing.assert_allclose(p[in_maint], 0, atol=1e-5)
+        np.testing.assert_allclose(p[~in_maint], 80, atol=1e-5)
+        assert n.objective == pytest.approx(2 * 80 * 100 + 4 * 80 * 1), (
+            "backup serves 80 at 100 in 2 maintenance snapshots, the unit at 1 in 4"
+        )
 
 
 def test_multiple_generators_no_simultaneous_overlap(basic_network):
@@ -433,7 +501,7 @@ def test_mixed_fixed_generators_with_maintenance(basic_network):
 
     status = n.optimize()
     assert status[0] == "ok"
-    assert n.c.generators.dynamic.maintenance["maint"].sum() == 2
+    assert n.c.generators.dynamic.maintenance["maint"].sum() == pytest.approx(2)
 
 
 def test_mixed_committable_generators_with_maintenance(basic_network):
@@ -455,7 +523,7 @@ def test_mixed_committable_generators_with_maintenance(basic_network):
 
     status = n.optimize()
     assert status[0] == "ok"
-    assert n.c.generators.dynamic.maintenance["maint"].sum() == 2
+    assert n.c.generators.dynamic.maintenance["maint"].sum() == pytest.approx(2)
 
 
 def test_mixed_extendable_generators_with_maintenance(basic_network):
@@ -505,7 +573,7 @@ def test_single_snapshot_duration(basic_network):
     assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
-    assert maint.sum() == 1
+    assert maint.sum() == pytest.approx(1)
 
 
 def test_full_horizon_duration():
@@ -528,7 +596,7 @@ def test_full_horizon_duration():
     assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
-    assert maint.sum() == 5
+    assert maint.sum() == pytest.approx(5)
     assert (maint > 0.5).all()
 
 
@@ -673,7 +741,7 @@ def test_weighted_duration(duration, expected_snapshots):
     assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"].values
-    assert maint.sum() == expected_snapshots
+    assert maint.sum() == pytest.approx(expected_snapshots)
     assert (np.diff(np.where(maint > 0.5)[0]) == 1).all()
 
 
@@ -726,5 +794,5 @@ def test_maintenance_respects_active_periods():
     assert status[0] == "ok"
 
     maint = n.c.generators.dynamic.maintenance["gen"]
-    assert maint.loc[2020].sum() == 0
-    assert maint.loc[2030].sum() == 2
+    assert maint.loc[2020].sum() == pytest.approx(0, abs=1e-6)
+    assert maint.loc[2030].sum() == pytest.approx(2)

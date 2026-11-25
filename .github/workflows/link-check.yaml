@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+name: Link Check
+
+on:
+  schedule:
+  - cron: "0 5 * * 0"
+  workflow_dispatch:
+
+jobs:
+  link-check:
+    name: Check external links
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Check external links
+      uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+      with:
+        args: >-
+          --config .lychee.toml --no-progress
+          './**/*.md' './**/*.py' './**/*.yaml' './**/*.yml' './**/*.toml'
+        fail: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

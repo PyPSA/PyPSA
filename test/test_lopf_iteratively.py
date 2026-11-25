@@ -103,3 +103,26 @@ def test_post_discretization_objective_overnight_cost():
     direct = build(capital_cost=100)
     overnight = build(overnight_cost=1000, discount_rate=0, lifetime=10)
     assert overnight.objective == pytest.approx(direct.objective)
+
+
+def test_iterative_expansion_stochastic_raises():
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+    n.add("Bus", ["a", "b"])
+    n.add(
+        "Line",
+        "ab",
+        bus0="a",
+        bus1="b",
+        x=0.1,
+        r=0.01,
+        s_nom=10,
+        s_nom_extendable=True,
+        capital_cost=1,
+    )
+    n.add("Generator", "g", bus="a", p_nom=100, marginal_cost=1)
+    n.add("Load", "l", bus="b", p_set=50)
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+
+    with pytest.raises(ValueError, match="not yet implemented for stochastic"):
+        n.optimize.optimize_transmission_expansion_iteratively()
