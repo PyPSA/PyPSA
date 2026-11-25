@@ -105,7 +105,7 @@ In PyPSA this non-linear function is linearized with piecewise linear constraint
 
 <!-- md:spec Line_loss Line_loss_upper Line_loss_tangents_pos Line_loss_tangents_neg -->
 
-Each cut $\epsilon$ is a segment of the linear approximation with slope `Line_loss_slope` and offset `Line_loss_offset`. Transformers have the same constraints (`Transformer_loss_*`).
+Each cut $\epsilon$ is a line of the linear approximation with slope `Line_loss_slope` and offset `Line_loss_offset`. Transformers have the same constraints (`Transformer_loss_*`).
 
 The losses also modify the [power balance](energy-balance.md), splitting losses equally between both connection points:
 
@@ -142,7 +142,7 @@ When passing a dict, the `mode` key selects the method. Additional keys set the 
 
 ### Secant-Based Linearization with Error Control
 
-The secant-based linearization is designed to overestimate the AC line losses and is guaranteed to stay within the error bounds defined by the specified absolute (`atol`) and relative (`rtol`) error tolerances. The slope and offset of each segment $\epsilon$ are derived as
+The secant-based linearization is designed to overestimate the AC line losses and is guaranteed to stay within the error bounds defined by the specified absolute (`atol`) and relative (`rtol`) error tolerances. The slope and offset of each cut $\epsilon$ are derived as
 
 !!! note "Background"
 
@@ -160,7 +160,7 @@ where $\rho_{l,\epsilon}$ are suitably chosen points on the loss parabola. For d
     - The first segment models zero losses
     - If a line has `s_nom_max > 2 * n_segments * s_nom_opt` then that line is lossless, since all flows stay in the first segment of the approximation.
 
-For the tangent-based linearization the slope and offset of segment $\epsilon$ out of $n_{\mathrm{seg}}$ segments are derived as:
+For the tangent-based linearization the slope and offset of cut $\epsilon$ out of $n_{\mathrm{seg}}$ cuts are derived as:
 
 !!! note "Background"
 

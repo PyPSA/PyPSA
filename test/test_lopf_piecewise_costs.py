@@ -135,7 +135,7 @@ class TestPiecewiseCostsDefine:
         model = convex_marginal_cost_network.optimize.create_model(
             include_objective_constant=False, piecewise_options=[option]
         )
-        assert "Generator-marginal_cost_piecewise_order_binary" in model.binaries
+        assert "Generator-marginal_cost_piecewise_order" in model.binaries
         assert "Generator-marginal_cost_piecewise_chord" not in model.constraints
 
     @pytest.mark.parametrize(
@@ -501,6 +501,90 @@ class TestPiecewiseCostsStatus:
         )
         n.optimize()
         assert (n.c.generators.dynamic.p["gen-committable"] == 0).all()
+
+
+OBJECTIVE, BUS = 1e-2, 1e-3
+INCREMENTAL = {"", "_delta", "_order"}
+WEIGHTS = dict.fromkeys(["_binary_order", "_delta_bound", "_fill_order"], 1.0)
+
+
+@pytest.mark.parametrize(
+    ("component", "attrs", "committable", "curve", "variables", "constraints"),
+    [
+        pytest.param(
+            "Generator",
+            {"bus": "bus0", "p_nom": 100, "marginal_cost": {0: 60, 0.5: 35, 1: 100}},
+            [True, False],
+            "marginal_cost_piecewise",
+            INCREMENTAL,
+            WEIGHTS
+            | {"_active_bound": 1.0, "_p": BUS, "_p_ungated": BUS}
+            | {"_cost": OBJECTIVE, "_cost_ungated": OBJECTIVE},
+            id="mixed-commitment",
+        ),
+        pytest.param(
+            "Generator",
+            {"bus": "bus0", "p_nom": 100, "marginal_cost": {0: 0, 0.5: 1, 1: 4}},
+            [False],
+            "marginal_cost_piecewise",
+            {""},
+            {"_chord": OBJECTIVE, "_domain_lo": BUS, "_domain_hi": BUS},
+            id="convex",
+        ),
+        pytest.param(
+            "Generator",
+            {
+                "bus": "bus0",
+                "p_nom_extendable": True,
+                "p_nom_max": 100,
+                "capital_cost": {0: 0, 50: 5, 100: 2},
+            },
+            [False],
+            "capital_cost_piecewise",
+            INCREMENTAL,
+            WEIGHTS | {"_p_nom": BUS, "_cost": OBJECTIVE},
+            id="capital-cost",
+        ),
+        pytest.param(
+            "Link",
+            {
+                "bus0": "bus0",
+                "bus1": "bus1",
+                "p_nom": 100,
+                "marginal_cost": 1,
+                "efficiency": {0: 0, 0.1: 0.3, 0.5: 0.4, 1: 0.6},
+            },
+            [False],
+            "p_piecewise",
+            INCREMENTAL,
+            WEIGHTS | {"_p_ungated": BUS, "_delivery_ungated": BUS},
+            id="link-efficiency",
+        ),
+    ],
+)
+def test_piecewise_names_and_scaling(
+    component: str,
+    attrs: dict[str, Any],
+    committable: list[bool],
+    curve: str,
+    variables: set[str],
+    constraints: dict[str, float],
+) -> None:
+    """Pin the names mathspec gives the helpers of a curve, and their scaling."""
+    n = pypsa.Network()
+    n.add("Bus", ["bus0", "bus1"], scaling=BUS)
+    n.add("Load", "load", bus="bus0", p_set=50)
+    for i, com in enumerate(committable):
+        n.add(component, f"unit{i}", committable=com, **attrs)
+    m = n.optimize.create_model(objective_scaling=OBJECTIVE)
+    name = f"{component}-{curve}"
+    assert {k for k in m.variables if "piecewise" in k} == {name + k for k in variables}
+    factors = {
+        k: set(c.scaling.values[c.labels.values != -1])
+        for k, c in m.constraints.items()
+        if "piecewise" in k
+    }
+    assert factors == {name + k: {v} for k, v in constraints.items()}
 
 
 class TestPiecewiseCostsErrors:

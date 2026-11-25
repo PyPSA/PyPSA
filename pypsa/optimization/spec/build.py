@@ -18,15 +18,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import Model
-from linopy.constants import (
-    BREAKPOINT_DIM,
-    PWL_ACTIVE_BOUND_SUFFIX,
-    PWL_BINARY_ORDER_SUFFIX,
-    PWL_CHORD_SUFFIX,
-    PWL_DELTA_BOUND_SUFFIX,
-    PWL_FILL_ORDER_SUFFIX,
-    PWL_OUTPUT_LINK_SUFFIX,
-)
+from linopy.constants import BREAKPOINT_DIM
 from linopy.constraints import Constraint
 from linopy.expressions import LinearExpression
 from linopy.variables import Variable
@@ -246,15 +238,14 @@ def _renamer(s: Spec, named: Names, mode: str | None) -> Callable[[str], str]:
     """Return the PyPSA name of each entry linopy builds from `s`.
 
     An entry a piecewise curve expands into takes the curve's PyPSA name
-    and linopy's suffix of its kind.
+    and the suffix the spec's expansion gives it.
     """
     curves = {f"{k}_": pypsa_name(k, named["piecewise"]) for k in s.piecewise}
 
     def rename(key: str) -> str:
         for prefix, curve in curves.items():
             if key.startswith(prefix):
-                suffix = key.removeprefix(prefix)
-                return f"{curve}_{PIECEWISE_SUFFIX.get(suffix, suffix)}"
+                return f"{curve}_{key.removeprefix(prefix)}"
         if key in s.constraints:
             return pypsa_name(key, named["constraints"], mode)
         return pypsa_name(key, named["variables"])
@@ -276,10 +267,6 @@ def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
     found = [d for d in dims if d in named]
     renamed = {found[0]: "name"} if len(found) == 1 else {}
     return renamed | ({"breakpoint": BREAKPOINT_DIM} if "breakpoint" in dims else {})
-
-
-#: linopy's suffix of a piecewise row or column, where the spec's expansion names it otherwise.
-PIECEWISE_SUFFIX = {"order": "order_binary", "cost": "output_link"}
 
 
 #: The fields of a constraint besides its terms, as the build sets them.
@@ -385,18 +372,10 @@ UNSCALED = {
     "maintenance_status",
     "phase_shift",
 }
-#: linopy's rows of a piecewise curve that hold only its weights and binaries.
-WEIGHT_ROWS = {
-    suffix.removeprefix("_")
-    for suffix in (
-        PWL_ACTIVE_BOUND_SUFFIX,
-        PWL_BINARY_ORDER_SUFFIX,
-        PWL_DELTA_BOUND_SUFFIX,
-        PWL_FILL_ORDER_SUFFIX,
-    )
-}
-#: linopy's rows of a cost curve that hold the cost besides those of its `cost` link.
-COST_ROWS = {s.removeprefix("_") for s in (PWL_CHORD_SUFFIX, PWL_OUTPUT_LINK_SUFFIX)}
+#: The rows of a piecewise curve that hold only its weights and binaries.
+WEIGHT_ROWS = {"active_bound", "binary_order", "delta_bound", "fill_order"}
+#: The rows of a cost curve that hold the cost: its chords and its `cost` link.
+COST_ROWS = {"chord", "cost"}
 
 
 def _scale_columns(m: Model, n: Network, objective: float) -> None:
@@ -439,7 +418,7 @@ def _rule(name: str, con: Constraint, n: Network, rules: dict[str, str]) -> str:
     curve, piecewise, kind = name.rpartition("_piecewise_")
     if piecewise and kind in WEIGHT_ROWS:
         return "none"
-    cost = kind in COST_ROWS or kind.startswith("cost")
+    cost = kind.removesuffix("_ungated") in COST_ROWS
     if piecewise and curve.endswith("cost") and cost:
         return "objective"
     component = name.partition("-")[0]

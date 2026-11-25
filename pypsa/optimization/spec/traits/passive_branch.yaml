@@ -23,7 +23,7 @@ dimensions:
   UNIT: {}
   cycle: {}
   outage: {}
-  segment: {dtype: int}
+  cut: {dtype: int}
   period: {dtype: int, ordered: true}
 
 parameters:
@@ -59,11 +59,11 @@ parameters:
     dims: [scenario, snapshot, UNIT]
   COMPONENT_loss_slope:
     description: the slope of each cut below the quadratic loss curve, a tangent or a secant. No value means no cut
-    dims: [scenario, snapshot, UNIT, segment]
+    dims: [scenario, snapshot, UNIT, cut]
     missing: absent
   COMPONENT_loss_offset:
     description: where each cut meets the loss axis. No value means no cut
-    dims: [scenario, snapshot, UNIT, segment]
+    dims: [scenario, snapshot, UNIT, cut]
     missing: absent
 
 relations:
@@ -157,7 +157,7 @@ constraints:
       tangents: COMPONENT-loss_tangents-pos
       secants: COMPONENT-loss_secants-pos
     description: the loss lies above each cut of the loss curve, mirrored for negative flow
-    dims: [scenario, snapshot, UNIT, segment]
+    dims: [scenario, snapshot, UNIT, cut]
     where: COMPONENT_lossy
     expression: COMPONENT_loss + COMPONENT_loss_slope * COMPONENT_s >= COMPONENT_loss_offset
   COMPONENT_loss_tangents_neg:
@@ -165,7 +165,7 @@ constraints:
       tangents: COMPONENT-loss_tangents-neg
       secants: COMPONENT-loss_secants-neg
     description: the loss lies above each cut of the loss curve, for positive flow
-    dims: [scenario, snapshot, UNIT, segment]
+    dims: [scenario, snapshot, UNIT, cut]
     where: COMPONENT_lossy
     expression: COMPONENT_loss - COMPONENT_loss_slope * COMPONENT_s >= COMPONENT_loss_offset
   COMPONENT_fix_s_lower_security:
