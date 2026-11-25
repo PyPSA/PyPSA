@@ -162,6 +162,22 @@ def test_a_source_name_takes_one_derivation(monkeypatch):
         _providers(formulated(pypsa.Network()))
 
 
+def test_a_subclass_extends_the_source_registry(ac_dc_network):
+    class Extended(NetworkSources):
+        def __init__(self, *args, **kwargs) -> None:
+            super().__init__(*args, **kwargs)
+            extra = {"COMPONENT_tag": lambda s, name, c: s.filled(name, 2.0)}
+            self._providers = _providers(self.units.values(), _SOURCES | extra)
+
+    n = ac_dc_network
+    s = mathspec.override(
+        spec(), [{"parameters": {"Generator_tag": {"dims": ["Generator"]}}}]
+    )
+    assert (Extended(n, s, n.snapshots, n.snapshots)["Generator_tag"] == 2.0).all()
+    with pytest.raises(NotImplementedError):
+        NetworkSources(n, s, n.snapshots, n.snapshots)["Generator_tag"]
+
+
 @pytest.mark.parametrize(
     ("name", "error", "match"),
     [

@@ -70,12 +70,15 @@ def source[F: Callable[..., Any]](*keys: str) -> Callable[[F], F]:
     return register
 
 
-def _providers(components: Collection[Components]) -> dict[str, Callable[..., Any]]:
-    """Return the derivation of each source name, a placeholder key stated per component that has its placeholders."""
+def _providers(
+    components: Collection[Components],
+    sources: Mapping[str, Callable[..., Any]] = _SOURCES,
+) -> dict[str, Callable[..., Any]]:
+    """Return the derivation in `sources` of each source name, a placeholder key stated per component that has its placeholders."""
     general = {
-        k: f for k, f in _SOURCES.items() if PLACEHOLDERS.isdisjoint(WORD.findall(k))
+        k: f for k, f in sources.items() if PLACEHOLDERS.isdisjoint(WORD.findall(k))
     }
-    stated = {k: f for k, f in _SOURCES.items() if k not in general}
+    stated = {k: f for k, f in sources.items() if k not in general}
     providers = dict(general)
     for c in components:
         rename = renamer(c)
@@ -489,6 +492,33 @@ class NetworkSources(Mapping[str, Any]):
         by_period = active.assign_coords(period=("snapshot", self.period_of))
         by_period = by_period.groupby("period").any("snapshot")
         return by_period.reindex(period=self.periods, fill_value=False)
+
+    def cycle_matrices(self, period: int | None) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Return the cycle matrix of a period, plain and weighted, branches by cycles."""
+        return self.n._cycle_matrices(period, self.cycle_basis_method)
+
+    def outage_factors(
+        self, period: int | None, outages: pd.MultiIndex
+    ) -> pd.DataFrame:
+        """Return the outage factors of a period's sub-networks, branches by outage."""
+        n = self.n
+        topology = self.memo(
+            "outage topology",
+            lambda: n.get_scenario(n.scenarios[0]) if n.has_scenarios else n,
+        )
+        topology.determine_network_topology(
+            investment_period=period, skip_isolated_buses=True
+        )
+        frames = []
+        for sub_network in topology.c.sub_networks.static.obj:
+            branches = sub_network.branches_i()
+            outaged = branches.intersection(outages)
+            if outaged.empty:
+                continue
+            sub_network.calculate_BODF()
+            frame = pd.DataFrame(sub_network.BODF, index=branches, columns=branches)
+            frames.append(frame[outaged].droplevel(0, axis=1))
+        return pd.concat(frames) if frames else pd.DataFrame()
 
     def over_snapshots(self, values: np.ndarray) -> xr.DataArray:
         """Return `values` laid over the build's snapshots."""
