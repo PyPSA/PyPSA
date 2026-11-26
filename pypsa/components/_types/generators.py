@@ -55,7 +55,7 @@ class Generators(Components):
         "commitment",
         "ramping",
         "maintenance",
-        "primary_energy",
+        "operational_limit",
     )
 
     def get_bounds_pu(

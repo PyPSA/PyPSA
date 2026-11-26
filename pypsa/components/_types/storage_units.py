@@ -41,7 +41,7 @@ class StorageUnits(Components):
         "capacity",
         "marginal_cost",
         "oneport",
-        "primary_energy",
+        "operational_limit",
         "storage",
     )
     _level_attrs = ("state_of_charge_initial", "cyclic_state_of_charge")

@@ -49,7 +49,7 @@ class Stores(Components):
         "marginal_cost",
         "dispatch",
         "oneport",
-        "primary_energy",
+        "operational_limit",
         "storage",
     )
     _level_attrs = ("e_initial", "e_cyclic")
