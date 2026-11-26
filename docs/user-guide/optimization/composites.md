@@ -78,7 +78,9 @@ for each type:
   reads the rating of each instance's charger;
 * a parameter `battery_<parameter>` for each parameter the math reads, as
   `battery_max_hours`. Its default sets its dtype: `true` or `false` makes it
-  a bool, a text a str, a number a float. So it cannot be required.
+  a bool, a text a str, a number a float. So it cannot be required. Its
+  column on the first member cannot be one PyPSA uses, as `v_nom` for a type
+  `v` on a bus.
 
 Where the math needs an attribute a template sets, it reads it from the
 member, as `at(Link_efficiency, by=battery_members[charger])`.
@@ -135,7 +137,8 @@ See [Reading expressions](custom-constraints.md#reading-expressions).
 * `n.add` takes no `overwrite` for a composite, and refuses an instance whose
   member names exist.
 * Every key of the math starts with `<type>_`. The math adds to the
-  formulation; it does not change or remove an entry. Use
+  formulation; it does not change or remove an entry, nor declare a name
+  another registered type declares. Use
   [overrides](custom-constraints.md#overriding-the-formulation) for that.
 * An instance is built in full or not at all: deactivate or remove all of its
   members, not some.
