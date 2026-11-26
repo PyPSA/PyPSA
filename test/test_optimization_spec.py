@@ -6,7 +6,9 @@ import re
 from pathlib import Path
 
 import mathspec
+import pandas as pd
 import pytest
+import xarray as xr
 import yaml
 
 import pypsa
@@ -254,6 +256,127 @@ def test_ports_of_links_and_processes_share_one_dim():
     }
     assert live["Link"][live["Link"]].index.tolist() == [("link", 2)]
     assert live["Process"][live["Process"]].index.tolist() == [("proc", 1)]
+
+
+@pytest.fixture
+def ac_dc_two_periods(ac_dc_network):
+    n = ac_dc_network
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots[:5]])
+    n.investment_periods = [2020, 2030]
+    return n
+
+
+NETWORKS = ["ac_dc_network", "ac_dc_stochastic", "ac_dc_two_periods"]
+
+
+def _solved(
+    request: pytest.FixtureRequest, network: str, **kwargs: object
+) -> pypsa.Network:
+    n = request.getfixturevalue(network)
+    multi_invest = n.has_investment_periods
+    n.optimize(multi_investment_periods=multi_invest, expressions=True, **kwargs)
+    return n
+
+
+def _pandas(da: xr.DataArray, n: pypsa.Network) -> pd.Series | pd.DataFrame:
+    if not n.has_scenarios:
+        da = da.squeeze("scenario", drop=True)
+    units = [d for d in ("scenario", "name") if d in da.dims]
+    if "snapshot" not in da.dims:
+        return da.transpose(*units).to_series()
+    if len(units) > 1:
+        da = da.stack(column=units)
+    return da.transpose("snapshot", ...).to_pandas().set_axis(n.snapshots)
+
+
+@pytest.mark.parametrize("network", NETWORKS)
+@pytest.mark.parametrize(
+    ("name", "read"),
+    [
+        ("Generator_p_nom_effective", lambda n: n.c.generators.static.p_nom_opt),
+        ("Line_s_monitored", lambda n: n.c.lines.dynamic.p0),
+    ],
+)
+def test_an_expression_reads_the_solution(request, network, name, read):
+    n = _solved(request, network)
+    expected = read(n)
+    result = _pandas(n.model.expressions[name].solution, n)
+    assert_equal = (
+        pd.testing.assert_frame_equal
+        if expected.ndim == 2
+        else pd.testing.assert_series_equal
+    )
+    assert_equal(result, expected, check_names=False)
+
+
+@pytest.mark.parametrize("network", NETWORKS)
+@pytest.mark.parametrize("objective_scaling", [1.0, 1e-3])
+def test_the_total_cost_is_the_objective(request, network, objective_scaling):
+    n = _solved(request, network, objective_scaling=objective_scaling)
+    cost = n.model.expressions["total_cost"].solution.item()
+    assert cost == pytest.approx(n.objective + n.objective_constant)
+
+
+@pytest.mark.parametrize("network", NETWORKS)
+@pytest.mark.parametrize(
+    ("name", "variable"),
+    [("Line_s_monitored", "Line-s"), ("Generator_running_cost", "Generator-p")],
+)
+def test_an_expression_takes_the_dims_of_its_variable(request, network, name, variable):
+    n = request.getfixturevalue(network)
+    m = n.optimize.create_model(
+        multi_investment_periods=n.has_investment_periods, expressions=True
+    )
+    expr, var = m.expressions[name], m.variables[variable]
+    assert expr.coord_dims == var.dims
+    xr.testing.assert_equal(expr.coords.to_dataset(), var.coords.to_dataset())
+
+
+def test_an_override_adds_an_expression_with_a_variable_term(request):
+    dims = ["scenario", "snapshot", "Generator"]
+    added = {
+        "Generator_twice_p": {"dims": dims, "expression": "2 * Generator_p"},
+        "Generator_twice_p_max_pu": {
+            "dims": dims,
+            "expression": "2 * Generator_p_max_pu",
+        },
+        "Generator_price": {
+            "dims": dims,
+            "expression": "at(dual(Bus_nodal_balance), by=Generator_bus[bus])",
+        },
+    }
+    n = _solved(request, "ac_dc_network", overrides=[{"expressions": added}])
+    built = n.model.expressions
+    assert {"Generator_twice_p_max_pu", "Generator_price"}.isdisjoint(built)
+    result = _pandas(built["Generator_twice_p"].solution, n)
+    pd.testing.assert_frame_equal(
+        result, 2 * n.c.generators.dynamic.p, check_names=False
+    )
+
+
+def test_an_expression_over_two_components_keeps_their_dims(ac_dc_network):
+    body = "Generator_p_nom_effective + Link_p_nom_effective"
+    dims = ["scenario", "Generator", "Link"]
+    added = {"Generator_Link_p_nom": {"dims": dims, "expression": body}}
+    m = ac_dc_network.optimize.create_model(
+        expressions=True, overrides=[{"expressions": added}]
+    )
+    expr = m.expressions["Generator_Link_p_nom"]
+    assert expr.coord_dims == ("Generator", "Link", "scenario")
+
+
+def test_an_expression_over_period_and_snapshot_keeps_its_periods(ac_dc_two_periods):
+    dims = ["scenario", "snapshot", "period", "Generator"]
+    body = "Generator_p * period_weighting_objective"
+    added = {"Generator_p_by_period": {"dims": dims, "expression": body}}
+    m = ac_dc_two_periods.optimize.create_model(
+        multi_investment_periods=True,
+        expressions=True,
+        overrides=[{"expressions": added}],
+    )
+    period = m.expressions["Generator_p_by_period"].coords["period"]
+    assert period.dims == ("period",)
+    assert period.values.tolist() == [2020, 2030]
 
 
 @pytest.mark.parametrize(

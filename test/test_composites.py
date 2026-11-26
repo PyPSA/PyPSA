@@ -33,6 +33,12 @@ components:
   Store:
     store: {bus: "@dc", e_nom_extendable: true, e_cyclic: true, capital_cost: $capital_cost_energy}
 math:
+  expressions:
+    battery_power:
+      dims: [scenario, snapshot, battery]
+      expression: >-
+        at(Link_p, by=battery_members[discharger])
+        - at(Link_p, by=battery_members[charger])
   constraints:
     battery_inverter:
       description: where `battery_efficiency` is high, the charger and the discharger share one rating
@@ -250,6 +256,19 @@ def test_statistics_group_by_instance(n):
     n.optimize()
     balance = n.statistics.energy_balance(groupby="composite")
     assert set(balance.index.get_level_values("composite")) == {"", *INSTANCES}
+
+
+def test_an_expression_reads_each_instance(n):
+    _add(n)
+    n.optimize(expressions=True)
+    power = n.model.expressions["battery_power"].solution
+    power = power.squeeze("scenario", drop=True).to_pandas().T
+    p = n.c.links.dynamic.p
+    discharge = p[INSTANCES + " discharger"].set_axis(INSTANCES, axis=1)
+    charge = p[INSTANCES + " charger"].set_axis(INSTANCES, axis=1)
+    pd.testing.assert_frame_equal(
+        power, discharge - charge, check_names=False, check_column_type=False
+    )
 
 
 def test_a_type_without_instances_adds_no_rows(n):
