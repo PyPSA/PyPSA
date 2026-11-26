@@ -324,13 +324,13 @@ def _relabel(
     *,
     snapshots: pd.Index,
     network_index: pd.Index,
-) -> tuple[dict[str, dict[str, str]], dict[str, xr.Dataset]]:
+) -> tuple[dict[str, dict[str, str]], dict[str, xr.Coordinates]]:
     """Rename every dim of `m` as PyPSA names it, in linopy's order and with linopy's labels.
 
     Entries without a single row are removed, as PyPSA does not build them.
     A network without scenarios keeps its one scenario, labelled `BASE_SCENARIO`.
     A unit without a row stays as a masked coordinate.
-    Return the dims renamed per entry kept and the data of each variable removed.
+    Return the dims renamed per entry kept and the coords of each variable removed.
     """
     levels = (
         {
@@ -352,10 +352,10 @@ def _relabel(
         return obj
 
     renamed: dict[str, dict[str, str]] = {}
-    dropped: dict[str, xr.Dataset] = {}
+    dropped: dict[str, xr.Coordinates] = {}
     for name, var in list(m.variables.items()):
         if not (var.labels.values != -1).any():
-            dropped[name] = var.data
+            dropped[name] = var.labels.coords
             m.variables.remove(name)
             continue
         dims = tuple(var.labels.dims)
@@ -385,7 +385,7 @@ class Built(NamedTuple):
     sources: NetworkSources
     rename: Callable[[str], str]
     dims: dict[str, dict[str, str]]
-    dropped: dict[str, xr.Dataset]
+    dropped: dict[str, xr.Coordinates]
     split: dict[str, list[str]]
 
 
@@ -417,8 +417,14 @@ def _solved(m: Model, built: Built) -> SimpleNamespace:
         return joined.reindex(global_constraint=coords)
 
     absent = {
-        k: d.assign(solution=xr.full_like(d.labels, np.nan, dtype=float))
-        for k, d in built.dropped.items()
+        k: xr.Dataset(
+            {"labels": xr.DataArray(-1, coords)}
+            | dict.fromkeys(
+                ("lower", "upper", "solution"), xr.DataArray(np.nan, coords)
+            ),
+            attrs={"label_range": (-1, -1)},
+        )
+        for k, coords in built.dropped.items()
     }
     data = {k: v.data for k, v in m.variables.items()} | absent
     variables = {
