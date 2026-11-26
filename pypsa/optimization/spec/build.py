@@ -497,10 +497,9 @@ def _solved(m: Model, built: Built) -> SimpleNamespace:
         parts = [m.constraints[f"GlobalConstraint-{label}"]._dual for label in labels]
         if any(part is None for part in parts):
             return None
-        joined = framed(
-            xr.concat(parts, pd.Index(labels, dtype=object, name="name")), name
-        )
-        return joined.reindex(global_constraint=built.sources["global_constraint"])
+        target = built.sources["global_constraint"]
+        index = pd.Index(labels, dtype=target.dtype, name="name")
+        return framed(xr.concat(parts, index), name).reindex(global_constraint=target)
 
     named = {built.rename(k) for k in built.spec.constraints}
     kept = named & (m.constraints.data.keys() | built.split.keys())
