@@ -276,7 +276,7 @@ layer wins:
 
 1. the specification, patched for `linearized_unit_commitment`;
 2. the `piecewise_options`;
-3. the [composite types](composites.md);
+3. the [composite types](../optimization/composites.md);
 4. the stored overrides, in the order they were registered;
 5. the `overrides` of the call.
 
