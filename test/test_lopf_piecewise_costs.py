@@ -587,6 +587,41 @@ def test_piecewise_names_and_scaling(
     assert factors == {name + k: {v} for k, v in constraints.items()}
 
 
+@pytest.mark.parametrize(
+    ("component", "attrs", "assumption"),
+    [
+        (
+            "Generator",
+            {"bus": "bus0", "marginal_cost": {0: 60, 0.5: 75, 1: 100}},
+            "Generator_marginal_cost",
+        ),
+        (
+            "Generator",
+            {"bus": "bus0", "efficiency": {0: 0, 0.5: 0.4, 1: 0.6}},
+            "Generator_efficiency",
+        ),
+        (
+            "Link",
+            {"bus0": "bus0", "bus1": "bus1", "efficiency": {0: 0, 0.5: 0.4, 1: 0.6}},
+            "Link_efficiency",
+        ),
+    ],
+)
+def test_linearized_unit_commitment_refuses_committable_curve(
+    component: str, attrs: dict[str, Any], assumption: str
+) -> None:
+    """A curve of a committable unit needs an integer status gate."""
+    n = pypsa.Network()
+    n.add("Bus", ["bus0", "bus1"])
+    n.add("Carrier", "gas", co2_emissions=1)
+    n.add("GlobalConstraint", "co2", sense="<=", constant=1e4)
+    n.add("Generator", ["s0", "s1"], bus=["bus0", "bus1"], p_nom=100, marginal_cost=1)
+    n.add(component, "unit", p_nom=100, committable=True, carrier="gas", **attrs)
+    n.optimize.create_model()
+    with pytest.raises(ValueError, match=f"{assumption}_curve_is_not_committable"):
+        n.optimize.create_model(linearized_unit_commitment=True)
+
+
 class TestPiecewiseCostsErrors:
     def test_piecewise_capital_cost_with_overnight_cost_raises(self) -> None:
         """Defining overnight_cost next to a piecewise capital_cost curve is ambiguous."""

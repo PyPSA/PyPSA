@@ -68,6 +68,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
+- **Behavior change**: Fix [`n.optimize(linearized_unit_commitment=True)`][pypsa.optimization.OptimizationAccessor.__call__] returning a wrong optimum for a committable component with a [piecewise](./user-guide/optimization/piecewise.md) `marginal_cost` or `efficiency` curve. The relaxed status gated the curve so that a unit only partly on could not pass the first segment. Such a component now raises a `ValueError`; use the full unit commitment for it, or make it non-committable. (<!-- md:pr 2128 -->)
 - Fix [`n.merge`][pypsa.Network.merge] filling dynamic output data such as the links' `p0` with default values, even when the data was absent from both input networks. Empty time series are now skipped during the merge.
 - Fix modelling-to-generate-alternatives (MGA) objectives that combine weights across component types with different names under linopy v1 semantics.
 - Fix building multi-period models with [`n.optimize(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.__call__] when a link is inactive in some investment periods, which raised a `ValueError` about NaN constants with the stricter arithmetic of upcoming linopy releases. (<!-- md:pr 2180 -->)
