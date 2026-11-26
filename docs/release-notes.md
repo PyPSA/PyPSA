@@ -50,6 +50,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Added an [example notebook](./examples/data-centre-investment.ipynb) on data centre investment with a willingness to pay, modelled as an extendable generator with negative sign and quadratic marginal costs.
 - Extend the [unit commitment example](./examples/unit-commitment.ipynb) with committable demand: load shedding in blocks and flexible demand with start-up cost. (<!-- md:pr 2147 -->)
 - Moved the AI-based contribution guidelines to their own page, [AI-based Contributions](contributing/ai.md), reachable at docs.pypsa.org/ai. (<!-- md:pr 2194 -->)
+- Correct the [emissions budget formula](./user-guide/optimization/pathway-planning.md#emission-budgets) to include the `years` weighting when a primary energy constraint applies to a single investment period.
 
 ### Bug Fixes
 
