@@ -609,7 +609,10 @@ class Composites(Mapping[str, Composite]):
         if known is not None and known != asdict(t):
             msg = f"Another composite type {t.name!r} is registered."
             raise ValueError(msg)
-        taken = {k for c in self.values() if c.name != t.name for k in c.type.entries}
+        others = [
+            CompositeType(**d) for k, d in self._definitions().items() if k != t.name
+        ]
+        taken = {k for other in others for k in other.entries}
         if clash := sorted(t.entries & taken):
             msg = f"The composite type {t.name!r} declares {clash}, which another registered type declares."
             raise ValueError(msg)

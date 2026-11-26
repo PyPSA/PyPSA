@@ -456,6 +456,13 @@ def test_editing_a_read_type_leaves_the_stored_type(n):
     assert n.composites.battery.type.templates["charger"]["efficiency"] == "$efficiency"
 
 
+def test_a_stale_type_leaves_others_to_register(n):
+    n.meta["composites"]["battery"]["parameters"]["legacy"] = 1
+    n.composites.register(_replaced(("battery", "cell")))
+    with pytest.raises(ValueError, match="declares"):
+        n.composites.register(_replaced(("battery", "battery_power")))
+
+
 def test_another_type_of_the_same_name_is_refused(n):
     n.composites.register(BATTERY)
     with pytest.raises(ValueError, match="Another composite type"):
