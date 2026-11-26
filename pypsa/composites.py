@@ -524,6 +524,8 @@ class Composites(Mapping[str, Composite]):
 
     """
 
+    __slots__ = ("n",)
+
     def __init__(self, n: Network) -> None:
         """Bind the registry to the network."""
         self.n = n

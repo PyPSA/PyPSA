@@ -375,6 +375,7 @@ def _with(**changes):
         (_with(name="Link"), "named by an identifier"),
         (_with(name="bus"), "named by an identifier"),
         (_with(name="register"), "named by an identifier"),
+        (_with(name="n"), "named by an identifier"),
         (_with(volume=1), "sections"),
         (_with(components={"Battery": {"x": {}}}), "by component class"),
         (_with(components={"Carrier": {"x": {}}}), "by component class"),
