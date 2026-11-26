@@ -18,7 +18,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pypsa._registry import Registry, jsonable
-from pypsa.optimization.spec.build import _layer, holding, is_path, laid, written
+from pypsa.optimization.spec.build import (
+    _layer,
+    fingerprint,
+    holding,
+    is_path,
+    laid,
+    written,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -56,9 +63,10 @@ class Overrides(Registry[dict[str, Any]]):
     A build lays them over the formulation after the composite types and
     before the per-call `overrides` of `n.optimize()`, in the order they were
     registered, so a later one wins. They may edit, remove and add entries.
-    Each entry stores the patch and the keys it edits and creates. A build
-    refuses an override whose edited keys the formulation below it no longer
-    declares, or whose created keys it now declares.
+    Each entry stores the patch, the keys it edits with a fingerprint of their
+    content, and the keys it creates. A build refuses an override whose
+    edited keys the formulation below it no longer declares or PyPSA changed,
+    or whose created keys it now declares.
 
     Examples
     --------
@@ -133,7 +141,7 @@ class Overrides(Registry[dict[str, Any]]):
         entries = written(patch).keys()
         stored = {
             "patch": patch,
-            "edits": sorted(entries & keys),
+            "edits": {k: fingerprint(k) for k in sorted(entries & keys)},
             "creates": sorted(entries - keys),
         }
         self._write(self._entries() | {name: stored})
@@ -201,14 +209,19 @@ class Overrides(Registry[dict[str, Any]]):
         ------
         ValueError
             An override edits a key the spec below it no longer declares,
-            which would add the entry, or creates one it now declares, which
-            would edit it.
+            which would add the entry, or one PyPSA changed since it was
+            registered; or it creates one it now declares, which would edit it.
 
         """
         layers = []
         for name, entry in self._entries().items():
             gone = [k for k in entry["edits"] if k not in keys]
             taken = [k for k in entry["creates"] if k in keys]
+            changed = [
+                k
+                for k, h in entry["edits"].items()
+                if k in keys and h != fingerprint(k)
+            ]
             drift = []
             if gone:
                 drift.append(
@@ -216,10 +229,12 @@ class Overrides(Registry[dict[str, Any]]):
                 )
             if taken:
                 drift.append(f"creates {taken}, which the spec below it now declares")
+            if changed:
+                drift.append(f"edits {changed}, which PyPSA changed since")
             if drift:
                 advice = (
                     "The formulation or the composite types differ from those it was registered with; remove it, check it and register it again."
-                    if plain
+                    if plain or changed
                     else "Stored overrides are checked without linearised unit commitment and piecewise options; pass it to this build as a per-call override instead."
                 )
                 msg = f"The stored override {name!r} {' and '.join(drift)}. {advice}"

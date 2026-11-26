@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import functools
+import hashlib
 import json
 import logging
 import re
@@ -198,6 +199,16 @@ def _keys(linearized_unit_commitment: bool) -> frozenset[str]:
     return frozenset(written(_base(linearized_unit_commitment)[0].to_dict()))
 
 
+@functools.cache
+def fingerprint(key: str) -> str:
+    """Return a hash of the entry `key` of the default spec as `written` names it, without its description."""
+    entry = written(_base(False)[0].to_dict()).get(key)
+    if isinstance(entry, Mapping):
+        entry = {k: v for k, v in entry.items() if k != "description"}
+    text = json.dumps(entry, sort_keys=True)
+    return hashlib.sha256(text.encode()).hexdigest()[:16]
+
+
 def _stack(
     n: Network,
     linearized_unit_commitment: bool,
@@ -209,7 +220,7 @@ def _stack(
 
     Raises:
         ValueError: A stored override no longer edits or creates what it was
-            registered to.
+            registered to, or PyPSA changed an entry it edits.
 
     """
     layers = _piecewise_layers(linearized_unit_commitment, piecewise_options)

@@ -294,11 +294,13 @@ composite type cannot declare an entry that a stored override adds.
 A loaded network reproduces the stored math, but not the options of the call:
 pass `linearized_unit_commitment` and `piecewise_options` again (see
 [#2146](https://github.com/PyPSA/PyPSA/issues/2146)). Each stored override
-records which entries it edits and which it adds. If a later PyPSA release or
-the options of a build remove an entry it edits, or add one it adds, the build
-fails instead of changing the problem silently. After a release, check the
-override, remove it and register it again; for the options of a build, pass it
-per call.
+records which entries it edits, with a fingerprint of their content, and which
+it adds. If a later PyPSA release removes or changes an entry it edits, or adds
+one it adds, the build fails instead of changing the problem silently; the
+same holds where the options of a build remove or add such entries. After a
+release, check the override, remove it and register it again; for the options
+of a build, pass it per call. The check does not cover entries an override
+only reads, such as a variable its own constraint uses.
 
 `pypsa.optimization.spec.spec()` returns the specification of a network
 without composites and stored overrides. It is not the specification a given

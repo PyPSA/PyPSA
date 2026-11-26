@@ -300,7 +300,7 @@ def test_an_override_of_linearised_unit_commitment_stays_per_call(ac_dc_network)
         (
             {
                 "patch": {"constraints": {"Generator_old": HALF}},
-                "edits": ["constraints.Generator_old"],
+                "edits": {"constraints.Generator_old": "0"},
                 "creates": [],
             },
             r"'old' edits \['constraints.Generator_old'\], which the spec below it no longer declares",
@@ -308,10 +308,18 @@ def test_an_override_of_linearised_unit_commitment_stays_per_call(ac_dc_network)
         (
             {
                 "patch": {"constraints": {"Generator_ext_p_upper": HALF}},
-                "edits": [],
+                "edits": {},
                 "creates": ["constraints.Generator_ext_p_upper"],
             },
             r"'old' creates \['constraints.Generator_ext_p_upper'\], which the spec below it now declares",
+        ),
+        (
+            {
+                "patch": {"constraints": {"Generator_ext_p_upper": HALF}},
+                "edits": {"constraints.Generator_ext_p_upper": "0"},
+                "creates": [],
+            },
+            r"'old' edits \['constraints.Generator_ext_p_upper'\], which PyPSA changed since",
         ),
     ],
 )
@@ -327,16 +335,20 @@ def test_a_stored_override_that_drifted_from_the_spec_fails(
     n.optimize.create_model()
 
 
+def test_an_entry_linearised_unit_commitment_rewrites_is_no_change(ac_dc_network):
+    n = ac_dc_network
+    status = {"variables": {"Generator_status": {"description": "on or off"}}}
+    n.optimize.overrides.register(status, name="status")
+    n.optimize.create_model(linearized_unit_commitment=True)
+
+
 def test_clear_drops_stored_overrides_that_no_longer_build(ac_dc_network):
     n = ac_dc_network
     n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
-    stale = {
+    n.meta["_pypsa"]["overrides"]["old"] = {
         "patch": {"constraints": {"Generator_old": None}},
-        "edits": [],
+        "edits": {"constraints.Generator_old": "0"},
         "creates": [],
-    }
-    n.meta["_pypsa"]["overrides"]["old"] = stale | {
-        "edits": ["constraints.Generator_old"]
     }
     n.optimize.overrides.clear()
     assert "_pypsa" not in n.meta
@@ -397,7 +409,7 @@ def test_merge_unites_stored_overrides(ac_dc_network):
     other.optimize.overrides.register(OVERRIDE, name="half")
     assert list(n.merge(other).optimize.overrides) == ["no_ramps", "half"]
     other.optimize.overrides.remove("half")
-    stored = {"patch": OVERRIDE, "edits": [], "creates": []}
+    stored = {"patch": OVERRIDE, "edits": {}, "creates": []}
     other.meta["_pypsa"] = {"overrides": {"no_ramps": stored}}
     with pytest.raises(
         ValueError, match=r"different override under the names \['no_ramps'\]"
