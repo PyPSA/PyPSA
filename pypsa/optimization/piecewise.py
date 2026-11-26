@@ -289,7 +289,16 @@ def _get_breakpoints(
                 f"Extendable components: {bad.tolist()}."
             )
             raise ValueError(msg)
-        nom_attr_da = xr.DataArray(c.static.loc[pw_names, nom_attr], dims="name")
+        nominal = c.static.loc[pw_names, nom_attr]
+        if c.name == "Store":
+            # A Store's power rating is e_nom / max_hours, which is also
+            # the unit of p_min_pu/p_max_pu. Scale its p_pu breakpoints by
+            # that rating where max_hours is finite; with infinite
+            # max_hours e_nom stays the only scale (#2118).
+            max_hours = c.static.loc[pw_names, "max_hours"]
+            finite = max_hours.notna() & (max_hours > 0) & (max_hours != float("inf"))
+            nominal = nominal.where(~finite, nominal / max_hours.where(finite))
+        nom_attr_da = xr.DataArray(nominal, dims="name")
         if (
             bad := (nom_attr_da == 0)
             | (nom_attr_da.isnull())
