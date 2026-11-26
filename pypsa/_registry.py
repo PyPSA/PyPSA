@@ -162,7 +162,8 @@ class Registry[T](Mapping[str, T]):
         """Store `entries` where the build stack of the network holds with them.
 
         Raises:
-            ValueError: The stack does not hold. The registry is left as it was.
+            ValueError: The stack does not hold. On any error, the registry
+                is left as it was.
 
         """
         from pypsa.optimization.spec.build import holding  # noqa: PLC0415
@@ -171,19 +172,34 @@ class Registry[T](Mapping[str, T]):
         self._write(entries)
         try:
             holding(self.n)
-        except ValueError:
+        except BaseException:
             self.n.meta.clear()
             self.n.meta.update(before)
             raise
 
-    def _builds(self) -> bool:
-        """Whether the build stack of the network holds."""
+    def _builds(self, upto: str | None = None) -> bool:
+        """Whether the build stack of the network holds, or its part up to and with the entry `upto`."""
         from pypsa.optimization.spec.build import holding  # noqa: PLC0415
 
+        before = self.n.meta
+        if upto is not None:
+            root: dict[str, Any] = {}
+            for r in registries(self.n):
+                entries = r._entries()
+                if r.META == self.META:
+                    names = list(entries)
+                    root[r.META] = {
+                        k: entries[k] for k in names[: names.index(upto) + 1]
+                    }
+                    break
+                root[r.META] = entries
+            self.n.meta = before | {ROOT: root}
         try:
             holding(self.n)
         except ValueError:
             return False
+        finally:
+            self.n.meta = before
         return True
 
     def _dependents(self, name: str, entries: dict[str, Any]) -> list[str]:
@@ -191,12 +207,12 @@ class Registry[T](Mapping[str, T]):
         raise NotImplementedError
 
     def _remove(self, name: str) -> None:
-        """Remove an entry, also where the stack no longer builds with it.
+        """Remove an entry, also where the stack up to and with it no longer builds.
 
         Raises:
             KeyError: None of this name is registered.
-            ValueError: The stack held with it and does not without it. Nothing
-                is removed then.
+            ValueError: The stack up to and with it holds and the stack
+                without it does not. Nothing is removed then.
 
         """
         entries = self._entries()
@@ -207,7 +223,7 @@ class Registry[T](Mapping[str, T]):
         try:
             self._set(rest)
         except ValueError as e:
-            if not self._builds():
+            if not self._builds(name):
                 self._write(rest)
                 return
             dependents = self._dependents(name, entries)

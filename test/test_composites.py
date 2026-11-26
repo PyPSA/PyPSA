@@ -53,6 +53,13 @@ FLOOR = {
     "dims": ["scenario", "battery"],
     "expression": "at(Store_e_nom_effective, by=battery_members[store]) >= battery_max_hours",
 }
+CELL_ON_BATTERY = copy.deepcopy(CELL)
+CELL_ON_BATTERY["math"]["constraints"]["cell_floor"] = FLOOR
+DRIFTED = {
+    "patch": {"constraints": {"Generator_p_ramp_limit_up": None}},
+    "edits": {"constraints.Generator_p_ramp_limit_up": "0"},
+    "creates": [],
+}
 
 
 @pytest.fixture
@@ -437,27 +444,38 @@ def test_remove_unregisters_a_type_without_instances(n):
     with pytest.raises(KeyError, match="No composite type 'cell'"):
         n.composites.remove("cell")
     _add(n)
+    meta = copy.deepcopy(n.meta)
     with pytest.raises(ValueError, match=r"\['bat north', 'bat south'\] exist"):
         n.composites.remove("battery")
-    assert list(n.composites) == ["battery"]
+    assert n.meta == meta
     n.remove("battery", INSTANCES)
     n.composites.remove("battery")
-    assert "_pypsa" not in n.meta
+    assert list(n.composites) == []
     n.optimize.create_model()
     n.composites.register(_with(description="other"))
 
 
+@pytest.mark.parametrize("drifted", [False, True])
 @pytest.mark.parametrize(
-    "override",
-    [{"constraints": {"battery_duration": None}}, {"constraints": {"floor": FLOOR}}],
+    ("reader", "match"),
+    [
+        ({"constraints": {"battery_duration": None}}, r"\['own'\] build on 'battery'"),
+        ({"constraints": {"floor": FLOOR}}, r"\['own'\] build on 'battery'"),
+        (CELL_ON_BATTERY, None),
+    ],
+    ids=["override edits", "override reads", "type reads"],
 )
-def test_a_type_a_stored_override_builds_on_is_kept(n, override):
-    n.optimize.overrides.register(override, name="own")
-    with pytest.raises(ValueError, match=r"\['own'\] build on 'battery'"):
+def test_a_type_others_build_on_is_kept(n, reader, match, drifted):
+    if "name" in reader:
+        n.composites.register(reader)
+    else:
+        n.optimize.overrides.register(reader, name="own")
+    if drifted:
+        n.meta["_pypsa"].setdefault("overrides", {})["other"] = copy.deepcopy(DRIFTED)
+    meta = copy.deepcopy(n.meta)
+    with pytest.raises(ValueError, match=match):
         n.composites.remove("battery")
-    assert list(n.composites) == ["battery"]
-    n.optimize.overrides.remove("own")
-    n.composites.remove("battery")
+    assert n.meta == meta
 
 
 @pytest.mark.parametrize("own", [False, True])

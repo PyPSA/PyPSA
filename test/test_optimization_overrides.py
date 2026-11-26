@@ -388,14 +388,24 @@ def test_spatial_clustering_keeps_stored_overrides(ac_dc_network):
     assert clustered.optimize.overrides == n.optimize.overrides
 
 
-def test_an_override_others_build_on_is_kept(ac_dc_network):
+@pytest.mark.parametrize("drifted", [False, True])
+def test_an_override_others_build_on_is_kept(ac_dc_network, drifted):
     n = ac_dc_network
     parameter, constraint = ({k: v} for k, v in yaml.safe_load(FULL_LOAD_HOURS).items())
     n.optimize.overrides.register(parameter, name="parameter")
     n.optimize.overrides.register(constraint, name="constraint")
+    if drifted:
+        n.meta["_pypsa"]["overrides"]["other"] = {
+            "patch": {"constraints": {"Generator_p_ramp_limit_up": None}},
+            "edits": {"constraints.Generator_p_ramp_limit_up": "0"},
+            "creates": [],
+        }
+    meta = copy.deepcopy(n.meta)
     with pytest.raises(ValueError, match=r"\['constraint'\] build on 'parameter'"):
         n.optimize.overrides.remove("parameter")
-    assert list(n.optimize.overrides) == ["parameter", "constraint"]
+    assert n.meta == meta
+    if drifted:
+        n.optimize.overrides.remove("other")
     n.optimize.overrides.remove("constraint")
     n.optimize.overrides.remove("parameter")
     assert "_pypsa" not in n.meta

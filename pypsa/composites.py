@@ -63,6 +63,12 @@ def _tags(n: Network) -> pd.DataFrame:
     return tags[tags.composite_type.notna() & (tags.composite_type != "")]
 
 
+def _instances(n: Network, ctype: str) -> list[str]:
+    """Return the names of the instances of a composite type."""
+    tags = _tags(n)
+    return list(tags.composite[tags.composite_type == ctype].unique())
+
+
 def _text(entry: Any) -> Iterator[str]:
     """Yield the strings of a math entry, its descriptions left out."""
     if isinstance(entry, Mapping):
@@ -260,9 +266,7 @@ class Composite:
 
     def __repr__(self) -> str:
         """Name the type and count its instances."""
-        tags = _tags(self.n)
-        count = tags.composite[tags.composite_type == self.name].nunique()
-        return f"Composite '{self.name}' with {count} instances"
+        return f"Composite '{self.name}' with {len(_instances(self.n, self.name))} instances"
 
     @property
     def name(self) -> str:
@@ -550,10 +554,8 @@ class Composites(Registry[Composite]):
                 builds on it. Nothing is removed then.
 
         """
-        tags = _tags(self.n)
-        instances = tags.composite[tags.composite_type == name].unique()
-        if name in self and len(instances):
-            msg = f"The {name} instances {list(instances)} exist; remove them first with `n.remove({name!r}, ...)`."
+        if name in self and (instances := _instances(self.n, name)):
+            msg = f"The {name} instances {instances} exist; remove them first with `n.remove({name!r}, ...)`."
             raise ValueError(msg)
         self._remove(name)
 
