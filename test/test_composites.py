@@ -178,6 +178,13 @@ def test_remove_drops_every_member_of_an_instance(n):
         n.remove("battery", "bat north")
 
 
+def test_instances_remove_where_their_type_no_longer_reads(n):
+    _add(n)
+    n.meta["composites"]["battery"]["parameters"]["legacy"] = 1
+    n.remove("battery", INSTANCES)
+    assert n.composites.instances.empty
+
+
 def test_the_math_ties_the_members(n):
     _add(n)
     links = n.c.links.static

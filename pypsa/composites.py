@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import asdict, dataclass
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -263,10 +264,10 @@ class CompositeType:
 class Composite:
     """The instances of one composite type on a network."""
 
-    def __init__(self, n: Network, ctype: CompositeType) -> None:
-        """Bind the type to the network."""
+    def __init__(self, n: Network, name: str) -> None:
+        """Bind the type of this name to the network."""
         self.n = n
-        self.type = ctype
+        self.name = name
 
     def __repr__(self) -> str:
         """Name the type and count its instances."""
@@ -274,10 +275,10 @@ class Composite:
         count = tags.composite[tags.composite_type == self.name].nunique()
         return f"Composite '{self.name}' with {count} instances"
 
-    @property
-    def name(self) -> str:
-        """Return the type's name."""
-        return self.type.name
+    @cached_property
+    def type(self) -> CompositeType:
+        """Return the type, read from `n.meta`."""
+        return CompositeType.read(self.n.meta[META][self.name])
 
     def add(
         self,
@@ -530,7 +531,9 @@ class Composites(Mapping[str, Composite]):
 
     def __getitem__(self, name: str) -> Composite:
         """Return the instances of a registered type."""
-        return Composite(self.n, CompositeType.read(self._definitions()[name]))
+        if name not in self:
+            raise KeyError(name)
+        return Composite(self.n, name)
 
     def __contains__(self, name: object) -> bool:
         """Whether a type of this name is registered."""
