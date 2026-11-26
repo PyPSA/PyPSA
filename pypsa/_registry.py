@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -33,6 +34,16 @@ def jsonable(content: Any, what: str) -> Any:
         msg = f"{what} holds JSON values only: mappings with str keys, lists, str, numbers, bool and null."
         raise ValueError(msg)
     return read
+
+
+def builds_on(patch: Mapping[str, Any], touched: set[str], created: list[str]) -> bool:
+    """Whether `patch` writes a key of `touched` or reads one of `created`."""
+    from pypsa.optimization.spec.build import written  # noqa: PLC0415
+
+    if touched & written(patch).keys():
+        return True
+    text = json.dumps(patch)
+    return any(re.search(rf"\b{re.escape(c)}\b", text) for c in created)
 
 
 class Registry[T](Mapping[str, T]):
@@ -164,6 +175,46 @@ class Registry[T](Mapping[str, T]):
             self.n.meta.clear()
             self.n.meta.update(before)
             raise
+
+    def _builds(self) -> bool:
+        """Whether the build stack of the network holds."""
+        from pypsa.optimization.spec.build import holding  # noqa: PLC0415
+
+        try:
+            holding(self.n)
+        except ValueError:
+            return False
+        return True
+
+    def _dependents(self, name: str, entries: dict[str, Any]) -> list[str]:
+        """Return the stored overrides that build on the entry `name` of `entries`."""
+        raise NotImplementedError
+
+    def _remove(self, name: str) -> None:
+        """Remove an entry, also where the stack no longer builds with it.
+
+        Raises:
+            KeyError: None of this name is registered.
+            ValueError: The stack held with it and does not without it. Nothing
+                is removed then.
+
+        """
+        entries = self._entries()
+        if name not in entries:
+            msg = f"No {self.NOUN} {name!r} is registered."
+            raise KeyError(msg)
+        rest = {k: e for k, e in entries.items() if k != name}
+        try:
+            self._set(rest)
+        except ValueError as e:
+            if not self._builds():
+                self._write(rest)
+                return
+            dependents = self._dependents(name, entries)
+            if not dependents:
+                raise
+            msg = f"The overrides {dependents} build on {name!r}; remove them first."
+            raise ValueError(msg) from e
 
     def _union(self, other: Registry[T]) -> dict[str, Any]:
         """Return the entries of both, those of `other` that this lacks after its own.

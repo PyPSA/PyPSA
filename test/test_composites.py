@@ -49,6 +49,10 @@ math:
 """)
 CELL = yaml.safe_load(yaml.safe_dump(BATTERY).replace("battery", "cell"))
 INSTANCES = pd.Index(["bat north", "bat south"])
+FLOOR = {
+    "dims": ["scenario", "battery"],
+    "expression": "at(Store_e_nom_effective, by=battery_members[store]) >= battery_max_hours",
+}
 
 
 @pytest.fixture
@@ -427,3 +431,46 @@ def test_another_type_of_the_same_name_is_refused(n):
     n.composites.register(BATTERY)
     with pytest.raises(ValueError, match="Another composite type"):
         n.composites.register(_with(description="other"))
+
+
+def test_remove_unregisters_a_type_without_instances(n):
+    with pytest.raises(KeyError, match="No composite type 'cell'"):
+        n.composites.remove("cell")
+    _add(n)
+    with pytest.raises(ValueError, match=r"\['bat north', 'bat south'\] exist"):
+        n.composites.remove("battery")
+    assert list(n.composites) == ["battery"]
+    n.remove("battery", INSTANCES)
+    n.composites.remove("battery")
+    assert "_pypsa" not in n.meta
+    n.optimize.create_model()
+    n.composites.register(_with(description="other"))
+
+
+@pytest.mark.parametrize(
+    "override",
+    [{"constraints": {"battery_duration": None}}, {"constraints": {"floor": FLOOR}}],
+)
+def test_a_type_a_stored_override_builds_on_is_kept(n, override):
+    n.optimize.overrides.register(override, name="own")
+    with pytest.raises(ValueError, match=r"\['own'\] build on 'battery'"):
+        n.composites.remove("battery")
+    assert list(n.composites) == ["battery"]
+    n.optimize.overrides.remove("own")
+    n.composites.remove("battery")
+
+
+@pytest.mark.parametrize("own", [False, True])
+def test_remove_drops_a_type_that_no_longer_builds(n, own):
+    if own:
+        n.optimize.overrides.register({"constraints": {"floor": FLOOR}}, name="own")
+    constraints = n.meta["_pypsa"]["composites"]["battery"]["math"]["constraints"]
+    duration = constraints["battery_duration"]
+    duration["expression"] = duration["expression"].replace("e_nom", "e_gone")
+    with pytest.raises(LanguageError, match="Store_e_gone"):
+        n.optimize.create_model()
+    n.composites.remove("battery")
+    assert list(n.composites) == []
+    if own:
+        n.optimize.overrides.remove("own")
+    n.optimize.create_model()

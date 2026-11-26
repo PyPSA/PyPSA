@@ -12,12 +12,10 @@ networks keep it, and a loaded network builds the model its author built.
 from __future__ import annotations
 
 import copy
-import json
-import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from pypsa._registry import Registry, jsonable
+from pypsa._registry import Registry, builds_on, jsonable
 from pypsa.optimization.spec.build import (
     _layer,
     fingerprint,
@@ -30,7 +28,6 @@ from pypsa.optimization.spec.build import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from pypsa import Network
     from pypsa.optimization.spec.build import Layer, Override
 
 META = "overrides"
@@ -38,23 +35,6 @@ META = "overrides"
 
 def _label(name: str) -> str:
     return f"the stored override {name!r}"
-
-
-def _builds_on(patch: Mapping[str, Any], touched: set[str], created: list[str]) -> bool:
-    """Whether `patch` writes a key of `touched` or reads one of `created`."""
-    if touched & written(patch).keys():
-        return True
-    text = json.dumps(patch)
-    return any(re.search(rf"\b{re.escape(c)}\b", text) for c in created)
-
-
-def _builds(n: Network) -> bool:
-    """Whether the stack of `n` holds."""
-    try:
-        holding(n)
-    except ValueError:
-        return False
-    return True
 
 
 class Overrides(Registry[dict[str, Any]]):
@@ -148,7 +128,7 @@ class Overrides(Registry[dict[str, Any]]):
         return self[name]
 
     def remove(self, name: str) -> None:
-        """Remove a stored override.
+        """Remove a stored override, also where it no longer builds.
 
         Raises:
             KeyError: No override of this name is stored.
@@ -156,27 +136,13 @@ class Overrides(Registry[dict[str, Any]]):
                 later override builds on it. Nothing is removed then.
 
         """
-        entries = self._entries()
-        if name not in entries:
-            msg = f"No override {name!r} is stored."
-            raise KeyError(msg)
-        rest = {k: e for k, e in entries.items() if k != name}
-        try:
-            self._set(rest)
-        except ValueError as e:
-            if not _builds(self.n):
-                self._write(rest)
-                return
-            touched = set(written(entries[name]["patch"]))
-            created = [k.rpartition(".")[2] for k in entries[name]["creates"]]
-            later = list(entries)[list(entries).index(name) + 1 :]
-            dependents = [
-                k for k in later if _builds_on(entries[k]["patch"], touched, created)
-            ]
-            if not dependents:
-                raise
-            msg = f"The overrides {dependents} build on {name!r}; remove them first."
-            raise ValueError(msg) from e
+        self._remove(name)
+
+    def _dependents(self, name: str, entries: dict[str, Any]) -> list[str]:
+        touched = set(written(entries[name]["patch"]))
+        created = [k.rpartition(".")[2] for k in entries[name]["creates"]]
+        later = list(entries)[list(entries).index(name) + 1 :]
+        return [k for k in later if builds_on(entries[k]["patch"], touched, created)]
 
     def clear(self) -> None:
         """Remove all stored overrides, also where they no longer build.
@@ -189,7 +155,7 @@ class Overrides(Registry[dict[str, Any]]):
         try:
             self._set({})
         except ValueError:
-            if _builds(self.n):
+            if self._builds():
                 raise
             self._write({})
 

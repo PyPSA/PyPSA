@@ -118,6 +118,8 @@ n.statistics.energy_balance(groupby="composite")
   [stored overrides](custom-constraints.md#storing-overrides-on-the-network),
   so a wrong name fails there, not at the build. A type cannot declare an
   entry that a stored override adds.
+* `n.composites.remove("battery")` unregisters a type once no instance or stored
+  override uses it, also where its math no longer builds.
 * `n.add` takes no `overwrite` for a composite, and refuses an instance whose
   member names exist.
 * Every key of the math starts with `<type>_`. The math adds to the

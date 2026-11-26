@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypsa._registry import Registry, jsonable
+from pypsa._registry import Registry, builds_on, jsonable
 from pypsa.components.types import component_types_df
 from pypsa.network.transform import _build_suffixed_names
 
@@ -510,6 +510,8 @@ class Composites(Registry[Composite]):
     >>> n.composites.register("battery.yaml")  # doctest: +SKIP
     >>> n.add("battery", ["north", "south"], bus=["north", "south"])  # doctest: +SKIP
     >>> n.composites.battery.members  # doctest: +SKIP
+    >>> n.remove("battery", ["north", "south"])  # doctest: +SKIP
+    >>> n.composites.remove("battery")  # doctest: +SKIP
 
     """
 
@@ -538,6 +540,30 @@ class Composites(Registry[Composite]):
         if not self._holds(t.name, content):
             self._set(self._entries() | {t.name: content})
         return self[t.name]
+
+    def remove(self, name: str) -> None:
+        """Unregister a composite type, also where its math no longer builds.
+
+        Raises:
+            KeyError: No composite type of this name is registered.
+            ValueError: Instances of the type exist, or a stored override
+                builds on it. Nothing is removed then.
+
+        """
+        tags = _tags(self.n)
+        instances = tags.composite[tags.composite_type == name].unique()
+        if name in self and len(instances):
+            msg = f"The {name} instances {list(instances)} exist; remove them first with `n.remove({name!r}, ...)`."
+            raise ValueError(msg)
+        self._remove(name)
+
+    def _dependents(self, name: str, entries: dict[str, Any]) -> list[str]:
+        from pypsa.optimization.spec.build import written  # noqa: PLC0415
+
+        touched = set(written(CompositeType.read(entries[name]).patch()))
+        created = [k.rpartition(".")[2] for k in touched]
+        overrides = self.n.optimize.overrides
+        return [k for k, p in overrides.items() if builds_on(p, touched, created)]
 
     @property
     def instances(self) -> pd.Index:
