@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import pickle
 from importlib.util import find_spec
 
 import numpy as np
@@ -55,6 +56,9 @@ math:
     battery_value:
       dims: [scenario, battery, snapshot]
       expression: at(dual(Bus_nodal_balance), by=battery_members[dc])
+    battery_start:
+      dims: [battery, period]
+      expression: at(Link_first_active, by=battery_members[discharger])
 """)
 INSTANCES = pd.Index(["bat north", "bat south"])
 
@@ -224,7 +228,10 @@ def test_instances_run_over_investment_periods(n):
     n.c.links.static.loc["bat north discharger", "build_year"] = 2040
     n.optimize(multi_investment_periods=True)
     assert n.model.constraints["battery_duration"].sizes["battery"] == 2
-    assert n.composites.battery.results("soc").index.equals(n.snapshots)
+    battery = n.composites.battery
+    pd.testing.assert_index_equal(battery.results("soc").index, n.snapshots)
+    start = {"bat north": {2030: 0, 2040: 1}, "bat south": {2030: 1, 2040: 0}}
+    assert battery.results("start").to_dict() == start
 
 
 def test_two_types_build_side_by_side(n):
@@ -269,27 +276,52 @@ def test_results_read_the_solution_per_instance(n, name, member, read):
 def test_results_put_the_scenario_before_the_instance(n):
     _add(n)
     n.set_scenarios({"low": 0.5, "high": 0.5})
+    n.c.loads.static.loc[("high", "north load"), "p_set"] = 30
     n.optimize()
     battery = n.composites.battery
+    value = battery.results("value")
+    price = n.c.buses.dynamic.marginal_price
+    for s in ("low", "high"):
+        np.testing.assert_allclose(value[s], price[s][battery.members.dc])
+    assert not np.allclose(value["low"], value["high"])
+    assert value.columns.names == ["scenario", "battery"]
     assert battery.results("power").index.names == ["scenario", "battery"]
-    assert battery.results("soc").columns.names == ["scenario", "battery"]
+
+
+def test_results_read_the_solved_model(n):
+    _add(n)
+    n.optimize()
+    battery = n.composites.battery
+    power, soc = battery.results("power"), battery.results("soc")
+    n.c.links.static["p_nom_extendable"] = False
+    n.add("battery", "bat west", bus="north")
+    n.remove("battery", "bat south")
+    pd.testing.assert_series_equal(battery.results("power"), power)
+    pd.testing.assert_frame_equal(battery.results("soc"), soc)
+
+
+@pytest.mark.parametrize(
+    "copy", [lambda n: n.copy(), lambda n: pickle.loads(pickle.dumps(n))]
+)
+def test_a_copy_holds_no_model_to_read(n, copy):
+    _add(n)
+    n.optimize()
+    n.model.solver_model = None
+    other = copy(n)
+    with pytest.raises(RuntimeError, match="optimize it first"):
+        other.composites.battery.results("power")
 
 
 @pytest.mark.parametrize(
     ("name", "prepare", "error", "match"),
     [
-        (
-            "store",
-            lambda n: n.optimize(),
-            KeyError,
-            "power', 'soc', 'value'], not 'store'",
-        ),
+        ("store", lambda n: n.optimize(), KeyError, "not 'store'"),
         ("power", lambda n: None, RuntimeError, "optimize it first"),
         (
             "power",
             lambda n: n.optimize.create_model(),
-            AttributeError,
-            "solve the model",
+            RuntimeError,
+            "optimize it first",
         ),
     ],
 )
@@ -394,6 +426,10 @@ def _with(**changes):
             r"sets \['max_hours'\]",
         ),
         (_with(math={"objective": {}}), "has the sections"),
+        (
+            _with(math={"expressions": {"battery_x": {"dims": ["scenario"]}}}),
+            r"\['battery_x'\] do not",
+        ),
         (_with(math={"constraints": {"inverter": {}}}), "cannot add 'inverter'"),
         (
             _with(math={"constraints": {"Generator_ext_p_upper": None}}),

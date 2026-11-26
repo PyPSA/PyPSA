@@ -119,20 +119,24 @@ n.statistics.energy_balance(groupby="composite")
 
 ## Reading results
 
-The `expressions` of the math define the results of a type. After
-`n.optimize()`, `results` evaluates one of them over the solution, one value
-per instance:
+The `expressions` of the math define the results of a type. Each expression
+has the dimension of the type, here `battery`, in its `dims`. After
+`n.optimize()`, `results` evaluates one expression over the solution. Give its
+name without the prefix `battery_`:
 
 ``` py
 n.composites.battery.results("power")  # a Series by instance
 n.composites.battery.results("soc")    # a DataFrame of snapshots by instance
 ```
 
-An expression can read variables, parameters and duals, as
-`at(dual(Bus_nodal_balance), by=battery_members[dc])` for the value of stored
-energy. In a stochastic network, the scenario comes before the instance.
-`results` reads the model of the last optimization, so it is not available on
-a copy or a saved network.
+An expression can read variables, parameters and duals. For example,
+`at(dual(Bus_nodal_balance), by=battery_members[dc])` gives the price of
+energy at each battery's bus `dc`. In a stochastic network, the scenario comes
+first, then the instance.
+
+`results` needs the model of the last `n.optimize()` and covers only its
+snapshots. After a rolling horizon, these are the snapshots of the last window.
+A copy or a saved network keeps no model, so optimize it again.
 
 ## Rules
 

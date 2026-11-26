@@ -234,6 +234,10 @@ class CompositeType:
             if not key.startswith(f"{t}_") or key in existing or entry is None:
                 msg = f"The math of {t} adds entries keyed `{t}_<name>`; it cannot add {key!r}, nor change or remove the formulation."
                 raise ValueError(msg)
+        expressions = self.math.get("expressions", {})
+        if flat := [k for k, e in expressions.items() if t not in e.get("dims", [])]:
+            msg = f"An expression of {t} has one value per instance, so its dims hold {t}; {flat} do not."
+            raise ValueError(msg)
         math = set(self.math_parameters)
         templated = {v[1:] for v in refs if v.startswith("$")}
         if math & templated:
@@ -450,15 +454,15 @@ class Composite:
         return pd.DataFrame(read, index=members.index)[list(self.type.parameters)]
 
     def results(self, name: str) -> pd.Series | pd.DataFrame:
-        """Return the expression `<type>_<name>` of the math over the solution of the last optimization.
+        """Return the expression `<type>_<name>` of the math over the solution of the last optimization, for its snapshots.
 
         An expression over the instances alone is a Series by instance; one
-        over the snapshots too is a DataFrame of snapshots by instance. A
+        over more dims, as the snapshots, is a DataFrame with them as rows. A
         network with scenarios puts the scenario before the instance.
 
         Raises:
             KeyError: The math declares no such expression.
-            RuntimeError: The network holds no model.
+            RuntimeError: The network holds no solved model.
 
         """
         from pypsa.optimization.spec.build import evaluate  # noqa: PLC0415
@@ -470,9 +474,8 @@ class Composite:
         if name not in declared:
             msg = f"The math of {self.name} declares the expressions {declared}, not {name!r}."
             raise KeyError(msg)
-        key = f"{self.name}_{name}"
-        da = evaluate(self.n, key)[key]
-        if not self.n.has_scenarios:
+        da = evaluate(self.n, f"{self.name}_{name}")
+        if "scenario" in da.dims and not self.n.has_scenarios:
             da = da.squeeze("scenario", drop=True)
         columns = [d for d in ("scenario", self.name) if d in da.dims]
         rows = [d for d in da.dims if d not in columns]
