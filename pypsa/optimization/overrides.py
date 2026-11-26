@@ -71,6 +71,7 @@ class Overrides(Registry[dict[str, Any]]):
     >>> n.optimize.overrides.no_ramp  # doctest: +SKIP
     {'constraints': {'Generator_p_ramp_limit_up': None}}
     >>> n.optimize.overrides.remove("no_ramp")  # doctest: +SKIP
+    >>> n.optimize.overrides.clear()  # doctest: +SKIP
 
     """
 
@@ -168,6 +169,21 @@ class Overrides(Registry[dict[str, Any]]):
                 raise
             msg = f"The overrides {dependents} build on {name!r}; remove them first."
             raise ValueError(msg) from e
+
+    def clear(self) -> None:
+        """Remove all stored overrides, also where they no longer build.
+
+        Raises:
+            ValueError: The stack held with them and does not without, as a
+                composite type builds on them. Nothing is removed then.
+
+        """
+        try:
+            self._set({})
+        except ValueError:
+            if _builds(self.n):
+                raise
+            self._write({})
 
     def layers(self, keys: set[str], plain: bool) -> tuple[list[Layer], set[str]]:
         """Return the stored patches, each with the label a refusal names it by, and the keys the spec declares under them.

@@ -327,6 +327,22 @@ def test_a_stored_override_that_drifted_from_the_spec_fails(
     n.optimize.create_model()
 
 
+def test_clear_drops_stored_overrides_that_no_longer_build(ac_dc_network):
+    n = ac_dc_network
+    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
+    stale = {
+        "patch": {"constraints": {"Generator_old": None}},
+        "edits": [],
+        "creates": [],
+    }
+    n.meta["_pypsa"]["overrides"]["old"] = stale | {
+        "edits": ["constraints.Generator_old"]
+    }
+    n.optimize.overrides.clear()
+    assert "_pypsa" not in n.meta
+    n.optimize.create_model()
+
+
 def test_stored_overrides_are_mappings(ac_dc_network):
     ac_dc_network.meta["_pypsa"] = {"overrides": {"old": "garbage"}}
     with pytest.raises(ValueError, match="maps each name to a mapping"):

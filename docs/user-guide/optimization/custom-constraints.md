@@ -265,6 +265,7 @@ n.optimize.overrides.register(
 n.optimize.overrides             # Overrides ['full_load_hours', 'no_ramp']
 n.optimize.overrides.no_ramp     # the stored patch, also n.optimize.overrides["no_ramp"]
 n.optimize.overrides.remove("no_ramp")
+n.optimize.overrides.clear()     # removes all
 n.optimize()
 ```
 
@@ -285,7 +286,9 @@ A stored override may edit, remove and add entries, as a per-call one may.
 `register` checks it laid over the default specification, the composite types
 and the stored overrides, without linearised unit commitment and piecewise
 options. An override that holds only with these options stays per-call.
-`remove` refuses an override that later ones build on, and names them. A
+`remove` refuses an override that later ones build on, and names them.
+`remove` and `clear` also drop overrides that no longer build, as after a PyPSA
+upgrade. A
 composite type cannot declare an entry that a stored override adds.
 
 A loaded network reproduces the stored math, but not the options of the call:
