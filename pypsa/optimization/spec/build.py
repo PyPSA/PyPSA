@@ -509,11 +509,21 @@ def _solved(m: Model, built: Built) -> SimpleNamespace:
     return SimpleNamespace(variables=variables, constraints=SimpleNamespace(data=duals))
 
 
+def _labelled(da: xr.DataArray, index: pd.Index) -> xr.DataArray:
+    """Return `da` with its snapshots labelled by `index`, as tuples where a level of `index` is a dim of `da`."""
+    if "snapshot" not in da.dims:
+        return da
+    if isinstance(index, pd.MultiIndex) and set(index.names).isdisjoint(da.dims):
+        coords = xr.Coordinates.from_pandas_multiindex(index, "snapshot")
+        return da.assign_coords(coords)
+    return da.assign_coords(snapshot=index.to_flat_index())
+
+
 def evaluate(n: Network, name: str) -> xr.DataArray:
     """Return the expression *name* of the spec `n` was last optimized with, over its solution.
 
     It keeps the dims its spec entry declares; its snapshots are labelled as
-    `n.snapshots` labels them.
+    `n.snapshots` labels them, as tuples where a dim is a level of them.
 
     Raises:
         RuntimeError: `n` holds no model, or its model holds no solution.
@@ -526,15 +536,8 @@ def evaluate(n: Network, name: str) -> xr.DataArray:
         msg = "The network holds no solved model: optimize it first, as models are not saved with it."
         raise RuntimeError(msg)
     view = _solved(m, built)
-    da = fold(built.spec, view, name, sources=built.sources, rename=built.rename)[name]
-    if "snapshot" not in da.dims:
-        return da
-    index = built.snapshots
-    if isinstance(index, pd.MultiIndex):
-        return da.assign_coords(
-            xr.Coordinates.from_pandas_multiindex(index, "snapshot")
-        )
-    return da.assign_coords(snapshot=index)
+    da = fold(built.spec, view, name, sources=built.sources, rename=built.rename)
+    return _labelled(da[name], built.snapshots)
 
 
 #: Columns PyPSA never scales: unit commitment, modules, maintenance and angles.

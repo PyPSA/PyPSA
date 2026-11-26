@@ -709,6 +709,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             snapshot if it has no other. An expression without `snapshot` is
             a Series over its dimensions, or a float if it has none. In a
             network with scenarios, `scenario` comes first.
+            An expression over both `period` and `snapshot` labels each
+            snapshot as a tuple.
 
         Raises
         ------

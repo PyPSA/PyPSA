@@ -275,6 +275,10 @@ PRICES = {
             "cases": {"on": {"when": "Generator_active_asset", "expression": "1"}},
             "otherwise": "0",
         },
+        "period_weight": {
+            "dims": ["period", "snapshot"],
+            "expression": "snapshot_weighting_objective * period_weighting_objective",
+        },
     }
 }
 
@@ -331,6 +335,19 @@ def test_evaluate_joins_the_duals_of_global_constraints(request):
     pd.testing.assert_series_equal(
         n.optimize.evaluate("GlobalConstraint_price"), mu, check_names=False
     )
+
+
+@pytest.mark.parametrize(
+    ("name", "rows"),
+    [
+        ("energy_limit_weight", lambda sns: sns),
+        ("period_weight", lambda sns: sns.to_flat_index()),
+    ],
+)
+def test_evaluate_labels_the_snapshots_of_periods(request, name, rows):
+    n = _solved(request, "ac_dc_two_periods")
+    result = n.optimize.evaluate(name)
+    pd.testing.assert_index_equal(result.index, rows(n.snapshots), check_names=False)
 
 
 @pytest.mark.parametrize(
