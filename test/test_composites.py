@@ -346,6 +346,9 @@ def test_composites_survive_copy_and_io(n, tmp_path, form):
     )()
     n.optimize()
     assert other.composites.battery.members.equals(n.composites.battery.members)
+    pd.testing.assert_frame_equal(
+        other.composites.battery.static, n.composites.battery.static, check_dtype=False
+    )
     other.optimize()
     assert other.objective == pytest.approx(n.objective)
 
@@ -539,6 +542,16 @@ def test_a_type_cannot_declare_the_names_of_another(first):
 def test_editing_a_read_type_leaves_the_stored_type(n):
     n.composites.battery.type.templates["charger"]["efficiency"] = 0.1
     assert n.composites.battery.type.templates["charger"]["efficiency"] == "$efficiency"
+
+
+def test_a_stale_type_blocks_registration_until_removed(n):
+    n.meta["_pypsa"]["composites"]["battery"]["parameters"]["legacy"] = 1
+    with pytest.raises(ValueError, match="declares"):
+        n.composites.register(_replaced(("battery", "battery_power")))
+    with pytest.raises(ValueError, match=r"parameters \['legacy'\]"):
+        n.composites.register(_replaced(("battery", "cell")))
+    n.composites.remove("battery")
+    n.composites.register(_replaced(("battery", "cell")))
 
 
 def test_another_type_of_the_same_name_is_refused(n):

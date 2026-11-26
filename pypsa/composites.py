@@ -594,7 +594,8 @@ class Composites(Registry[Composite]):
         t = CompositeType.read(definition)
         content = jsonable(asdict(t), f"The composite type {t.name!r}")
         if not self._holds(t.name, content):
-            taken = {k for c in self.values() for k in c.type.entries}
+            others = [CompositeType(**d) for d in self._entries().values()]
+            taken = {k for other in others for k in other.entries}
             if clash := sorted(t.entries & taken):
                 msg = f"The composite type {t.name!r} declares {clash}, which another registered type declares."
                 raise ValueError(msg)

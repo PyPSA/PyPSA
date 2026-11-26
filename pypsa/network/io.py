@@ -1483,6 +1483,13 @@ class NetworkIOMixin(_NetworkABC):
                 continue
 
             static_export = static[col_export].copy()
+            flags = [
+                col
+                for col in static_export.columns
+                if pd.api.types.infer_dtype(static_export[col], skipna=False)
+                == "boolean"
+            ]
+            static_export[flags] = static_export[flags].astype(bool)
             # Stored SubNetwork obj column is not serializable
             if "obj" in col_export and component == "SubNetwork":
                 static_export["obj"] = np.nan
