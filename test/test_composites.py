@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import copy
 from importlib.util import find_spec
 
 import numpy as np
@@ -243,6 +244,21 @@ def test_two_types_build_side_by_side(n):
     n.add("cell", "c", bus="north")
     m = n.optimize.create_model()
     assert {"battery_inverter", "cell_inverter"} <= set(m.constraints)
+
+
+def test_the_math_reads_its_own_entries_by_name():
+    definition = copy.deepcopy(BATTERY)
+    definition["parameters"]["power"] = 0.0
+    definition["components"]["Store"]["store"]["e_initial"] = "$power"
+    definition["math"]["constraints"]["battery_cap"] = {
+        "dims": ["scenario", "snapshot", "battery"],
+        "expression": "battery_power <= 100",
+    }
+    n = pypsa.Network()
+    n.add("Bus", "north")
+    n.composites.register(definition)
+    n.add("battery", "bat", bus="north", power=3)
+    assert n.c.stores.static.e_initial["bat store"] == 3
 
 
 def test_a_description_is_no_parameter_reference(n):

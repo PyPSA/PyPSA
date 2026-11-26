@@ -155,7 +155,8 @@ class CompositeType:
         """Return the parameters the math reads as `<name>_<parameter>`."""
         text = " ".join(_text(self.math))
         used = set(re.findall(rf"\b{self.name}_(\w+)\b", text))
-        return [p for p in self.parameters if p in used]
+        own = {k.removeprefix(f"{self.name}_") for s in self.math.values() for k in s}
+        return [p for p in self.parameters if p in used - own]
 
     @property
     def homes(self) -> dict[str, tuple[str, str]]:
