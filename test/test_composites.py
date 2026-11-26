@@ -163,6 +163,13 @@ def test_a_refused_add_leaves_the_network_unchanged(n, names, kwargs, match):
     n.add("battery", "w", bus="north")
 
 
+def test_a_refused_first_add_adds_no_columns(n):
+    columns = {c.name: list(c.static.columns) for c in n.components}
+    with pytest.raises(ValueError, match="length 3"):
+        n.add("battery", ["x", "z"], bus="north", efficiency=[0.9, 0.8, 0.7])
+    assert {c.name: list(c.static.columns) for c in n.components} == columns
+
+
 def test_add_takes_a_suffix_and_refuses_overwrite(n):
     names = n.add("battery", "bat", suffix=[" a", " b"], bus="north", return_names=True)
     assert list(names) == list(n.composites.battery.members.index) == ["bat a", "bat b"]

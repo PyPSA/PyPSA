@@ -325,6 +325,7 @@ class Composite:
             msg = f"Composite instances have unique, non-empty names; {bad} are taken or empty."
             raise ValueError(msg)
         laid = [self._laid(m, c, values, names) for m, c in self.type.members.items()]
+        columns = {c: self.n.c[c].static.columns for c in self.type.components}
         added: list[tuple[str, pd.Index]] = []
         try:
             for member, class_name, labels, attrs in laid:
@@ -340,6 +341,9 @@ class Composite:
         except Exception:
             for class_name, labels in added:
                 self.n.remove(class_name, labels)
+            for class_name, before in columns.items():
+                static = self.n.c[class_name].static
+                static.drop(columns=static.columns.difference(before), inplace=True)
             raise
         return names
 
