@@ -281,6 +281,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         cycle_basis_method: str = "bfs-refined",
         objective_scaling: float = 1.0,
         consistency_check: bool = True,
+        expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -372,6 +373,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             `GlobalConstraint.scaling`.
         consistency_check : bool, default True
             Whether to run the consistency check before building the model.
+        expressions : bool, default False
+            Whether to add the named expressions of the specification that
+            hold a variable term and read no dual to `n.model.expressions`,
+            with the dims of the variables they read. Read one after the
+            solve as `n.model.expressions[name].solution`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -420,6 +426,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             overrides=overrides,
             cycle_basis_method=cycle_basis_method,
             objective_scaling=objective_scaling,
+            expressions=expressions,
             **model_kwargs,
         )
         if extra_functionality:
@@ -462,6 +469,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         cycle_basis_method: str = "bfs-refined",
         objective_scaling: float = 1.0,
         branch_outages: pd.MultiIndex | None = None,
+        expressions: bool = False,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -527,6 +535,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         branch_outages : pandas.MultiIndex, optional
             Passive branches, as (component, name), whose outage the flows must
             survive. Set by `optimize_security_constrained`.
+        expressions : bool, default False
+            Whether to add the named expressions of the specification that
+            hold a variable term and read no dual to `n.model.expressions`,
+            with the dims of the variables they read. Read one after the
+            solve as `n.model.expressions[name].solution`.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir`.
             They extend and override `options.params.optimize.model_kwargs`.
@@ -591,6 +604,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             piecewise_options=piecewise_opts,
             overrides=overrides or (),
             objective_scaling=objective_scaling,
+            expressions=expressions,
         )
         define_nominal_constraints_per_bus_carrier(n, sns)
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
