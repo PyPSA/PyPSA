@@ -319,7 +319,8 @@ def _relabel(
 ) -> None:
     """Rename every dim of `m` as PyPSA names it, in linopy's order and with linopy's labels.
 
-    Entries without a single row are removed, as PyPSA does not build them.
+    A named expression is renamed as a variable is, and kept even without a row.
+    Variables and constraints without a single row are removed, as PyPSA does not build them.
     A network without scenarios keeps its one scenario, labelled `BASE_SCENARIO`.
     A unit without a row stays as a masked coordinate.
     """
@@ -339,7 +340,8 @@ def _relabel(
         if renamed:
             obj = obj.rename(renamed)
         if "snapshot" in dims:
-            obj = obj.assign_coords({"snapshot": snapshots, **levels})
+            own = {k: v for k, v in levels.items() if k not in dims}
+            obj = obj.assign_coords({"snapshot": snapshots, **own})
         return obj
 
     for name, var in list(m.variables.items()):
@@ -349,6 +351,11 @@ def _relabel(
         dims = tuple(var.labels.dims)
         data = frame(var.data, dims, _pypsa_dims(dims, False))
         m.variables.add(Variable(data, m, name, skip_broadcast=True))
+
+    for name, expr in list(m.expressions.items()):
+        dims = tuple(expr.coord_dims)
+        m.remove_expressions(name)
+        m.add_expressions(frame(expr, dims, _pypsa_dims(dims, False)), name=name)
 
     constraints = {}
     for name, con in m.constraints.items():
@@ -531,6 +538,7 @@ def build_model(
     piecewise_options: Sequence[Any] = (),
     overrides: Sequence[Override] = (),
     objective_scaling: float = 1.0,
+    expressions: bool = False,
     **options: Any,
 ) -> Model:
     """Build the model of `n` over the build's snapshots from the spec, with *overrides* laid over it."""
@@ -550,7 +558,7 @@ def build_model(
     m = Model.from_spec(
         expanded,
         sources,
-        expressions=False,
+        expressions=expressions,
         rename=rename,
         dim_order=_unit_dims(),
         **model_kwargs,
