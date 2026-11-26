@@ -196,13 +196,13 @@ class Registry[T](Mapping[str, T]):
                     }
                     break
                 root[r.META] = entries
-            self.n.meta = before | {ROOT: root}
+            self.n._meta = before | {ROOT: root}
         try:
             holding(self.n)
         except ValueError:
             return False
         finally:
-            self.n.meta = before
+            self.n._meta = before
         return True
 
     def _dependents(self, name: str, entries: dict[str, Any]) -> list[str]:
@@ -276,12 +276,12 @@ def united(n: Network, other: Network) -> dict[str, dict[str, Any]]:
     }
     unions = {k: v for k, v in unions.items() if v}
     before = n.meta
-    n.meta = before | {ROOT: unions}
+    n._meta = before | {ROOT: unions}
     try:
         holding(n)
     except ValueError as e:
         msg = f"The composite types and stored overrides of both networks do not build together: {e}"
         raise ValueError(msg) from e
     finally:
-        n.meta = before
+        n._meta = before
     return unions

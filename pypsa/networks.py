@@ -33,6 +33,7 @@ import pyproj
 import validators
 from pyproj import CRS, Transformer
 
+from pypsa._registry import ROOT
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import (
     as_index,
@@ -681,7 +682,9 @@ class Network(
         <!-- md:badge-version v0.20.0 -->
 
         Any additional meta data can be added to the network by setting the `meta`
-        attribute. Meta data will be saved on export.
+        attribute. Meta data will be saved on export. Setting it keeps the
+        composite types and stored overrides in `meta["_pypsa"]` unless the new
+        dictionary holds that key.
 
         Examples
         --------
@@ -700,6 +703,8 @@ class Network(
         if not isinstance(new, (dict | Dict)):
             msg = f"Meta must be a dictionary, received a {type(new)}"
             raise TypeError(msg)
+        if ROOT in self._meta and ROOT not in new:
+            new = {**new, ROOT: self._meta[ROOT]}
         self._meta = new
 
     @property

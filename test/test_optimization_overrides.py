@@ -400,6 +400,16 @@ def test_meta_keys_of_the_user_stay_theirs(ac_dc_network):
     assert n.meta["overrides"] == {"solver": {"threads": 4}}
 
 
+def test_setting_meta_keeps_stored_overrides(ac_dc_network):
+    n = ac_dc_network
+    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
+    n.meta = {"wildcards": {"clusters": 5}}
+    assert list(n.optimize.overrides) == ["no_ramps"]
+    assert n.meta["wildcards"] == {"clusters": 5}
+    n.meta = {"_pypsa": {}}
+    assert list(n.optimize.overrides) == []
+
+
 def test_spatial_clustering_keeps_stored_overrides(ac_dc_network):
     n = ac_dc_network
     n.optimize.overrides.register(NO_RAMPS, name="no_ramps")

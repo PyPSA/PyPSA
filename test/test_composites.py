@@ -384,7 +384,7 @@ def test_tags_without_their_type_fail_until_registered_again(n):
     _add(n)
     n.composites.register(CELL)
     n.add("cell", "c", bus="north")
-    n.meta = {}
+    del n.meta["_pypsa"]
     with pytest.raises(
         ValueError, match=r"types \['battery', 'cell'\], which are not registered"
     ):

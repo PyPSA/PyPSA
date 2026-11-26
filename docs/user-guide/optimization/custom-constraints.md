@@ -271,8 +271,8 @@ n.optimize()
 
 A file is stored under its stem; text and a dictionary take a `name`, an
 identifier. The patch is stored by its content in
-`n.meta["_pypsa"]["overrides"]`, a key PyPSA reserves, so it
-holds JSON values only: no NumPy numbers, dates, tuples or keys that are not
+`n.meta["_pypsa"]["overrides"]`, a key PyPSA reserves and keeps when `n.meta`
+is set to a new dictionary, so it holds JSON values only: no NumPy numbers, dates, tuples or keys that are not
 text. A build lays the layers over the specification in this order, and a later
 layer wins:
 
