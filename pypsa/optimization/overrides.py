@@ -104,12 +104,19 @@ class Overrides(Registry[dict[str, Any]]):
             The patch does not hold with the formulation.
 
         """
+        stem = None
         if name is None and is_path(override):
-            name = Path(override).stem
+            name = stem = Path(override).stem
         if name is None:
             msg = "An override given as text or a mapping takes a `name`."
             raise ValueError(msg)
-        self._check_name(name)
+        try:
+            self._check_name(name)
+        except ValueError as e:
+            if stem is None:
+                raise
+            msg = f"{e} Pass `name` to store the file under another name."
+            raise ValueError(msg) from e
         patch = jsonable(_layer(override), f"The override {name!r}")
         if self._holds(name, patch):
             return self[name]
@@ -132,8 +139,8 @@ class Overrides(Registry[dict[str, Any]]):
 
         Raises:
             KeyError: No override of this name is stored.
-            ValueError: The stack held with it and does not without it, as a
-                later override builds on it. Nothing is removed then.
+            ValueError: A later override builds on it, or the stack held with
+                it and does not without it. Nothing is removed then.
 
         """
         self._remove(name)
@@ -181,6 +188,9 @@ class Overrides(Registry[dict[str, Any]]):
         """
         layers = []
         for name, entry in self._entries().items():
+            if not {"patch", "edits", "creates"} <= entry.keys():
+                msg = f"The stored override {name!r} lacks the `patch`, `edits` and `creates` that `register` stores; remove it and register its patch again."
+                raise ValueError(msg)
             gone = [k for k in entry["edits"] if k not in keys]
             taken = [k for k in entry["creates"] if k in keys]
             changed = [

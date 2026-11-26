@@ -270,6 +270,14 @@ def test_a_stored_override_is_refused(ac_dc_network, override, name, error, matc
     assert "_pypsa" not in n.meta
 
 
+def test_a_file_name_that_is_no_identifier_asks_for_a_name(ac_dc_network, tmp_path):
+    path = tmp_path / "2030-limits.yaml"
+    path.write_text(yaml.safe_dump(NO_RAMPS))
+    with pytest.raises(ValueError, match="Pass `name`"):
+        ac_dc_network.optimize.overrides.register(path)
+    ac_dc_network.optimize.overrides.register(path, name="limits")
+
+
 def test_a_name_holds_one_override(ac_dc_network):
     overrides = ac_dc_network.optimize.overrides
     patch = copy.deepcopy(NO_RAMPS)
@@ -327,9 +335,13 @@ def test_a_stored_override_that_drifted_from_the_spec_fails(
     ac_dc_network, stored, match
 ):
     n = ac_dc_network
-    n.meta["_pypsa"] = {"overrides": {"old": stored, "older": stored}}
+    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
+    n.meta["_pypsa"]["overrides"] |= {"old": stored, "older": stored}
     with pytest.raises(ValueError, match=match):
         n.optimize.create_model()
+    with pytest.raises(ValueError, match="register it again"):
+        n.optimize.create_model(linearized_unit_commitment=True)
+    n.optimize.overrides.remove("no_ramps")
     n.optimize.overrides.remove("old")
     n.optimize.overrides.remove("older")
     n.optimize.create_model()
@@ -355,9 +367,17 @@ def test_clear_drops_stored_overrides_that_no_longer_build(ac_dc_network):
     n.optimize.create_model()
 
 
-def test_stored_overrides_are_mappings(ac_dc_network):
-    ac_dc_network.meta["_pypsa"] = {"overrides": {"old": "garbage"}}
-    with pytest.raises(ValueError, match="maps each name to a mapping"):
+@pytest.mark.parametrize(
+    ("root", "match"),
+    [
+        ("garbage", r"`n.meta\['_pypsa'\]` maps each name to a mapping, not str"),
+        ({"overrides": {"old": "garbage"}}, "maps each name to a mapping"),
+        ({"overrides": {"old": NO_RAMPS}}, "'old' lacks the `patch`"),
+    ],
+)
+def test_stored_overrides_are_mappings(ac_dc_network, root, match):
+    ac_dc_network.meta["_pypsa"] = root
+    with pytest.raises(ValueError, match=match):
         ac_dc_network.optimize.create_model()
 
 

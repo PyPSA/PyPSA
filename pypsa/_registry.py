@@ -64,15 +64,18 @@ class Registry[T](Mapping[str, T]):
         """Return the stored entries, by name in order.
 
         Raises:
-            ValueError: `n.meta["_pypsa"]` holds something else than a mapping of names to mappings.
+            ValueError: `n.meta["_pypsa"]` or its entry of this registry is
+                no mapping of names to mappings.
 
         """
         root = self.n.meta.get(ROOT, {})
-        entries = root.get(self.META, {}) if isinstance(root, Mapping) else root
+        nested = isinstance(root, Mapping)
+        entries = root.get(self.META, {}) if nested else root
         if not isinstance(entries, Mapping) or not all(
             isinstance(e, Mapping) for e in entries.values()
         ):
-            msg = f"`n.meta[{ROOT!r}][{self.META!r}]` maps each name to a mapping, not {type(entries).__name__}: {str(entries)[:200]}"
+            where = f"[{ROOT!r}][{self.META!r}]" if nested else f"[{ROOT!r}]"
+            msg = f"`n.meta{where}` maps each name to a mapping, not {type(entries).__name__}: {str(entries)[:200]}"
             raise ValueError(msg)
         return dict(entries)
 
@@ -211,8 +214,8 @@ class Registry[T](Mapping[str, T]):
 
         Raises:
             KeyError: None of this name is registered.
-            ValueError: The stack up to and with it holds and the stack
-                without it does not. Nothing is removed then.
+            ValueError: A later entry builds on it, or the stack held
+                with it and does not without it. Nothing is removed then.
 
         """
         entries = self._entries()
@@ -223,14 +226,13 @@ class Registry[T](Mapping[str, T]):
         try:
             self._set(rest)
         except ValueError as e:
-            if not self._builds(name):
-                self._write(rest)
-                return
-            dependents = self._dependents(name, entries)
-            if not dependents:
+            dependents = self._dependents(name, entries) if self._builds(name) else []
+            if dependents:
+                msg = f"{dependents} build on {name!r}; remove them first."
+                raise ValueError(msg) from e
+            if self._builds():
                 raise
-            msg = f"The overrides {dependents} build on {name!r}; remove them first."
-            raise ValueError(msg) from e
+            self._write(rest)
 
     def _union(self, other: Registry[T]) -> dict[str, Any]:
         """Return the entries of both, those of `other` that this lacks after its own.

@@ -317,6 +317,18 @@ def test_merge_unites_composite_types(n):
         other.merge(n)
 
 
+def test_spatial_clustering_keeps_composite_types(n):
+    _add(n)
+    n.optimize.overrides.register(
+        {"constraints": {"battery_duration": None}}, name="free"
+    )
+    busmap = n.c.buses.static.index.to_series().replace("south", "north")
+    clustered = n.cluster.spatial.cluster_by_busmap(busmap)
+    assert clustered.meta["_pypsa"] == n.meta["_pypsa"]
+    clustered.optimize()
+    assert clustered.composites.battery.static.index.equals(INSTANCES)
+
+
 def test_equals_follows_the_order_of_types(n):
     n.composites.register(CELL)
     other = n.copy()
@@ -480,7 +492,7 @@ def test_remove_unregisters_a_type_without_instances(n):
     [
         ({"constraints": {"battery_duration": None}}, r"\['own'\] build on 'battery'"),
         ({"constraints": {"floor": FLOOR}}, r"\['own'\] build on 'battery'"),
-        (CELL_ON_BATTERY, None),
+        (CELL_ON_BATTERY, r"\['cell'\] build on 'battery'"),
     ],
     ids=["override edits", "override reads", "type reads"],
 )

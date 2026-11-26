@@ -223,6 +223,9 @@ def _stack(
             registered to, or PyPSA changed an entry it edits.
 
     """
+    plain = not linearized_unit_commitment and not piecewise_options
+    if not plain:
+        _stack(n, linearized_unit_commitment=False)
     layers = _piecewise_layers(linearized_unit_commitment, piecewise_options)
     layers += [
         (f"the composite type {k!r}", p) for k, p in n.composites.patches().items()
@@ -230,7 +233,6 @@ def _stack(
     keys = functools.reduce(
         laid, [p for _, p in layers], set(_keys(linearized_unit_commitment))
     )
-    plain = not linearized_unit_commitment and not piecewise_options
     stored, keys = n.optimize.overrides.layers(keys, plain)
     return layers + stored, keys
 

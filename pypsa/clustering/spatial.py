@@ -19,6 +19,7 @@ import scipy.sparse as sp
 from packaging.version import Version, parse
 from pandas import Series
 
+from pypsa._registry import ROOT
 from pypsa.common import _scenarios_not_implemented
 from pypsa.geo import haversine_pts
 
@@ -964,9 +965,8 @@ class SpatialClusteringMixin:
         )
 
         clustered = n.__class__()
-        clustered.optimize.overrides._write(
-            copy.deepcopy(n.optimize.overrides._entries())
-        )
+        if ROOT in n.meta:
+            clustered.meta[ROOT] = copy.deepcopy(n.meta[ROOT])
 
         clustered.add("Bus", buses.index, **buses)
         clustered.add("Line", lines.index, **lines)

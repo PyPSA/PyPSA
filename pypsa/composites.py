@@ -550,8 +550,8 @@ class Composites(Registry[Composite]):
 
         Raises:
             KeyError: No composite type of this name is registered.
-            ValueError: Instances of the type exist, or a stored override
-                builds on it. Nothing is removed then.
+            ValueError: Instances of the type exist, or a later type or a
+                stored override builds on it. Nothing is removed then.
 
         """
         if name in self and (instances := _instances(self.n, name)):
@@ -564,8 +564,12 @@ class Composites(Registry[Composite]):
 
         touched = set(written(CompositeType.read(entries[name]).patch()))
         created = [k.rpartition(".")[2] for k in touched]
+        later = list(entries)[list(entries).index(name) + 1 :]
+        types = [k for k in later if builds_on(entries[k]["math"], touched, created)]
         overrides = self.n.optimize.overrides
-        return [k for k, p in overrides.items() if builds_on(p, touched, created)]
+        return types + [
+            k for k, p in overrides.items() if builds_on(p, touched, created)
+        ]
 
     @property
     def instances(self) -> pd.Index:
@@ -581,7 +585,7 @@ class Composites(Registry[Composite]):
 
         Raises:
             ValueError: Components are tagged with a type that is not
-                registered, as after `n.merge` or `n[buses]`.
+                registered.
 
         """
         unknown = set(_tags(self.n).composite_type) - set(self)

@@ -128,9 +128,8 @@ See [Reading expressions](custom-constraints.md#reading-expressions).
 ## Rules
 
 * The definition is stored in `n.meta["_pypsa"]`, so a copy, a slice `n[buses]`, a
-  merge and a saved network keep its composites. `n.merge` refuses two
-  different types of one name. Clustering does not keep it; the build then
-  refuses the tagged members until the type is registered again.
+  merge, clustering and a saved network keep its composites. `n.merge` refuses
+  two different types of one name.
 * `register` checks the math against the default formulation, the other types and the
   [stored overrides](custom-constraints.md#storing-overrides-on-the-network),
   so a wrong name fails there, not at the build. A type cannot declare an
