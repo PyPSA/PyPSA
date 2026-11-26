@@ -47,6 +47,13 @@ components:
   Store:
     store: {bus: "@dc", e_nom_extendable: true, e_cyclic: true, capital_cost: $capital_cost_energy}
 math:
+  expressions:
+    battery_power:
+      description: the net discharge of each instance
+      dims: [scenario, snapshot, battery]
+      expression: >-
+        at(Link_p, by=battery_members[discharger])
+        - at(Link_p, by=battery_members[charger])
   constraints:
     battery_inverter:
       description: the charger and the discharger share one rating
@@ -107,6 +114,16 @@ n.composites.battery.members   # the members of each instance
 n.composites.battery.static    # the parameters of each instance, read from its members
 n.statistics.energy_balance(groupby="composite")
 ```
+
+With `expressions=True`, the build adds each expression of the math to
+`n.model.expressions`, over the instances:
+
+``` py
+n.optimize(expressions=True)
+n.model.expressions["battery_power"].solution
+```
+
+See [Reading expressions](custom-constraints.md#reading-expressions).
 
 ## Rules
 
