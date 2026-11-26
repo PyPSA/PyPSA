@@ -177,6 +177,15 @@ def test_add_takes_a_suffix_and_refuses_overwrite(n):
         n.add("battery", "bat a", overwrite=True, bus="north")
 
 
+@pytest.mark.parametrize("index", [["a", "b"], ["a x", "b x"]])
+def test_a_value_by_instance_takes_the_suffix(n, index):
+    bus = pd.Series(["north", "south"], index)
+    availability = pd.DataFrame(dict(zip(index, [0.5, 1.0])), index=n.snapshots)
+    n.add("battery", ["a", "b"], suffix=" x", bus=bus, availability=availability)
+    assert list(n.composites.battery.static.bus) == ["north", "south"]
+    assert (n.c.links.dynamic.p_max_pu["a x discharger"] == 0.5).all()
+
+
 def test_remove_drops_every_member_of_an_instance(n):
     _add(n)
     n.remove("battery", "bat north")

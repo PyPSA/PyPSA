@@ -325,7 +325,10 @@ class Composite:
         if bad:
             msg = f"Composite instances have unique, non-empty names; {bad} are taken or empty."
             raise ValueError(msg)
-        laid = [self._laid(m, c, values, names) for m, c in self.type.members.items()]
+        laid = [
+            self._laid(m, c, values, names, suffix)
+            for m, c in self.type.members.items()
+        ]
         columns = {c: self.n.c[c].static.columns for c in self.type.components}
         added: list[tuple[str, pd.Index]] = []
         try:
@@ -367,7 +370,12 @@ class Composite:
             self.n.remove(class_name, rows.name)
 
     def _laid(
-        self, member: str, class_name: str, values: dict[str, Any], names: pd.Index
+        self,
+        member: str,
+        class_name: str,
+        values: dict[str, Any],
+        names: pd.Index,
+        suffix: str | Sequence[str],
     ) -> tuple[str, str, pd.Index, dict[str, Any]]:
         """Return a member of the instances with its names and attributes.
 
@@ -380,29 +388,43 @@ class Composite:
             msg = f"The {class_name} components {list(exist)} exist."
             raise ValueError(msg)
         template = self.type.templates[member]
-        attrs = {a: self._value(v, values, names, labels) for a, v in template.items()}
+        attrs = {
+            a: self._value(v, values, names, labels, suffix)
+            for a, v in template.items()
+        }
         if member == self.type.anchor:
             for p in self.type.math_parameters:
                 attrs[self.type.column(p)] = self._per_instance(
-                    values[p], names, labels, p
+                    values[p], names, labels, suffix, p
                 )
         return member, class_name, labels, attrs
 
     def _value(
-        self, value: Any, values: dict[str, Any], names: pd.Index, labels: pd.Index
+        self,
+        value: Any,
+        values: dict[str, Any],
+        names: pd.Index,
+        labels: pd.Index,
+        suffix: str | Sequence[str],
     ) -> Any:
         if isinstance(value, str) and value.startswith("$"):
-            return self._per_instance(values[value[1:]], names, labels)
+            return self._per_instance(values[value[1:]], names, labels, suffix)
         if isinstance(value, str) and value.startswith("@"):
             return (names + f" {value[1:]}").to_numpy(dtype=object)
         return value
 
     def _per_instance(
-        self, value: Any, names: pd.Index, labels: pd.Index, parameter: str = ""
+        self,
+        value: Any,
+        names: pd.Index,
+        labels: pd.Index,
+        suffix: str | Sequence[str],
+        parameter: str = "",
     ) -> Any:
         """Return a parameter laid over the members: by instance where it is a Series or a DataFrame.
 
-        A Series over the snapshots is a time series for all instances.
+        A Series over the snapshots is a time series for all instances. A
+        `suffix` string is added to the instances of a value, as `n.add` does.
 
         Raises:
             ValueError: A math parameter is a time series, or a value by
@@ -419,6 +441,10 @@ class Composite:
             return pd.DataFrame(dict.fromkeys(labels, value))
         if not (frame or series):
             return value
+        if isinstance(suffix, str):
+            value = value.rename(
+                lambda s: str(s).removesuffix(suffix) + suffix, axis=int(frame)
+            )
         index = value.columns if frame else value.index
         if not names.isin(index).all():
             msg = f"A value by instance covers every instance; it lacks {list(names.difference(index))}."
