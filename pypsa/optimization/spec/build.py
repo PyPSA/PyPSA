@@ -340,7 +340,8 @@ def _relabel(
         if renamed:
             obj = obj.rename(renamed)
         if "snapshot" in dims:
-            obj = obj.assign_coords({"snapshot": snapshots, **levels})
+            own = {k: v for k, v in levels.items() if k not in dims}
+            obj = obj.assign_coords({"snapshot": snapshots, **own})
         return obj
 
     for name, var in list(m.variables.items()):

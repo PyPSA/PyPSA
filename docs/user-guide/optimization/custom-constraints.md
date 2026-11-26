@@ -262,9 +262,11 @@ n.model.expressions["total_cost"].solution
 n.model.expressions["Generator_p_nom_effective"].solution
 ```
 
-An expression takes the dimensions of the variables it reads, as `name` for
-the units of a component, and the same snapshots. One over the units of two
-components keeps their names, as `Generator` and `Link`. An expression added by
+An expression has the same snapshots as the variables. Its one dimension of
+units, as `Generator`, becomes `name`, as in the variables; its other
+dimensions keep their names from the specification, as `bus` or `period`. One
+over the units of two components keeps both names, as `Generator` and `Link`.
+An expression added by
 `overrides` is built too. An expression that reads only data, or reads a dual
 as `dual(Bus_nodal_balance)`, is not built. The option is off by default,
 since the expressions add to the time and memory of the build.

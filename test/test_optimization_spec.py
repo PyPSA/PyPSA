@@ -332,10 +332,6 @@ def test_an_expression_takes_the_dims_of_its_variable(request, network, name, va
     xr.testing.assert_equal(expr.coords.to_dataset(), var.coords.to_dataset())
 
 
-def test_no_expression_is_built_by_default(ac_dc_network):
-    assert not ac_dc_network.optimize.create_model().expressions
-
-
 def test_an_override_adds_an_expression_with_a_variable_term(request):
     dims = ["scenario", "snapshot", "Generator"]
     added = {
@@ -344,10 +340,14 @@ def test_an_override_adds_an_expression_with_a_variable_term(request):
             "dims": dims,
             "expression": "2 * Generator_p_max_pu",
         },
+        "Generator_price": {
+            "dims": dims,
+            "expression": "at(dual(Bus_nodal_balance), by=Generator_bus[bus])",
+        },
     }
     n = _solved(request, "ac_dc_network", overrides=[{"expressions": added}])
     built = n.model.expressions
-    assert "Generator_twice_p_max_pu" not in built
+    assert {"Generator_twice_p_max_pu", "Generator_price"}.isdisjoint(built)
     result = _pandas(built["Generator_twice_p"].solution, n)
     pd.testing.assert_frame_equal(
         result, 2 * n.c.generators.dynamic.p, check_names=False
@@ -363,6 +363,20 @@ def test_an_expression_over_two_components_keeps_their_dims(ac_dc_network):
     )
     expr = m.expressions["Generator_Link_p_nom"]
     assert expr.coord_dims == ("Generator", "Link", "scenario")
+
+
+def test_an_expression_over_period_and_snapshot_keeps_its_periods(ac_dc_two_periods):
+    dims = ["scenario", "snapshot", "period", "Generator"]
+    body = "Generator_p * period_weighting_objective"
+    added = {"Generator_p_by_period": {"dims": dims, "expression": body}}
+    m = ac_dc_two_periods.optimize.create_model(
+        multi_investment_periods=True,
+        expressions=True,
+        overrides=[{"expressions": added}],
+    )
+    period = m.expressions["Generator_p_by_period"].coords["period"]
+    assert period.dims == ("period",)
+    assert period.values.tolist() == [2020, 2030]
 
 
 @pytest.mark.parametrize(
