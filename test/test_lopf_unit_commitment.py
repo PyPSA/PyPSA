@@ -1676,3 +1676,86 @@ def test_noncommittable_first_snapshot_ramp(flex_kwargs, with_committable):
 
     assert status == "ok"
     assert n.c.generators.dynamic.p.loc[0, "flex"] == pytest.approx(5)
+
+
+def _weighted_ramp_network(
+    weighting,
+    ramp_limit_up=0.1,
+    freq="2h",
+    load=50,
+    ramp_limit_down=np.nan,
+    ramp_limit_start_up=np.nan,
+):
+    # https://github.com/PyPSA/PyPSA/issues/1273: snapshots of `freq` with a
+    # weighting of `weighting`; the cheap generator is off at the first
+    # snapshot so it must ramp up from zero against a constant `load` MW load.
+    n = pypsa.Network()
+    n.snapshots = pd.date_range("2020-01-01", periods=6, freq=freq)
+    n.snapshot_weightings.loc[:] = weighting
+    n.add("Bus", "bus")
+    p_max_pu = pd.Series(1.0, index=n.snapshots)
+    p_max_pu.iloc[0] = 0
+    n.add(
+        "Generator",
+        "cheap",
+        bus="bus",
+        p_nom=100,
+        p_max_pu=p_max_pu,
+        ramp_limit_up=ramp_limit_up,
+        ramp_limit_down=ramp_limit_down,
+        ramp_limit_start_up=ramp_limit_start_up,
+        marginal_cost=10,
+    )
+    n.add("Generator", "expensive", bus="bus", p_nom=100, marginal_cost=100)
+    p_set = load if isinstance(load, list) else [load] * 6
+    n.add("Load", "load", bus="bus", p_set=p_set)
+    return n
+
+
+def test_ramp_limits_scaled_by_snapshot_weightings():
+    # With the flag, 10%/h over 2h snapshots allows 20 MW per step.
+    with pypsa.option_context("future.weighted_ramp_limits", True):
+        n = _weighted_ramp_network(2)
+        n.optimize()
+        steps = n.generators_t.p["cheap"].diff().dropna()
+        assert (steps <= 20 + 1e-6).all()
+        assert steps.iloc[0] == pytest.approx(20)
+
+    # Without the flag the old per-snapshot behaviour is kept (10 MW/step).
+    # This pins the legacy behaviour of the current series; the default
+    # flips to weighted in PyPSA 2.0.
+    with pypsa.option_context("future.weighted_ramp_limits", False):
+        n = _weighted_ramp_network(2)
+        n.optimize()
+        steps = n.generators_t.p["cheap"].diff().dropna()
+        assert steps.iloc[0] == pytest.approx(10)
+
+
+def test_ramp_limits_sub_hourly_weightings():
+    # 30-min snapshots, weighting 0.5: 10%/h allows 5 MW per step with the flag.
+    with pypsa.option_context("future.weighted_ramp_limits", True):
+        n = _weighted_ramp_network(0.5, freq="30min")
+        n.optimize()
+        steps = n.generators_t.p["cheap"].diff().dropna()
+        assert (steps <= 5 + 1e-6).all()
+        assert steps.iloc[0] == pytest.approx(5)
+
+
+def test_ramp_limits_missing_limit_stays_unlimited():
+    # A missing ramp limit stays unlimited with the flag, even for
+    # sub-hourly snapshots where scaling would otherwise invent a limit.
+    # The run limit is missing while a start-up limit is set, so the
+    # ramp-up constraint exists and the missing run limit is filled in as
+    # 1.0: after the start-up to 40 MW, the cheap unit ramps a further
+    # 60 MW in one step. Filling in 1.0 before scaling would cap that
+    # second step at 50 MW instead.
+    with pypsa.option_context("future.weighted_ramp_limits", True):
+        n = _weighted_ramp_network(
+            0.5,
+            ramp_limit_up=np.nan,
+            ramp_limit_start_up=1.0,
+            freq="30min",
+            load=[0, 40, 100, 100, 100, 100],
+        )
+        n.optimize()
+        assert n.generators_t.p["cheap"].iloc[2] == pytest.approx(100)

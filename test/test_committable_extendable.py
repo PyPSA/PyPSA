@@ -714,6 +714,139 @@ def test_ramp_big_m_startup_shutdown_limits():
             assert ramp >= -0.5 * p_nom_opt - 1e-5
 
 
+def test_ramp_big_m_limits_scaled_by_snapshot_weightings():
+    # https://github.com/PyPSA/PyPSA/issues/1273: same setup as
+    # test_ramp_big_m_startup_shutdown_limits, but with 2h snapshots and a
+    # weighting of 2. With the flag, the 50%/40%/30% limits allow
+    # 100%/80%/60% of p_nom_opt per step; the optimal dispatch uses jumps of
+    # 0.9 * p_nom_opt, which the unweighted limits would forbid.
+    n = pypsa.Network()
+    n.snapshots = pd.date_range("2020-01-01", periods=6, freq="2h")
+    n.snapshot_weightings.loc[:] = 2
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[120, 520, 120, 520, 120, 120])
+
+    n.add(
+        "Generator",
+        "cheap",
+        bus="bus",
+        p_nom=180,
+        marginal_cost=10,
+    )
+
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_max=800,
+        p_min_pu=0.1,
+        marginal_cost=30,
+        capital_cost=400,
+        ramp_limit_up=0.5,
+        ramp_limit_down=0.5,
+        ramp_limit_start_up=0.4,
+        ramp_limit_shut_down=0.3,
+    )
+
+    with pypsa.option_context("future.weighted_ramp_limits", True):
+        status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    p = n.c["Generator"].dynamic["p"]["gen"]
+    p_nom_opt = n.c["Generator"].static.loc["gen", "p_nom_opt"]
+    status_var = n.model.variables["Generator-status"].solution.sel(name="gen")
+    start_up_var = n.model.variables["Generator-start_up"].solution.sel(name="gen")
+    shut_down_var = n.model.variables["Generator-shut_down"].solution.sel(name="gen")
+    status_values = status_var.values
+    start_up_values = start_up_var.values
+    shut_down_values = shut_down_var.values
+    # The unit never turns off: it idles at p_min_pu * p_nom_opt = 34 MW in
+    # the low-load snapshots, so the 306 MW jumps are run ramps under the
+    # 1.0 * p_nom_opt bound, not start-ups under the 0.8 bound. Pin that
+    # premise: status is 1 from the first snapshot on.
+    assert status_values[0] > 0.5
+    assert p_nom_opt == pytest.approx(340)
+    # The weighted bounds are actually used, not just satisfied.
+    assert (p.diff().dropna().abs() / p_nom_opt).max() == pytest.approx(0.9)
+
+    for t in range(1, len(p)):
+        ramp = p.iloc[t] - p.iloc[t - 1]
+        assert ramp <= 1.0 * p_nom_opt + 1e-5
+        assert ramp >= -1.0 * p_nom_opt - 1e-5
+        if start_up_values[t] > 0.5:
+            assert ramp <= 0.8 * p_nom_opt + 1e-5
+        if shut_down_values[t] > 0.5:
+            assert ramp >= -0.6 * p_nom_opt - 1e-5
+        if status_values[t - 1] > 0.5 and status_values[t] > 0.5:
+            assert ramp <= 1.0 * p_nom_opt + 1e-5
+            assert ramp >= -1.0 * p_nom_opt - 1e-5
+
+
+def test_ramp_start_up_limit_scaled_by_snapshot_weightings():
+    # https://github.com/PyPSA/PyPSA/issues/1273: 2h snapshots with a
+    # weighting of 2; a 10% start-up limit allows 20 MW at start-up. The
+    # unit must be off at the first snapshot, so p_min_pu forces its status
+    # to 0 there (otherwise the solver keeps it "on" at zero output and the
+    # start-up limit never binds).
+    n = pypsa.Network()
+    n.snapshots = pd.date_range("2020-01-01", periods=4, freq="2h")
+    n.snapshot_weightings.loc[:] = 2
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0, 20, 20, 20])
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        committable=True,
+        p_min_pu=0.1,
+        marginal_cost=10,
+        ramp_limit_start_up=0.1,
+    )
+
+    with pypsa.option_context("future.weighted_ramp_limits", True):
+        status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+    assert n.c["Generator"].dynamic["p"]["gen"].iloc[1] == pytest.approx(20)
+
+    # Without the flag the same dispatch is infeasible (start-up capped at
+    # 10 MW against a 20 MW load).
+    with pypsa.option_context("future.weighted_ramp_limits", False):
+        status, _ = n.optimize(solver_name="highs")
+    assert status != "ok"
+
+
+def test_ramp_start_up_missing_limit_stays_unlimited():
+    # A missing start-up limit stays unlimited with the flag. Sub-hourly
+    # snapshots are used deliberately: filling in a missing limit as 1.0
+    # before scaling would cap the start-up at 50 MW here, so the 100 MW
+    # jump below also fails on that bug. A run limit is set so the ramp
+    # code runs at all (it early-returns when every limit is missing).
+    n = pypsa.Network()
+    n.snapshots = pd.date_range("2020-01-01", periods=4, freq="30min")
+    n.snapshot_weightings.loc[:] = 0.5
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0, 150, 150, 150])
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=100,
+        committable=True,
+        p_min_pu=0.1,
+        marginal_cost=10,
+        ramp_limit_up=0.1,
+    )
+    n.add("Generator", "expensive", bus="bus", p_nom=100, marginal_cost=100)
+
+    with pypsa.option_context("future.weighted_ramp_limits", True):
+        status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+    assert n.c["Generator"].dynamic["p"]["gen"].iloc[1] == pytest.approx(100)
+
+
 def test_ramp_big_m_constraint_names():
     n = pypsa.Network(snapshots=range(4))
     n.add("Bus", "bus")
