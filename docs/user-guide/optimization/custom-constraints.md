@@ -248,6 +248,27 @@ Committable extendable generators state their ramp limits in the
 PyPSA checks the specification with its overrides once per process, so a
 repeated build with the same overrides skips the check.
 
+## Reading expressions
+
+The specification also holds `expressions`: named terms that its constraints
+and objective read, as `total_cost` or `Generator_p_nom_effective`.
+[Formulation (generated)](formulation/index.md) lists them. With
+`expressions=True`, `n.optimize()` adds each one to `n.model.expressions`, and
+`.solution` gives its value after the solve:
+
+``` py
+n.optimize(expressions=True)
+n.model.expressions["total_cost"].solution
+n.model.expressions["Generator_p_nom_effective"].solution
+```
+
+An expression takes the dimensions of the variables it reads, as `name` for
+the units of a component, and the same snapshots. One over the units of two
+components keeps their names, as `Generator` and `Link`. An expression added by
+`overrides` is built too. An expression that reads only data, or reads a dual
+as `dual(Bus_nodal_balance)`, is not built. The option is off by default,
+since the expressions add to the time and memory of the build.
+
 ## Handling snapshots in multi-investment optimizations
 
 In multi-period networks, `n.snapshots` is a `pandas.MultiIndex`. linopy's v1
