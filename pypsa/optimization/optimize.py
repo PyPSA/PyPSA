@@ -44,7 +44,6 @@ from pypsa.optimization.global_constraints import (
 )
 from pypsa.optimization.piecewise import PiecewiseOptions
 from pypsa.optimization.spec import build_model
-from pypsa.optimization.spec.build import evaluate as evaluate_expression
 from pypsa.optimization.window import SnapshotWindow
 
 if TYPE_CHECKING:
@@ -578,7 +577,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         window = SnapshotWindow.build(n, sns, options.optimization.model_snapshot_index)
         n._optimize_window = window
         sns = window.model_index
-        n._model, n._built = build_model(
+        n._model = build_model(
             n,
             window.network_index,
             sns,
@@ -684,57 +683,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             _assert_data_integrity(self._n)
 
         return status, condition
-
-    def evaluate(self, name: str) -> pd.DataFrame | pd.Series | float:
-        """Evaluate an expression of the formulation over the solution of the last optimization.
-
-        <!-- md:guide optimization/custom-constraints.md -->
-
-        The expression is one of the `expressions` of the specification the
-        model was built from, or one added by `overrides`. It is read from the
-        solved model, not from the network, and covers the snapshots of the
-        last optimization.
-
-        Parameters
-        ----------
-        name : str
-            Key of the expression in the specification, as `"total_cost"`
-            or `"Generator_p_nom_effective"`.
-
-        Returns
-        -------
-        pd.DataFrame | pd.Series | float
-            An expression over `snapshot` is a DataFrame with the snapshots
-            as rows and its other dimensions as columns, or a Series by
-            snapshot if it has no other. An expression without `snapshot` is
-            a Series over its dimensions, or a float if it has none. In a
-            network with scenarios, `scenario` comes first. The axes take the
-            names of the dimensions of the expression, as `Generator`, not
-            `name` as in `n.c.generators.static`. An expression over both
-            `period` and `snapshot` labels each snapshot as a tuple.
-
-        Raises
-        ------
-        KeyError
-            The specification declares no expression *name*.
-        RuntimeError
-            The network holds no record of a solved optimization, as after
-            `create_model` or a failed solve. A copy, a deep copy or an
-            unpickled network keeps no such record, even where it keeps the
-            model, so optimize it again.
-
-        """
-        da = evaluate_expression(self._n, name)
-        if not self._n.has_scenarios and "scenario" in da.dims:
-            da = da.squeeze("scenario", drop=True)
-        others = (d for d in da.dims if d != "snapshot")
-        columns = sorted(others, key=lambda d: d != "scenario")
-        if "snapshot" not in da.dims:
-            return da.transpose(*columns).to_series() if columns else da.item()
-        frame = da.transpose("snapshot", *columns)
-        if len(columns) > 1:
-            frame = frame.stack(column=columns)
-        return frame.to_pandas()
 
     def assign_solution(self) -> None:
         """Map solution to network components."""

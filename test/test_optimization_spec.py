@@ -2,14 +2,10 @@
 #
 # SPDX-License-Identifier: MIT
 
-import pickle
 import re
-from operator import setitem
 from pathlib import Path
 
 import mathspec
-import numpy as np
-import pandas as pd
 import pytest
 import yaml
 
@@ -258,156 +254,6 @@ def test_ports_of_links_and_processes_share_one_dim():
     }
     assert live["Link"][live["Link"]].index.tolist() == [("link", 2)]
     assert live["Process"][live["Process"]].index.tolist() == [("proc", 1)]
-
-
-PRICES = {
-    "expressions": {
-        "Bus_price": {
-            "dims": ["scenario", "snapshot", "bus"],
-            "expression": "dual(Bus_nodal_balance)",
-        },
-        "GlobalConstraint_price": {
-            "dims": ["scenario", "global_constraint"],
-            "expression": "dual(GlobalConstraint_upper)",
-        },
-        "Generator_on": {
-            "dims": ["Generator"],
-            "cases": {"on": {"when": "Generator_active_asset", "expression": "1"}},
-            "otherwise": "0",
-        },
-        "period_weight": {
-            "dims": ["period", "snapshot"],
-            "expression": "snapshot_weighting_objective * period_weighting_objective",
-        },
-    }
-}
-
-
-@pytest.fixture
-def ac_dc_two_periods(ac_dc_network):
-    n = ac_dc_network
-    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots[:5]])
-    n.investment_periods = [2020, 2030]
-    return n
-
-
-def _solved(request: pytest.FixtureRequest, network: str) -> pypsa.Network:
-    n = request.getfixturevalue(network)
-    n.optimize(multi_investment_periods=n.has_investment_periods, overrides=[PRICES])
-    return n
-
-
-@pytest.mark.parametrize(
-    "network", ["ac_dc_network", "ac_dc_stochastic", "ac_dc_two_periods"]
-)
-@pytest.mark.parametrize(
-    ("name", "read"),
-    [
-        ("energy_limit_weight", lambda n: n.snapshot_weightings.generators),
-        ("Generator_p_nom_effective", lambda n: n.c.generators.static.p_nom_opt),
-        ("Line_s_monitored", lambda n: n.c.lines.dynamic.p0),
-        ("Bus_price", lambda n: n.c.buses.dynamic.marginal_price),
-    ],
-)
-def test_evaluate_reads_the_solution(request, network, name, read):
-    n = _solved(request, network)
-    expected = read(n)
-    frame = expected.ndim == 2
-    assert_equal = (
-        pd.testing.assert_frame_equal if frame else pd.testing.assert_series_equal
-    )
-    assert_equal(n.optimize.evaluate(name), expected, check_names=False)
-
-
-@pytest.mark.parametrize(
-    "network", ["ac_dc_network", "ac_dc_stochastic", "ac_dc_two_periods"]
-)
-def test_evaluate_gives_the_total_cost(request, network):
-    n = _solved(request, network)
-    cost = n.optimize.evaluate("total_cost")
-    assert isinstance(cost, float)
-    assert cost == pytest.approx(n.objective + n.objective_constant)
-
-
-def test_evaluate_joins_the_duals_of_global_constraints(request):
-    n = _solved(request, "ac_dc_network")
-    mu = n.c.global_constraints.static.mu
-    pd.testing.assert_series_equal(
-        n.optimize.evaluate("GlobalConstraint_price"), mu, check_names=False
-    )
-
-
-@pytest.mark.parametrize(
-    ("name", "rows"),
-    [
-        ("energy_limit_weight", lambda sns: sns),
-        ("period_weight", lambda sns: sns.to_flat_index()),
-    ],
-)
-def test_evaluate_labels_the_snapshots_of_periods(request, name, rows):
-    n = _solved(request, "ac_dc_two_periods")
-    result = n.optimize.evaluate(name)
-    pd.testing.assert_index_equal(result.index, rows(n.snapshots), check_names=False)
-
-
-@pytest.mark.parametrize(
-    "change",
-    [
-        lambda n: setitem(n.c.generators.static, "p_nom", 123.0),
-        lambda n: setitem(n.c.generators.static.loc, (slice(None), "active"), False),
-        lambda n: n.add("Generator", "extra", bus="London", p_nom=5.0),
-        lambda n: n.remove("Generator", "Manchester Wind"),
-    ],
-    ids=["unread", "in-place", "added", "removed"],
-)
-def test_evaluate_reads_the_build_not_the_network(ac_dc_network, change):
-    networks = [ac_dc_network, pypsa.examples.ac_dc_meshed()]
-    names = ["total_cost", "Generator_p_nom_committed", "Generator_on"]
-    with pypsa.option_context("debug.runtime_verification", False):
-        for n in networks:
-            n.optimize(overrides=[PRICES])
-        change(networks[1])
-        for name in names:
-            values = [n.optimize.evaluate(name) for n in networks]
-            np.testing.assert_array_equal(*values)
-
-
-def _optimized(n: pypsa.Network) -> pypsa.Network:
-    n.optimize()
-    n.model.solver_model = None
-    return n
-
-
-def _built(n: pypsa.Network) -> pypsa.Network:
-    n.optimize.create_model()
-    return n
-
-
-def _deleted(n: pypsa.Network) -> pypsa.Network:
-    del _optimized(n).model
-    return n
-
-
-@pytest.mark.parametrize(
-    "prepare",
-    [
-        lambda n: n,
-        _built,
-        _deleted,
-        lambda n: _optimized(n).copy(),
-        lambda n: pickle.loads(pickle.dumps(_optimized(n))),
-    ],
-    ids=["unsolved", "built", "deleted", "copy", "pickle"],
-)
-def test_evaluate_needs_a_solved_model(ac_dc_network, prepare):
-    with pytest.raises(RuntimeError, match="optimize it again"):
-        prepare(ac_dc_network).optimize.evaluate("total_cost")
-
-
-def test_evaluate_refuses_an_undeclared_expression(ac_dc_network):
-    n = _optimized(ac_dc_network)
-    with pytest.raises(KeyError, match="unknown expression 'Generator_p'"):
-        n.optimize.evaluate("Generator_p")
 
 
 @pytest.mark.parametrize(

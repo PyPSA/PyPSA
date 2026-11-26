@@ -248,52 +248,6 @@ Committable extendable generators state their ramp limits in the
 PyPSA checks the specification with its overrides once per process, so a
 repeated build with the same overrides skips the check.
 
-## Evaluating expressions
-
-The specification also holds `expressions`: named terms that its constraints
-and objective read, as `total_cost` or `Bus_injection`.
-[Formulation (generated)](formulation/index.md) lists them. After
-`n.optimize()`,
-[`n.optimize.evaluate()`][pypsa.optimization.OptimizationAccessor.evaluate]
-evaluates one over the solution:
-
-``` py
-n.optimize()
-n.optimize.evaluate("total_cost")                 # a float
-n.optimize.evaluate("Generator_p_nom_effective")  # a Series by generator
-n.optimize.evaluate("Bus_injection")              # a DataFrame of snapshots by bus
-```
-
-An expression over `snapshot` has the snapshots as rows and its other
-dimensions as columns. In a network with scenarios, `scenario` comes first, as
-in `n.c.generators.dynamic.p`. The axes take the names of the dimensions of
-the expression, as `Generator`, not `name` as in `n.c.generators.static`.
-
-An override can add an expression. It can read variables, parameters and
-duals. This one gives what each generator earns at the price of its bus, as
-`n.statistics.revenue()` does:
-
-``` yaml title="revenue.yaml"
-expressions:
-  Generator_revenue:
-    description: what a generator earns at the price of its bus
-    dims: [scenario, Generator]
-    expression: >-
-      sum(snapshot_weighting_objective * Generator_p
-      * at(dual(Bus_nodal_balance), by=Generator_bus[bus]), over=snapshot)
-```
-
-``` py
-n.optimize(overrides=["revenue.yaml"])
-n.optimize.evaluate("Generator_revenue")
-```
-
-`evaluate` reads the model of the last optimization and the data it was
-built from, not the network as it is now, and covers only its snapshots. After
-a rolling horizon, these are the snapshots of the last window. A copy, a
-pickled or a saved network keeps no record of the build, even where it keeps
-the model, so optimize it again.
-
 ## Handling snapshots in multi-investment optimizations
 
 In multi-period networks, `n.snapshots` is a `pandas.MultiIndex`. linopy's v1
