@@ -544,6 +544,8 @@ class Network(
 
         Sub-networks are not compared, since they are derived from the other
         components. The `sub_network` columns of buses and branches are compared.
+        The composite types and stored overrides are compared in order, since a
+        later one wins.
 
         Parameters
         ----------
@@ -604,6 +606,10 @@ class Network(
                     not_equal = True
                     if not log_mode:
                         break
+            overrides = self.optimize.overrides, other.optimize.overrides
+            if not equals(*overrides, log_mode=log_mode, path="n.optimize.overrides"):
+                logger.warning("Mismatch in attribute: %s", "optimize.overrides")
+                not_equal = True
         else:
             logger.warning(
                 "Can only compare two pypsa.Network objects with each other. Got %s.",

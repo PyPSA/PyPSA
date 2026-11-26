@@ -247,6 +247,7 @@ def test_a_type_without_instances_adds_no_rows(n):
     "form",
     [
         "copy",
+        "slice",
         "netcdf",
         pytest.param(
             "hdf5",
@@ -259,13 +260,63 @@ def test_a_type_without_instances_adds_no_rows(n):
 def test_composites_survive_copy_and_io(n, tmp_path, form):
     _add(n)
     path = tmp_path / {"netcdf": "net.nc", "hdf5": "net.h5"}.get(form, "")
-    if form != "copy":
+    if form in ("netcdf", "hdf5"):
         getattr(n, f"export_to_{form}")(path)
-    other = n.copy() if form == "copy" else pypsa.Network(path)
+    other = {"copy": n.copy, "slice": lambda: n.slice_network(n.buses.index)}.get(
+        form, lambda: pypsa.Network(path)
+    )()
     n.optimize()
     assert other.composites.battery.members.equals(n.composites.battery.members)
     other.optimize()
     assert other.objective == pytest.approx(n.objective)
+
+
+def test_merge_unites_composite_types(n):
+    _add(n)
+    other = pypsa.Network()
+    other.set_snapshots(n.snapshots)
+    other.add("Bus", "east")
+    merged = other.merge(n)
+    assert list(merged.composites) == ["battery"]
+    assert "battery_inverter" in merged.optimize.create_model().constraints
+    other.composites.register(_with(description="other"))
+    with pytest.raises(ValueError, match=r"different composite type .*\['battery'\]"):
+        other.merge(n)
+
+
+def test_equals_follows_the_order_of_types(n):
+    n.composites.register(
+        yaml.safe_load(yaml.safe_dump(BATTERY).replace("battery", "cell"))
+    )
+    other = n.copy()
+    assert n.equals(other)
+    other.meta["composites"] = dict(reversed(other.meta["composites"].items()))
+    assert not n.equals(other)
+
+
+def test_a_stored_override_edits_a_type(n):
+    _add(n)
+    n.optimize.overrides.register(
+        {"constraints": {"battery_duration": None}}, name="free"
+    )
+    assert "battery_duration" not in n.optimize.create_model().constraints
+
+
+def test_a_type_refuses_an_entry_a_stored_override_creates():
+    n = pypsa.Network()
+    inverter = {
+        "dims": ["Generator"],
+        "where": "Generator_p_nom_extendable",
+        "expression": "Generator_p_nom_ext >= 0",
+    }
+    n.optimize.overrides.register(
+        {"constraints": {"battery_inverter": inverter}}, name="own"
+    )
+    with pytest.raises(
+        ValueError, match=r"'own' creates \['constraints.battery_inverter'\]"
+    ):
+        n.composites.register(BATTERY)
+    assert list(n.composites) == []
 
 
 def test_an_incomplete_instance_fails(n):

@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pypsa import Network
+    from pypsa.optimization.spec.build import Override
 logger = logging.getLogger(__name__)
 
 
@@ -320,6 +321,7 @@ class OptimizationAbstractMGAMixin:
         slack: float = 0.05,
         model_kwargs: dict | None = None,
         objective_scaling: float = 1.0,
+        overrides: Sequence[Override] | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Run modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
@@ -350,6 +352,8 @@ class OptimizationAbstractMGAMixin:
         objective_scaling : float, default 1.0
             Factor applied to all objective coefficients in the solver, see
             `n.optimize.create_model`.
+        overrides : list[str | Path | dict], optional
+            Changes to the optimisation problem, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -388,6 +392,7 @@ class OptimizationAbstractMGAMixin:
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
             objective_scaling=objective_scaling,
+            overrides=overrides,
             **model_kwargs,
         )
 
@@ -478,6 +483,7 @@ class OptimizationAbstractMGAMixin:
         slack: float = 0.05,
         model_kwargs: dict | None = None,
         objective_scaling: float = 1.0,
+        overrides: Sequence[Override] | None = None,
         **kwargs: Any,
     ) -> tuple[str, str, pd.Series | None]:
         """Run MGA in a given direction in a low-dimension projection.
@@ -509,6 +515,8 @@ class OptimizationAbstractMGAMixin:
         objective_scaling : float, default 1.0
             Factor applied to all objective coefficients in the solver, see
             `n.optimize.create_model`.
+        overrides : list[str | Path | dict], optional
+            Changes to the optimisation problem, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -555,6 +563,7 @@ class OptimizationAbstractMGAMixin:
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
             objective_scaling=objective_scaling,
+            overrides=overrides,
             **model_kwargs,
         )
 
@@ -597,6 +606,7 @@ class OptimizationAbstractMGAMixin:
         slack: float,
         model_kwargs: dict,
         objective_scaling: float,
+        overrides: Sequence[Override] | None,
         kwargs: dict,
     ) -> tuple[dict, pd.Series | None]:
         """Solve a single direction for parallel execution (helper method).
@@ -617,6 +627,7 @@ class OptimizationAbstractMGAMixin:
                 slack=slack,
                 model_kwargs=model_kwargs,
                 objective_scaling=objective_scaling,
+                overrides=overrides,
                 **kwargs,
             )
         except KeyboardInterrupt:
@@ -643,6 +654,7 @@ class OptimizationAbstractMGAMixin:
         model_kwargs: dict | None = None,
         max_parallel: int = 4,
         objective_scaling: float = 1.0,
+        overrides: Sequence[Override] | None = None,
         **kwargs: Any,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Run MGA optimization in multiple directions in parallel.
@@ -688,6 +700,8 @@ class OptimizationAbstractMGAMixin:
         objective_scaling : float, default 1.0
             Factor applied to all objective coefficients in the solver, see
             `n.optimize.create_model`.
+        overrides : list[str | Path | dict], optional
+            Changes to the optimisation problem, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -764,6 +778,7 @@ class OptimizationAbstractMGAMixin:
                                 slack,
                                 model_kwargs,
                                 objective_scaling,
+                                overrides,
                                 kwargs,
                             )
                             for direction in directions

@@ -52,6 +52,8 @@ if TYPE_CHECKING:
 
     from pypsa import Network
 logger = logging.getLogger(__name__)
+#: The most characters an Excel cell holds.
+EXCEL_CELL_LIMIT = 32767
 
 
 def _coerce_string_dtypes(df: pd.DataFrame) -> pd.DataFrame:
@@ -744,6 +746,9 @@ class _ExporterExcel(_Exporter):
             # If value is a dict, serialize it as JSON
             if isinstance(value, dict):
                 value = json.dumps(value)
+            if isinstance(value, str) and len(value) > EXCEL_CELL_LIMIT:
+                msg = f"`n.meta[{key!r}]` takes {len(value)} characters, more than an Excel cell holds ({EXCEL_CELL_LIMIT}). Export to netCDF, HDF5 or CSV instead."
+                raise ValueError(msg)
             meta_items.append([key, value])
 
         df = pd.DataFrame(meta_items, columns=["Key", "Value"])

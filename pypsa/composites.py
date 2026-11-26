@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pypsa._registry import Registry, jsonable
 from pypsa.components.types import component_types_df
 from pypsa.network.transform import _build_suffixed_names
 
@@ -501,7 +502,7 @@ class Composite:
         return xr.DataArray(np.array(values, dtype=s.dtype(name)), coords, list(coords))
 
 
-class Composites(Mapping[str, Composite]):
+class Composites(Registry[Composite]):
     """The composite types registered on a network, read from `n.meta`.
 
     Examples
@@ -512,59 +513,30 @@ class Composites(Mapping[str, Composite]):
 
     """
 
-    def __init__(self, n: Network) -> None:
-        """Bind the registry to the network."""
-        self.n = n
+    META = META
+    NOUN = "composite type"
 
-    def __repr__(self) -> str:
-        """List the registered types."""
-        return f"Composites {list(self)}"
-
-    def _definitions(self) -> dict[str, Any]:
-        return self.n.meta.get(META, {})
-
-    def __getitem__(self, name: str) -> Composite:
-        """Return the instances of a registered type."""
-        return Composite(self.n, CompositeType.read(self._definitions()[name]))
-
-    def __contains__(self, name: object) -> bool:
-        """Whether a type of this name is registered."""
-        return name in self._definitions()
-
-    def __getattr__(self, name: str) -> Composite:
-        """Return the instances of a registered type."""
-        if name.startswith("_") or name not in self._definitions():
-            msg = f"No composite type {name!r} is registered."
-            raise AttributeError(msg)
-        return self[name]
-
-    def __iter__(self) -> Iterator[str]:
-        """Iterate the registered type names."""
-        return iter(self._definitions())
-
-    def __len__(self) -> int:
-        """Count the registered types."""
-        return len(self._definitions())
+    def _read(self, entry: Mapping[str, Any]) -> Composite:
+        return Composite(self.n, CompositeType.read(entry))
 
     def register(self, definition: Override) -> Composite:
         """Register a composite type from a YAML file, YAML text or mapping.
 
+        The definition is checked with the formulation, the other composite
+        types and the stored overrides of the network.
+
         Raises:
-            ValueError: The definition is malformed, or another type of the
-                same name is registered.
+            ValueError: The definition is malformed, another type of the
+                same name is registered, or a stored override creates an
+                entry the type declares.
             mathspec.errors.LanguageError: The math does not hold with the
                 formulation.
 
         """
-        from pypsa.optimization.spec.build import spec  # noqa: PLC0415
-
         t = CompositeType.read(definition)
-        known = self._definitions().get(t.name)
-        if known is not None and known != asdict(t):
-            msg = f"Another composite type {t.name!r} is registered."
-            raise ValueError(msg)
-        spec(overrides=[t.patch()])
-        self.n.meta.setdefault(META, {})[t.name] = asdict(t)
+        content = jsonable(asdict(t), f"The composite type {t.name!r}")
+        if not self._holds(t.name, content):
+            self._set(self._entries() | {t.name: content})
         return self[t.name]
 
     @property
@@ -572,8 +544,8 @@ class Composites(Mapping[str, Composite]):
         """Return the names of all instances of all types."""
         return pd.Index(_tags(self.n).composite.unique(), dtype=object)
 
-    def patches(self) -> list[dict[str, Any]]:
-        """Return the spec patch of each registered type.
+    def patches(self) -> dict[str, dict[str, Any]]:
+        """Return the spec patch of each registered type, by name.
 
         Raises:
             ValueError: Components are tagged with a type that is not
@@ -584,7 +556,7 @@ class Composites(Mapping[str, Composite]):
         if unknown:
             msg = f"Components are tagged with the composite types {sorted(unknown)}, which are not registered; register them with `n.composites.register`."
             raise ValueError(msg)
-        return [c.type.patch() for c in self.values()]
+        return {k: c.type.patch() for k, c in self.items()}
 
     def providers(self) -> dict[str, Callable[[NetworkSources, str], Any]]:
         """Return the data of every registered type for a build."""

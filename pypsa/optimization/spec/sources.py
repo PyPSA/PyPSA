@@ -191,7 +191,8 @@ class NetworkSources(Mapping[str, Any]):
     def derivation(self, name: str) -> Callable[[], Any]:
         """Return the derivation of `name`: its provider, else the PyPSA data it names.
 
-        A parameter `<Component>_<attr>` reads the attribute, a relation
+        A parameter `<Component>_<attr>` reads the attribute, or takes its
+        `missing:` value where the component lacks it, a relation
         `<Component>_<column>` reads the static column, and a dimension takes
         the labels the relations map into it.
 
@@ -203,6 +204,12 @@ class NetworkSources(Mapping[str, Any]):
             return functools.partial(self._providers[name], self, name)
         c = self.component(name)
         if name in self.spec.parameters and c is not None:
+            missing = self.spec.parameters[name].missing
+            attr = name.removeprefix(f"{c.name}_")
+            absent = attr not in c.static and attr not in c.dynamic
+            if absent and missing != "refused":
+                value = np.nan if missing == "absent" else missing
+                return functools.partial(self.filled, name, value)
             self.attr(c, name)
             return functools.partial(self.attribute, c, name)
         if name in self.spec.relations and c is not None:
