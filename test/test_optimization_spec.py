@@ -4,6 +4,7 @@
 
 import pickle
 import re
+from operator import setitem
 from pathlib import Path
 
 import mathspec
@@ -269,8 +270,21 @@ PRICES = {
             "dims": ["scenario", "global_constraint"],
             "expression": "dual(GlobalConstraint_upper)",
         },
+        "Generator_on": {
+            "dims": ["Generator"],
+            "cases": {"on": {"when": "Generator_active_asset", "expression": "1"}},
+            "otherwise": "0",
+        },
     }
 }
+
+
+@pytest.fixture
+def ac_dc_two_periods(ac_dc_network):
+    n = ac_dc_network
+    n.snapshots = pd.MultiIndex.from_product([[2020, 2030], n.snapshots[:5]])
+    n.investment_periods = [2020, 2030]
+    return n
 
 
 def _solved(request: pytest.FixtureRequest, network: str) -> pypsa.Network:
@@ -280,7 +294,7 @@ def _solved(request: pytest.FixtureRequest, network: str) -> pypsa.Network:
 
 
 @pytest.mark.parametrize(
-    "network", ["ac_dc_network", "ac_dc_stochastic", "ac_dc_periods"]
+    "network", ["ac_dc_network", "ac_dc_stochastic", "ac_dc_two_periods"]
 )
 @pytest.mark.parametrize(
     ("name", "read"),
@@ -302,7 +316,7 @@ def test_evaluate_reads_the_solution(request, network, name, read):
 
 
 @pytest.mark.parametrize(
-    "network", ["ac_dc_network", "ac_dc_stochastic", "ac_dc_periods"]
+    "network", ["ac_dc_network", "ac_dc_stochastic", "ac_dc_two_periods"]
 )
 def test_evaluate_gives_the_total_cost(request, network):
     n = _solved(request, network)
@@ -319,16 +333,26 @@ def test_evaluate_joins_the_duals_of_global_constraints(request):
     )
 
 
-def test_evaluate_reads_the_solved_model_not_the_network(ac_dc_network):
-    n = ac_dc_network
-    n.optimize()
-    names = ["total_cost", "Generator_p_nom_effective", "Line_s_monitored"]
-    before = [n.optimize.evaluate(name) for name in names]
-    n.c.generators.static.capital_cost *= 2
-    n.c.lines.static.s_nom_extendable = False
-    n.remove("Generator", "Manchester Wind")
-    for name, value in zip(names, before, strict=True):
-        np.testing.assert_array_equal(n.optimize.evaluate(name), value)
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda n: setitem(n.c.generators.static, "p_nom", 123.0),
+        lambda n: setitem(n.c.generators.static.loc, (slice(None), "active"), False),
+        lambda n: n.add("Generator", "extra", bus="London", p_nom=5.0),
+        lambda n: n.remove("Generator", "Manchester Wind"),
+    ],
+    ids=["unread", "in-place", "added", "removed"],
+)
+def test_evaluate_reads_the_build_not_the_network(ac_dc_network, change):
+    networks = [ac_dc_network, pypsa.examples.ac_dc_meshed()]
+    names = ["total_cost", "Generator_p_nom_committed", "Generator_on"]
+    with pypsa.option_context("debug.runtime_verification", False):
+        for n in networks:
+            n.optimize(overrides=[PRICES])
+        change(networks[1])
+        for name in names:
+            values = [n.optimize.evaluate(name) for n in networks]
+            np.testing.assert_array_equal(*values)
 
 
 def _optimized(n: pypsa.Network) -> pypsa.Network:

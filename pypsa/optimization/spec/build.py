@@ -379,14 +379,64 @@ def _relabel(
 
 
 class Built(NamedTuple):
-    """What `build_model` built a model from: the spec linopy read, the sources of its data, the PyPSA name of each entry, the dims `_relabel` renamed per entry, the variables it removed and the labels of each global constraint split by label."""
+    """The record of a build that `evaluate` reads a solution with."""
 
     spec: Spec
-    sources: NetworkSources
+    sources: dict[str, Any]
+    snapshots: pd.Index
     rename: Callable[[str], str]
     dims: dict[str, dict[str, str]]
     dropped: dict[str, xr.Coordinates]
     split: dict[str, list[str]]
+
+
+def _reached(spec: Spec) -> set[str]:
+    """Return the parameters the expressions of `spec` read, with those their `where` reads."""
+    from mathspec import program as ms  # noqa: PLC0415
+
+    program = spec.program
+    bodies = [e.expression for e in program.expressions.values()]
+    read: set[str] = set()
+    for node in ms.walk(*bodies):
+        match node:
+            case (
+                ms.ParameterReference(name=name)
+                | ms.Translate(offset=str(name))
+                | ms.WindowSum(width=str(name))
+            ):
+                read.add(name)
+            case ms.Cases(regions=regions):
+                read.update(*(region.when.names_read for region in regions))
+    reached: set[str] = set()
+    while read:
+        name = read.pop()
+        if name in reached or name not in program.parameters:
+            continue
+        reached.add(name)
+        where = program.parameters[name].where
+        read |= set() if where is None else where.names_read
+    return reached
+
+
+def _owned(value: Any) -> Any:
+    """Return `value`, an array in memory of its own, an axis broadcast with stride 0 kept broadcast."""
+    if not isinstance(value, xr.DataArray) or value.values.flags.owndata:
+        return value
+    values = value.values
+    core = values[tuple(slice(None) if s else slice(1) for s in values.strides)]
+    return value.copy(deep=False, data=np.broadcast_to(core.copy(), values.shape))
+
+
+def _detached(spec: Spec, sources: NetworkSources) -> dict[str, Any]:
+    """Return what `evaluate` reads of `sources`, derived now in memory of its own, so no later change to the network reaches it.
+
+    These are the labels of each dimension, each relation and each parameter
+    an expression of `spec` reaches.
+    """
+    program = spec.program
+    dims = {d: sources.coords(d) for d in program.dimensions if d in sources}
+    names = [*program.relations, *_reached(spec)]
+    return dims | {k: _owned(sources[k]) for k in names}
 
 
 def _solved(m: Model, built: Built) -> SimpleNamespace:
@@ -395,7 +445,7 @@ def _solved(m: Model, built: Built) -> SimpleNamespace:
     A removed variable reads as absent. A global constraint split by label
     reads the duals of its parts, NaN at a label it did not build.
     """
-    snapshots = built.sources.coords("snapshot")
+    snapshots = built.sources["snapshot"]
 
     def framed[T: (xr.Dataset, xr.DataArray)](obj: T, name: str) -> T:
         obj = obj.rename({v: k for k, v in built.dims.get(name, {}).items()})
@@ -415,8 +465,7 @@ def _solved(m: Model, built: Built) -> SimpleNamespace:
         joined = framed(
             xr.concat(parts, pd.Index(labels, dtype=object, name="name")), name
         )
-        coords = built.sources.coords("global_constraint")
-        return joined.reindex(global_constraint=coords)
+        return joined.reindex(global_constraint=built.sources["global_constraint"])
 
     absent = {
         k: xr.Dataset(
@@ -443,7 +492,8 @@ def _solved(m: Model, built: Built) -> SimpleNamespace:
 def evaluate(n: Network, name: str) -> xr.DataArray:
     """Return the expression *name* of the spec `n` was last optimized with, over its solution.
 
-    It keeps the dims its spec entry declares; its snapshots are labelled as `n.snapshots` labels them.
+    It keeps the dims its spec entry declares; its snapshots are labelled as
+    `n.snapshots` labels them.
 
     Raises:
         RuntimeError: `n` holds no model, or its model holds no solution.
@@ -455,12 +505,11 @@ def evaluate(n: Network, name: str) -> xr.DataArray:
     if built is None or m is None or m.status != "ok":
         msg = "The network holds no solved model: optimize it first, as models are not saved with it."
         raise RuntimeError(msg)
-    sources = built.sources
     view = _solved(m, built)
-    da = fold(built.spec, view, name, sources=sources, rename=built.rename)[name]
+    da = fold(built.spec, view, name, sources=built.sources, rename=built.rename)[name]
     if "snapshot" not in da.dims:
         return da
-    index = sources.network_index
+    index = built.snapshots
     if isinstance(index, pd.MultiIndex):
         return da.assign_coords(
             xr.Coordinates.from_pandas_multiindex(index, "snapshot")
@@ -636,8 +685,8 @@ def build_model(
     overrides: Sequence[Override] = (),
     objective_scaling: float = 1.0,
     **options: Any,
-) -> Model:
-    """Build the model of `n` over the build's snapshots from the spec, with *overrides* laid over it."""
+) -> tuple[Model, Built]:
+    """Build the model of `n` over the build's snapshots from the spec, with *overrides* laid over it, and return it with the record of its build."""
     check(
         n,
         network_index,
@@ -663,5 +712,5 @@ def build_model(
     rules = _rules(spec_scalings(linearized_unit_commitment), rename)
     _scale(m, n, sources, rules, objective_scaling)
     split = _split_by_label(m)
-    n._built = Built(expanded, sources, rename, dims, dropped, split)
-    return m
+    kept = _detached(expanded, sources)
+    return m, Built(expanded, kept, network_index, rename, dims, dropped, split)

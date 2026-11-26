@@ -578,7 +578,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         window = SnapshotWindow.build(n, sns, options.optimization.model_snapshot_index)
         n._optimize_window = window
         sns = window.model_index
-        n._model = build_model(
+        n._model, n._built = build_model(
             n,
             window.network_index,
             sns,
