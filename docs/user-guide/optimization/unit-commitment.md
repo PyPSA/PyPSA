@@ -182,9 +182,11 @@ This allows for partial commitment states (generators can be partially on/off), 
 n.optimize(linearized_unit_commitment=True)
 ```
 
-!!! warning "Not compatible with modular components"
+!!! warning "Not compatible with modular components or piecewise curves"
 
     Linearized unit commitment cannot be used with [modular committable components](capacity-limits.md#modular-and-committable-components) and will result in a `ValueError`.
+
+    It also raises a `ValueError` for a committable component with a [piecewise](piecewise.md) `marginal_cost`, `efficiency` or `rate` curve, as the curve needs an integer status to switch it on and off. Use the full unit commitment for such a component, or make it non-committable.
 
 To tighten the relaxation, additional constraints are introduced that improve capturing the relationship between commitment status, ramping, and dispatch. At the first snapshot they use the previous dispatch and status as described in [Initial Conditions](#initial-conditions) and are skipped if the previous dispatch is unknown. The tightening is only applied to units whose start-up and shut-down costs are equal in every snapshot; for the other units the unit commitment variables are purely relaxed and a warning is logged. The added constraints limit the dispatch during partial start-up and shut-down, as well as ramping during partial commitment:
 
