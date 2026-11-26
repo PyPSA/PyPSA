@@ -47,16 +47,15 @@ class Generators(Components):
     _operational_variables = ["p"]
     _power_variable = "p"
     _formulation = (
-        "extendable",
-        "carrier_expansion",
+        "capacity",
         "marginal_cost",
         "dispatch",
-        "single_bus",
+        "oneport",
         "rating",
         "commitment",
         "ramping",
         "maintenance",
-        "primary_energy",
+        "operational_limit",
     )
 
     def get_bounds_pu(

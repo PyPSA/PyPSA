@@ -36,6 +36,34 @@ def test_every_declared_trait_has_one_file():
     assert declared == stated
 
 
+def test_every_trait_serves_more_than_one_component():
+    traits = (path.stem for path in (SPEC / "traits").iterdir())
+    assert all(len(formulated(pypsa.Network(), t)) > 1 for t in traits)
+
+
+def _generic(c: pypsa.components.Components) -> dict[tuple[str, str], str]:
+    data = _load(SPEC / "components" / f"{_snake(c.name)}.yaml", lambda n: n)[0]
+    return {
+        (section, k.replace(c.name, "COMPONENT")): yaml.safe_dump(
+            {f: v for f, v in entry.items() if f != "description"}
+            if isinstance(entry, dict)
+            else entry
+        ).replace(c.name, "COMPONENT")
+        for section, body in data.items()
+        if section not in {"given", "dimensions", "relations", "macros"}
+        for k, entry in body.items()
+    }
+
+
+def test_no_entry_is_stated_alike_in_two_component_files():
+    stated: dict[tuple[str, str], list[str]] = {}
+    for c in formulated(pypsa.Network()):
+        for key, body in _generic(c).items():
+            stated.setdefault((*key, body), []).append(c.name)
+    alike = {key[:2]: names for key, names in stated.items() if len(names) > 1}
+    assert not alike
+
+
 @pytest.mark.parametrize(
     ("component", "name", "renamed"),
     [

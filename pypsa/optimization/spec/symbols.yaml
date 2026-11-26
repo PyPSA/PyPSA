@@ -21,7 +21,7 @@ dimensions:
   carrier: {index: '\sigma', set: '\mathcal{C}'}
   cycle: {index: '\xi', set: '\mathcal{Y}'}
   outage: {index: '\zeta', set: '\mathcal{O}'}
-  segment: {index: '\epsilon', set: '\mathcal{V}'}
+  cut: {index: '\epsilon', set: '\mathcal{V}'}
   global_constraint: {index: '\gamma', set: '\mathcal{H}'}
   port: {index: '\beta', set: '\mathcal{I}'}
 names:

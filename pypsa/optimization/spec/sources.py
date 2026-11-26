@@ -735,9 +735,11 @@ def _cvar(s: NetworkSources, name: str) -> float | xr.DataArray:
 
 @source("COMPONENT_bus", "COMPONENT_bus0", "COMPONENT_bus1", "COMPONENT_carrier")
 def _relation(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
-    """Map each unit to the label of its column: a bus, or a carrier."""
+    """Map each unit to the label of its column, a bus or a carrier; no unit where the component lacks it."""
     column = name.removeprefix(f"{c.name}_")
     static = s.static(c)
+    if column not in static:
+        static = static.iloc[:0].reindex(columns=[column])
     return pd.DataFrame(
         {
             c._unit_dim: static.index.to_numpy(dtype=object),

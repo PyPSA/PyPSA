@@ -38,11 +38,10 @@ class StorageUnits(Components):
     _operational_variables = ["p_dispatch", "p_store", "state_of_charge"]
     _power_variable = "p_dispatch"
     _formulation = (
-        "extendable",
-        "carrier_expansion",
+        "capacity",
         "marginal_cost",
-        "single_bus",
-        "primary_energy",
+        "oneport",
+        "operational_limit",
         "storage",
     )
     _level_attrs = ("state_of_charge_initial", "cyclic_state_of_charge")

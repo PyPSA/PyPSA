@@ -44,7 +44,7 @@ class TestPiecewiseGeneratorEfficiency:
         model = piecewise_efficiency_network.optimize.create_model(
             include_objective_constant=False
         )
-        assert "Generator-p_primary_piecewise_order_binary" in model.binaries
+        assert "Generator-p_primary_piecewise_order" in model.binaries
         assert "Generator-p_primary_piecewise_chord" not in model.constraints
 
     @pytest.mark.parametrize(

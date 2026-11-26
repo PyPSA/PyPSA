@@ -42,8 +42,7 @@ class Processes(_Multiport):
     _operational_variables = ["p"]
     _power_variable = "p"
     _formulation = (
-        "extendable",
-        "carrier_expansion",
+        "capacity",
         "marginal_cost",
         "dispatch",
         "rating",

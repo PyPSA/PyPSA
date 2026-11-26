@@ -40,7 +40,7 @@ class Transformers(Components):
     """
 
     _operational_variables = ["s"]
-    _formulation = ("extendable", "passive_branch")
+    _formulation = ("capacity", "passive_branch")
 
     def get_bounds_pu(
         self,

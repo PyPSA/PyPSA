@@ -56,7 +56,7 @@ dimensions:
       another period
   outage:
     description: the lines and transformers a security-constrained run takes out one at a time
-  segment:
+  cut:
     description: the cuts a passive branch's loss curve lies above, tangents or secants
     dtype: int
   global_constraint:

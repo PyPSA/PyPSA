@@ -219,8 +219,8 @@ def _tangent_count(s: NetworkSources) -> int:
     return segments
 
 
-@source("segment")
-def _segment_labels(s: NetworkSources, name: str) -> pd.Index:
+@source("cut")
+def _cut_labels(s: NetworkSources, name: str) -> pd.Index:
     if s.transmission_losses is None:
         return pd.Index([], dtype=int)
     if (s.transmission_losses or {}).get("mode") == "tangents":
@@ -239,19 +239,19 @@ def _loss_max(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
 
 
 def _cuts(s: NetworkSources, c: Components) -> tuple[xr.DataArray, xr.DataArray]:
-    """Slope and offset of each cut to a component's loss curve, over `segment`."""
-    segment = xr.DataArray(s.coords("segment"), dims="segment")
-    segment = segment.assign_coords(segment=s.coords("segment"))
+    """Slope and offset of each cut to a component's loss curve, over `cut`."""
+    cut = xr.DataArray(s.coords("cut"), dims="cut")
+    cut = cut.assign_coords(cut=s.coords("cut"))
     r, rating = _loss_inputs(s, c)
     if (s.transmission_losses or {}).get("mode") == "tangents":
-        flow = segment / len(segment) * rating
+        flow = cut / len(cut) * rating
         slope = 2 * r * flow
         return slope, r * flow**2 - slope * flow
     atol = _secant_options(s)[0]
     factors = _secant_factors(s, c)
-    pad = (0, len(segment) - len(factors) + 1)
-    a = segment.copy(data=np.pad(factors[:-1], pad, constant_values=np.nan))
-    b = segment.copy(data=np.pad(factors[1:], pad, constant_values=np.nan))
+    pad = (0, len(cut) - len(factors) + 1)
+    a = cut.copy(data=np.pad(factors[:-1], pad, constant_values=np.nan))
+    b = cut.copy(data=np.pad(factors[1:], pad, constant_values=np.nan))
     lossy = r > 0
     slope = 2 * (atol * r.where(lossy, 0)) ** 0.5 * (a + b)
     offset = (-4 * atol * a * b).where(lossy, 0 * a)
@@ -260,7 +260,7 @@ def _cuts(s: NetworkSources, c: Components) -> tuple[xr.DataArray, xr.DataArray]
 
 @source("COMPONENT_loss_slope", "COMPONENT_loss_offset")
 def _loss_cut(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    if not len(s.coords("segment")):
+    if not len(s.coords("cut")):
         return s.filled(name, 0.0)
     slope, offset = s.memo(f"{c.name} cuts", lambda: _cuts(s, c))
     return slope if name.endswith("slope") else offset

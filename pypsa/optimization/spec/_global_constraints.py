@@ -164,6 +164,8 @@ def _tech_capacity(
     static: pd.DataFrame,
 ) -> pd.Series:
     """One for each extendable unit of the row's carrier at its bus, active in its period."""
+    if "carrier" not in static:
+        return pd.Series(dtype=float)
     extendable = static[c._operational_attrs["nom_extendable"]].astype(bool)
     mask = (static["carrier"] == glc["carrier_attribute"]) & extendable
     mask &= static.index.isin(c._active_names(_stated(glc)))
