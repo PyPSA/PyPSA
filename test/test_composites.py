@@ -357,6 +357,11 @@ def _with(**changes):
             ),
             r"sets \['max_hours'\]",
         ),
+        (_replaced(("battery", "v"), ("max_hours", "nom")), r"columns \['v_nom'\]"),
+        (
+            _replaced(("battery", "composite"), ("max_hours", "type")),
+            r"columns \['composite_type'\]",
+        ),
         (_with(math={"objective": {}}), "has the sections"),
         (_with(math={"constraints": {"inverter": {}}}), "cannot add 'inverter'"),
         (

@@ -23,6 +23,7 @@ import pandas as pd
 import xarray as xr
 
 from pypsa.components.types import component_types_df
+from pypsa.components.types import get as component_type
 from pypsa.network.transform import _build_suffixed_names
 
 if TYPE_CHECKING:
@@ -248,6 +249,11 @@ class CompositeType:
             msg = (
                 f"Neither a template nor the math of {t} uses the parameters {unused}."
             )
+            raise ValueError(msg)
+        anchor = self.members[self.anchor]
+        used = {*component_type(anchor).defaults.index, *TAGS}
+        if clash := sorted({self.column(p) for p in math} & used):
+            msg = f"The math parameters of {t} take the columns {clash} of the {anchor} components, which PyPSA uses; rename them."
             raise ValueError(msg)
         if untyped := [p for p in math if self.parameters[p] is None]:
             msg = f"The math of {t} reads {untyped}, so they take a default, which sets their dtype."
