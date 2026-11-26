@@ -614,7 +614,10 @@ class RecordSources(NetworkSources):
                 column = table.column("cyclic_delay", port)
                 cyclic = self.grid(c.name, column).isel(scenario=0)
                 static[column] = cyclic.sel(name=names.to_numpy()).to_numpy()
-        static[CARRIER] = self.entities[CARRIER].reindex(names).fillna("").to_numpy()
+        if self.takes(c, CARRIER):
+            static[CARRIER] = (
+                self.entities[CARRIER].reindex(names).fillna("").to_numpy()
+            )
         active = self.grid(c.name, "active").isel(scenario=0)
         static["active"] = active.sel(name=names.to_numpy()).to_numpy()
         return static
@@ -696,7 +699,8 @@ def _buses(s: RecordSources, name: str) -> pd.Index:
 def _carriers(s: RecordSources, name: str) -> pd.Index:
     """Every carrier of the record, and the empty one where a unit names none."""
     labels = s.axis(CARRIER)
-    units = s.entities[s.entities[CTYPE].isin(c.name for c in s.units.values())]
+    types = [c.name for c in s.units.values() if s.takes(c, CARRIER)]
+    units = s.entities[s.entities[CTYPE].isin(types)]
     return labels.append(pd.Index([""])) if units[CARRIER].isna().any() else labels
 
 
