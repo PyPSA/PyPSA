@@ -228,7 +228,7 @@ def test_stored_overrides_survive_copy_and_io(ac_dc_network, tmp_path, form):
     if form in ("netcdf", "hdf5", "csv", "excel"):
         export = "csv_folder" if form == "csv" else form
         getattr(n, f"export_to_{export}")(path)
-    other = {"copy": n.copy, "slice": lambda: n.slice_network(n.buses.index)}.get(
+    other = {"copy": n.copy, "slice": lambda: n.slice_network(n.c.buses.names)}.get(
         form, lambda: pypsa.Network(path)
     )()
     assert other.optimize.overrides == n.optimize.overrides

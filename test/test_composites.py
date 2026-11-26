@@ -262,7 +262,7 @@ def test_composites_survive_copy_and_io(n, tmp_path, form):
     path = tmp_path / {"netcdf": "net.nc", "hdf5": "net.h5"}.get(form, "")
     if form in ("netcdf", "hdf5"):
         getattr(n, f"export_to_{form}")(path)
-    other = {"copy": n.copy, "slice": lambda: n.slice_network(n.buses.index)}.get(
+    other = {"copy": n.copy, "slice": lambda: n.slice_network(n.c.buses.names)}.get(
         form, lambda: pypsa.Network(path)
     )()
     n.optimize()
