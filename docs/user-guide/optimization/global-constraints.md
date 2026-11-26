@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC-BY-4.0
 Global constraints apply to more than one component at once and are stored under a unique `name` in `n.global_constraints`. Several pre-defined types of global constraints are available (`type`).
 For instance, for defining emission limits, transmission expansion limits, or technology capacity expansion limits using the `sense` and `constant` attributes.
 
-By default, global constraints span across all investment periods. For models with multiple investment periods, global constraints can be limited to affect only single investment period (e.g. an emission limit for a specific year) by specifying the in the attribute `investment_period`. The shadow price of each global constraint is stored in the attribute `mu`. Flow-based rows store theirs per snapshot in `mu_ram` instead.
+By default, global constraints span all investment periods. Set `investment_period` to apply a global constraint to a single period. The shadow price of each global constraint is stored in the attribute `mu`. Flow-based rows store theirs per snapshot in `mu_ram` instead.
 
 !!! note "Naming Convention"
 
@@ -19,7 +19,9 @@ By default, global constraints span across all investment periods. For models wi
 
 The primary energy constraints (`type="primary_energy"`) are used to limit byproducts of primary energy consumption of a carrier (e.g. CO~2~ emissions) in generators, storage units and stores. They depend on the generator efficiency and carrier-specific attributes (e.g. `co2_emissions`).
 
-Suppose there is a global constraint defined for CO~2~ emissions (`carrier_attribute`) with sense "<=" (`sense`) and a limit $\Gamma$ (`constant`). Emissions can come from generators whose energy carriers have CO~2~ emissions, and from stores and storage units whose storage medium releases or absorbs CO~2~ when it is converted. A store or storage unit contributes the net energy withdrawn from it (discharging minus charging): its energy level at the start ($t=-1$) minus its level at the end ($t=|T|-1$) of the counted snapshots, plus its net inflow $\textrm{inflow} - \textrm{spill}$. This follows from the sum of the [storage energy balance](storage.md) over the counted snapshots and includes standing losses. For a constraint with an `investment_period`, the start level is the level that the storage carries into that period. With investment periods, the level change and the net inflow of each period are weighted by the years of the period. The level term is zero for storage that is cyclic within the counted snapshots.
+Suppose there is a global constraint defined for CO~2~ emissions (`carrier_attribute`) with sense "<=" (`sense`) and a limit $\Gamma$ (`constant`). Emissions can come from generators whose energy carriers have CO~2~ emissions, and from stores and storage units whose storage medium releases or absorbs CO~2~ when it is converted. A store or storage unit contributes the net energy withdrawn from it (discharging minus charging): its energy level at the start ($t=-1$) minus its level at the end ($t=|T|-1$) of the counted snapshots, plus its net inflow $\textrm{inflow} - \textrm{spill}$. This follows from the sum of the [storage energy balance](storage.md) over the counted snapshots and includes standing losses. For a constraint with an `investment_period`, the start level is the level that the storage carries into that period. The level term is zero for storage that is cyclic within the counted snapshots.
+
+In multi-investment-period models, each counted period's emissions are multiplied by its [`years` weighting](pathway-planning.md#emission-budgets), even when `investment_period` selects a single period.
 
 If the specific emissions of carrier $s$ is $\rho_s$ (`n.carriers.co2_emissions`) and the generator with carrier $s$ at node $n$ and snapshot $t$ has efficiency $\eta_{n,s,t}$ then the CO~2~ constraint is
 

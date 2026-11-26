@@ -116,17 +116,25 @@ where $T_a$ the set of snapshots in investment period $a$. In the example above,
 
 ### Emission Budgets
 
-Global constraints can now be defined as a budget over all investment periods, e.g. for CO~2~ emissions:
+Global constraints can define a CO~2~ budget over all investment periods. The
+equations below assume no storage inflow or spillage. The [primary energy
+constraint](../optimization/global-constraints.md#primary-energy) describes those terms.
 
 $$\begin{gather*}\sum_a v_a^y \left[\sum_{n,s,t\in T_a}  w_t^g \cdot \eta_{n,s,a,t}^{-1} \cdot g_{n,s,a,t}\cdot \rho_s + \sum_{n,s}\left(e_{n,s,a,\textrm{initial}} - e_{n,s,a,t=|T_a|-1}\right) \cdot \rho_s\right.\\
 \left. + \sum_{n,s}\left(soc_{n,s,a,\textrm{initial}} - soc_{n,s,a,t=|T_a|-1}\right) \cdot \rho_s \right] \leq  \Gamma  \quad \leftrightarrow  \quad \mu\end{gather*}$$
 
 where $v_a^y$ denotes the elapsed time in years for the investment period $a$.
 
-They can also be defined as a limit for each investment period, e.g. for CO~2~ emissions:
+A `primary_energy` global constraint can be limited to a single investment period
+by setting `investment_period`. Writing $E_a$ for the emissions in square
+brackets above, the constraint for that period uses its `years` weighting.
 
-$$\begin{gather*}\sum_{n,s,t\in T_a}  w_t^g \cdot \eta_{n,s,a,t}^{-1} \cdot g_{n,s,a,t}\cdot \rho_s + \sum_{n,s}\left(e_{n,s,a,\textrm{initial}} - e_{n,s,a,t=|T_a|-1}\right) \cdot \rho_s\\
- + \sum_{n,s}\left(soc_{n,s,a,\textrm{initial}} - soc_{n,s,a,t=|T_a|-1}\right) \cdot \rho_s \leq  \Gamma  \quad \leftrightarrow  \quad \mu_a\end{gather*}$$
+$$v_a^y E_a \leq \Gamma \quad \leftrightarrow \quad \mu_a$$
+
+Set `constant` to the emissions budget for the whole period. If the period's
+weighted snapshots represent one year, multiply the annual target by the period's
+`years` weighting. For example, use `constant=600` to cap emissions at 300 tonnes
+per year in a period with `years=2`.
 
 ??? note "Mapping of symbols to component attributes"
 
