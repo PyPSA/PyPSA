@@ -284,6 +284,7 @@ def test_a_type_without_instances_adds_no_rows(n):
 )
 def test_composites_survive_copy_and_io(n, tmp_path, form):
     _add(n)
+    n.add("Bus", "west")
     path = tmp_path / {"netcdf": "net.nc", "hdf5": "net.h5"}.get(form, "")
     if form != "copy":
         getattr(n, f"export_to_{form}")(path)
@@ -292,6 +293,16 @@ def test_composites_survive_copy_and_io(n, tmp_path, form):
     assert other.composites.battery.members.equals(n.composites.battery.members)
     other.optimize()
     assert other.objective == pytest.approx(n.objective)
+
+
+def test_plain_buses_cluster_beside_instances(n):
+    _add(n)
+    n.add("Bus", "west")
+    buses = n.c.buses.static.index
+    busmap = pd.Series(buses, buses).where(buses.str.startswith("bat"), "west")
+    clustered = n.cluster.spatial.cluster_by_busmap(busmap)
+    max_hours = clustered.c.buses.static.battery_max_hours
+    assert max_hours.dropna().to_dict() == {"bat north dc": 2, "bat south dc": 6}
 
 
 def test_an_incomplete_instance_fails(n):

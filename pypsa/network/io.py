@@ -978,10 +978,16 @@ class _ExporterHDF5(_Exporter):
         raise NotImplementedError(msg)
 
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
-        """Save a static components data."""
+        """Save a static components data; booleans with gaps as floats, as netCDF does."""
         df = df.rename_axis(index="name")
         self.index[list_name] = df.index
         df = df.reset_index()
+        flags = [
+            c
+            for c in df.columns
+            if df[c].hasnans and pd.api.types.infer_dtype(df[c]) == "boolean"
+        ]
+        df[flags] = df[flags].astype(float)
         self._put("/" + list_name, df, format="table", index=False)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:

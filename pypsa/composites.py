@@ -339,12 +339,6 @@ class Composite:
             for class_name, labels in added:
                 self.n.remove(class_name, labels)
             raise
-        static = self.n.c[self.type.members[self.type.anchor]].static
-        for p in self.type.math_parameters:
-            column = self.type.column(p)
-            static[column] = (
-                static[column].fillna(self.type.parameters[p]).infer_objects()
-            )
         return names
 
     def remove(
