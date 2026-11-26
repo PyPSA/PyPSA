@@ -267,7 +267,7 @@ def test_a_stored_override_is_refused(ac_dc_network, override, name, error, matc
     n = ac_dc_network
     with pytest.raises(error, match=match):
         n.optimize.overrides.register(override, name=name)
-    assert "overrides" not in n.meta
+    assert "_pypsa" not in n.meta
 
 
 def test_a_name_holds_one_override(ac_dc_network):
@@ -286,15 +286,12 @@ def test_a_name_holds_one_override(ac_dc_network):
     assert list(overrides) == ["no_ramps"]
 
 
-def test_an_override_of_linearised_unit_commitment_builds_there_only(ac_dc_network):
+def test_an_override_of_linearised_unit_commitment_stays_per_call(ac_dc_network):
     n = ac_dc_network
     luc = {"constraints": {"Generator_com_partly_start_up": None}}
-    n.optimize.overrides.register(luc, name="luc")
-    n.optimize.create_model(linearized_unit_commitment=True)
-    with pytest.raises(
-        ValueError, match="'luc' holds with linearised unit commitment only"
-    ):
-        n.optimize.create_model()
+    with pytest.raises(LanguageError, match="'luc' removes the constraint"):
+        n.optimize.overrides.register(luc, name="luc")
+    n.optimize.create_model(linearized_unit_commitment=True, overrides=[luc])
 
 
 @pytest.mark.parametrize(
@@ -305,7 +302,6 @@ def test_an_override_of_linearised_unit_commitment_builds_there_only(ac_dc_netwo
                 "patch": {"constraints": {"Generator_old": HALF}},
                 "edits": ["constraints.Generator_old"],
                 "creates": [],
-                "linearized_unit_commitment": False,
             },
             r"'old' edits \['constraints.Generator_old'\], which the spec below it no longer declares",
         ),
@@ -314,7 +310,6 @@ def test_an_override_of_linearised_unit_commitment_builds_there_only(ac_dc_netwo
                 "patch": {"constraints": {"Generator_ext_p_upper": HALF}},
                 "edits": [],
                 "creates": ["constraints.Generator_ext_p_upper"],
-                "linearized_unit_commitment": False,
             },
             r"'old' creates \['constraints.Generator_ext_p_upper'\], which the spec below it now declares",
         ),
@@ -324,7 +319,7 @@ def test_a_stored_override_that_drifted_from_the_spec_fails(
     ac_dc_network, stored, match
 ):
     n = ac_dc_network
-    n.meta["overrides"] = {"old": stored, "older": stored}
+    n.meta["_pypsa"] = {"overrides": {"old": stored, "older": stored}}
     with pytest.raises(ValueError, match=match):
         n.optimize.create_model()
     n.optimize.overrides.remove("old")
@@ -333,9 +328,36 @@ def test_a_stored_override_that_drifted_from_the_spec_fails(
 
 
 def test_stored_overrides_are_mappings(ac_dc_network):
-    ac_dc_network.meta["overrides"] = {"old": "garbage"}
+    ac_dc_network.meta["_pypsa"] = {"overrides": {"old": "garbage"}}
     with pytest.raises(ValueError, match="maps each name to a mapping"):
         ac_dc_network.optimize.create_model()
+
+
+def test_a_stored_override_drifting_under_build_options_says_so(ac_dc_network):
+    n = ac_dc_network
+    n.optimize.overrides.register(
+        {"constraints": {"Generator_com_p_before": HALF}}, name="before"
+    )
+    n.optimize.create_model()
+    with pytest.raises(ValueError, match="pass it to this build as a per-call"):
+        n.optimize.create_model(linearized_unit_commitment=True)
+
+
+def test_meta_keys_of_the_user_stay_theirs(ac_dc_network):
+    n = ac_dc_network
+    n.meta |= {"overrides": {"solver": {"threads": 4}}, "composites": "mine"}
+    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
+    n.optimize.create_model()
+    assert n.equals(n.copy())
+    assert n.meta["overrides"] == {"solver": {"threads": 4}}
+
+
+def test_spatial_clustering_keeps_stored_overrides(ac_dc_network):
+    n = ac_dc_network
+    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
+    busmap = n.c.buses.static.index.to_series()
+    clustered = n.cluster.spatial.cluster_by_busmap(busmap)
+    assert clustered.optimize.overrides == n.optimize.overrides
 
 
 def test_an_override_others_build_on_is_kept(ac_dc_network):
@@ -348,7 +370,7 @@ def test_an_override_others_build_on_is_kept(ac_dc_network):
     assert list(n.optimize.overrides) == ["parameter", "constraint"]
     n.optimize.overrides.remove("constraint")
     n.optimize.overrides.remove("parameter")
-    assert "overrides" not in n.meta
+    assert "_pypsa" not in n.meta
 
 
 def test_merge_unites_stored_overrides(ac_dc_network):
@@ -359,14 +381,8 @@ def test_merge_unites_stored_overrides(ac_dc_network):
     other.optimize.overrides.register(OVERRIDE, name="half")
     assert list(n.merge(other).optimize.overrides) == ["no_ramps", "half"]
     other.optimize.overrides.remove("half")
-    other.meta["overrides"] = {
-        "no_ramps": {
-            "patch": OVERRIDE,
-            "edits": [],
-            "creates": [],
-            "linearized_unit_commitment": False,
-        }
-    }
+    stored = {"patch": OVERRIDE, "edits": [], "creates": []}
+    other.meta["_pypsa"] = {"overrides": {"no_ramps": stored}}
     with pytest.raises(
         ValueError, match=r"different override under the names \['no_ramps'\]"
     ):
@@ -390,7 +406,8 @@ def test_equals_follows_the_order_of_stored_overrides(ac_dc_network):
     n.optimize.overrides.register(OVERRIDE, name="half")
     other = n.copy()
     assert n.equals(other)
-    other.meta["overrides"] = dict(reversed(other.meta["overrides"].items()))
+    stored = other.meta["_pypsa"]["overrides"]
+    other.meta["_pypsa"]["overrides"] = dict(reversed(stored.items()))
     assert not n.equals(other)
 
 

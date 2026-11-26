@@ -552,9 +552,12 @@ class TestExcelIO:
         assert reloaded.meta == scipy_network.meta
 
     def test_excel_io_refuses_meta_beyond_a_cell(self, scipy_network, tmpdir):
+        fn = tmpdir / "excel_export.xlsx"
+        scipy_network.export_to_excel(fn)
         scipy_network.meta = {"long": {"text": "x" * 32767}}
         with pytest.raises(ValueError, match=r"`n.meta\['long'\]` takes 32779"):
-            scipy_network.export_to_excel(tmpdir / "excel_export.xlsx")
+            scipy_network.export_to_excel(fn)
+        assert not pypsa.Network(fn).c.buses.static.empty
 
     def test_excel_io_Path(self, scipy_network, tmpdir):
         fn = tmpdir / "excel_export.xlsx"

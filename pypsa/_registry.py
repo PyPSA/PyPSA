@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""The base of the registries a network keeps in `n.meta`, as its composite types and its stored overrides."""
+"""The base of the registries a network keeps under `n.meta["_pypsa"]`, as its composite types and its stored overrides."""
 
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     from pypsa import Network
+
+ROOT = "_pypsa"
 
 
 def jsonable(content: Any, what: str) -> Any:
@@ -34,7 +36,7 @@ def jsonable(content: Any, what: str) -> Any:
 
 
 class Registry[T](Mapping[str, T]):
-    """Named entries stored in order under one key of `n.meta`, so copies and saved networks keep them."""
+    """Named entries stored in order under one key of `n.meta["_pypsa"]`, so copies and saved networks keep them."""
 
     META: ClassVar[str]
     NOUN: ClassVar[str]
@@ -51,14 +53,15 @@ class Registry[T](Mapping[str, T]):
         """Return the stored entries, by name in order.
 
         Raises:
-            ValueError: `n.meta` holds something else than a mapping of names to mappings.
+            ValueError: `n.meta["_pypsa"]` holds something else than a mapping of names to mappings.
 
         """
-        entries = self.n.meta.get(self.META, {})
+        root = self.n.meta.get(ROOT, {})
+        entries = root.get(self.META, {}) if isinstance(root, Mapping) else root
         if not isinstance(entries, Mapping) or not all(
             isinstance(e, Mapping) for e in entries.values()
         ):
-            msg = f"`n.meta[{self.META!r}]` maps each name to a mapping, not {type(entries).__name__}: {str(entries)[:200]}"
+            msg = f"`n.meta[{ROOT!r}][{self.META!r}]` maps each name to a mapping, not {type(entries).__name__}: {str(entries)[:200]}"
             raise ValueError(msg)
         return dict(entries)
 
@@ -135,11 +138,14 @@ class Registry[T](Mapping[str, T]):
         return True
 
     def _write(self, entries: dict[str, Any]) -> None:
-        """Store `entries`, dropping the key of `n.meta` where there are none."""
+        """Store `entries` in a new mapping under `n.meta["_pypsa"]`, dropping the keys where there are none."""
+        root = {k: v for k, v in self.n.meta.get(ROOT, {}).items() if k != self.META}
         if entries:
-            self.n.meta[self.META] = entries
+            root[self.META] = entries
+        if root:
+            self.n.meta[ROOT] = root
         else:
-            self.n.meta.pop(self.META, None)
+            self.n.meta.pop(ROOT, None)
 
     def _set(self, entries: dict[str, Any]) -> None:
         """Store `entries` where the build stack of the network holds with them.
@@ -186,7 +192,7 @@ def registries(n: Network) -> tuple[Registry, ...]:
 
 
 def united(n: Network, other: Network) -> dict[str, dict[str, Any]]:
-    """Return the entries of the registries of both networks by key of `n.meta`, those of `other` after those of `n`.
+    """Return the entries of the registries of both networks as `n.meta["_pypsa"]` holds them, those of `other` after those of `n`.
 
     Raises:
         ValueError: A name holds different content in both, or the build
@@ -201,7 +207,7 @@ def united(n: Network, other: Network) -> dict[str, dict[str, Any]]:
     }
     unions = {k: v for k, v in unions.items() if v}
     before = n.meta
-    n.meta = before | unions
+    n.meta = before | {ROOT: unions}
     try:
         holding(n)
     except ValueError as e:

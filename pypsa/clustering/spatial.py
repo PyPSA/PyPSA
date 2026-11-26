@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from dataclasses import dataclass
 from importlib.util import find_spec
@@ -963,6 +964,9 @@ class SpatialClusteringMixin:
         )
 
         clustered = n.__class__()
+        clustered.optimize.overrides._write(
+            copy.deepcopy(n.optimize.overrides._entries())
+        )
 
         clustered.add("Bus", buses.index, **buses)
         clustered.add("Line", lines.index, **lines)

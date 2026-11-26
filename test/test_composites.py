@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import copy
 from importlib.util import find_spec
 
 import numpy as np
@@ -90,7 +91,9 @@ def test_a_type_registers_from_each_form(form, tmp_path):
     battery = n.composites.register(definition)
     assert n.composites.battery.name == battery.name == "battery"
     assert list(n.composites) == ["battery"]
-    assert n.meta["composites"]["battery"]["components"] == BATTERY["components"]
+    assert (
+        n.meta["_pypsa"]["composites"]["battery"]["components"] == BATTERY["components"]
+    )
 
 
 def test_add_expands_an_instance_into_tagged_members(n):
@@ -288,7 +291,8 @@ def test_equals_follows_the_order_of_types(n):
     n.composites.register(CELL)
     other = n.copy()
     assert n.equals(other)
-    other.meta["composites"] = dict(reversed(other.meta["composites"].items()))
+    types = other.meta["_pypsa"]["composites"]
+    other.meta["_pypsa"]["composites"] = dict(reversed(types.items()))
     assert not n.equals(other)
 
 
@@ -315,6 +319,14 @@ def test_a_type_refuses_an_entry_a_stored_override_creates():
     ):
         n.composites.register(BATTERY)
     assert list(n.composites) == []
+
+
+def test_a_type_is_checked_with_the_default_formulation(n):
+    definition = copy.deepcopy(CELL)
+    definition["math"]["constraints"]["cell_duration"]["where"] = "Generator_tightened"
+    with pytest.raises(LanguageError, match="Generator_tightened"):
+        n.composites.register(definition)
+    assert list(n.composites) == ["battery"]
 
 
 def test_an_incomplete_instance_fails(n):

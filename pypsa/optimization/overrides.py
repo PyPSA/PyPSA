@@ -5,8 +5,8 @@
 """Overrides stored on a network, which every build of `n.optimize()` lays over the formulation.
 
 Each is a `mathspec.override` patch, as the argument `overrides` of
-`n.optimize()` takes. It is stored in `n.meta`, so copies and saved networks
-keep it, and a loaded network builds the model its author built.
+`n.optimize()` takes. It is stored in `n.meta["_pypsa"]`, so copies and saved
+networks keep it, and a loaded network builds the model its author built.
 """
 
 from __future__ import annotations
@@ -86,10 +86,10 @@ class Overrides(Registry[dict[str, Any]]):
     def register(self, override: Override, name: str | None = None) -> dict[str, Any]:
         """Store an override from a YAML file, YAML text or mapping.
 
-        The override is checked laid over the formulation, the composite
-        types and the stored overrides: with the default formulation, else
-        with linearised unit commitment. Registering a name again with the
-        same patch does nothing.
+        The override is checked laid over the default formulation, the
+        composite types and the stored overrides. An override of linearised
+        unit commitment or of piecewise options stays per-call. Registering a
+        name again with the same patch does nothing.
 
         Parameters
         ----------
@@ -128,14 +128,14 @@ class Overrides(Registry[dict[str, Any]]):
         if twin:
             msg = f"The override {name!r} is stored as {twin[0]!r}."
             raise ValueError(msg)
-        keys, linearized_unit_commitment = holding(self.n, [(_label(name), patch)])
+        keys = holding(self.n, [(_label(name), patch)])
         entries = written(patch).keys()
-        self.n.meta.setdefault(META, {})[name] = {
+        stored = {
             "patch": patch,
             "edits": sorted(entries & keys),
             "creates": sorted(entries - keys),
-            "linearized_unit_commitment": linearized_unit_commitment,
         }
+        self._write(self._entries() | {name: stored})
         return self[name]
 
     def remove(self, name: str) -> None:
@@ -169,9 +169,7 @@ class Overrides(Registry[dict[str, Any]]):
             msg = f"The overrides {dependents} build on {name!r}; remove them first."
             raise ValueError(msg) from e
 
-    def layers(
-        self, keys: set[str], linearized_unit_commitment: bool
-    ) -> tuple[list[Layer], set[str]]:
+    def layers(self, keys: set[str], plain: bool) -> tuple[list[Layer], set[str]]:
         """Return the stored patches, each with the label a refusal names it by, and the keys the spec declares under them.
 
         Parameters
@@ -179,23 +177,20 @@ class Overrides(Registry[dict[str, Any]]):
         keys : set of str
             The keys the spec declares below the stored overrides, as
             `section.key`.
-        linearized_unit_commitment : bool
-            Whether the build is with linearised unit commitment.
+        plain : bool
+            Whether the build is without linearised unit commitment and
+            piecewise options, as registration checks.
 
         Raises
         ------
         ValueError
-            An override holds with linearised unit commitment only and the
-            build is without; or it edits a key the spec below it no longer
-            declares, which would add the entry, or creates one it now
-            declares, which would edit it.
+            An override edits a key the spec below it no longer declares,
+            which would add the entry, or creates one it now declares, which
+            would edit it.
 
         """
         layers = []
         for name, entry in self._entries().items():
-            if entry["linearized_unit_commitment"] and not linearized_unit_commitment:
-                msg = f"The stored override {name!r} holds with linearised unit commitment only; build with `linearized_unit_commitment=True` or remove it."
-                raise ValueError(msg)
             gone = [k for k in entry["edits"] if k not in keys]
             taken = [k for k in entry["creates"] if k in keys]
             drift = []
@@ -206,7 +201,12 @@ class Overrides(Registry[dict[str, Any]]):
             if taken:
                 drift.append(f"creates {taken}, which the spec below it now declares")
             if drift:
-                msg = f"The stored override {name!r} {' and '.join(drift)}. The formulation, the composite types or the options of the build differ from those it was registered with; remove it, check it and register it again."
+                advice = (
+                    "The formulation or the composite types differ from those it was registered with; remove it, check it and register it again."
+                    if plain
+                    else "Stored overrides are checked without linearised unit commitment and piecewise options; pass it to this build as a per-call override instead."
+                )
+                msg = f"The stored override {name!r} {' and '.join(drift)}. {advice}"
                 raise ValueError(msg)
             keys = laid(keys, entry["patch"])
             layers.append((_label(name), entry["patch"]))

@@ -208,9 +208,8 @@ def _stack(
     They are the piecewise options, the composite types and the stored overrides, in turn.
 
     Raises:
-        ValueError: A stored override holds with linearised unit commitment
-            only and the build is without, or no longer edits or creates what
-            it was registered to.
+        ValueError: A stored override no longer edits or creates what it was
+            registered to.
 
     """
     layers = _piecewise_layers(linearized_unit_commitment, piecewise_options)
@@ -220,27 +219,21 @@ def _stack(
     keys = functools.reduce(
         laid, [p for _, p in layers], set(_keys(linearized_unit_commitment))
     )
-    stored, keys = n.optimize.overrides.layers(keys, linearized_unit_commitment)
+    plain = not linearized_unit_commitment and not piecewise_options
+    stored, keys = n.optimize.overrides.layers(keys, plain)
     return layers + stored, keys
 
 
-def holding(n: Network, layers: Sequence[Layer] = ()) -> tuple[set[str], bool]:
-    """Return the keys the spec declares under *layers* laid over the stack of `n` by the first formulation that holds them, the default, else linearised unit commitment, and whether it is the latter.
+def holding(n: Network, layers: Sequence[Layer] = ()) -> set[str]:
+    """Return the keys the default spec declares under *layers* laid over the stack of `n`.
 
     Raises:
-        ValueError: Neither holds them; the default's error.
+        ValueError: The default formulation does not hold them.
 
     """
-    errors = []
-    for linearized_unit_commitment in (False, True):
-        try:
-            stack, keys = _stack(n, linearized_unit_commitment)
-            _formulation(linearized_unit_commitment, [*stack, *layers])
-        except ValueError as e:
-            errors.append(e)
-        else:
-            return keys, linearized_unit_commitment
-    raise errors[0]
+    stack, keys = _stack(n, linearized_unit_commitment=False)
+    _formulation(False, [*stack, *layers])
+    return keys
 
 
 def spec(

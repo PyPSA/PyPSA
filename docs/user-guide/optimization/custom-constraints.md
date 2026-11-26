@@ -254,8 +254,8 @@ repeated build with the same overrides skips the check.
 The argument `overrides` applies to one call. To make an override part of the
 network, store it with
 [`n.optimize.overrides`][pypsa.optimization.overrides.Overrides]. Every later
-build applies it, and copies, slices, merges and saved files keep it, so a
-loaded network builds the model its author built:
+build applies it, and copies, slices, merges, spatial clustering and saved
+files keep it, so a loaded network builds the model its author built:
 
 ``` py
 n.optimize.overrides.register("full_load_hours.yaml")  # stored as "full_load_hours"
@@ -269,7 +269,8 @@ n.optimize()
 ```
 
 A file is stored under its stem; text and a dictionary take a `name`, an
-identifier. The patch is stored by its content in `n.meta["overrides"]`, so it
+identifier. The patch is stored by its content in
+`n.meta["_pypsa"]["overrides"]`, a key PyPSA reserves, so it
 holds JSON values only: no NumPy numbers, dates, tuples or keys that are not
 text. A build lays the layers over the specification in this order, and a later
 layer wins:
@@ -281,19 +282,20 @@ layer wins:
 5. the `overrides` of the call.
 
 A stored override may edit, remove and add entries, as a per-call one may.
-`register` checks it laid over the specification, the composite types and the
-stored overrides: with the default formulation, else with linearised unit
-commitment. An override that holds only with linearised unit commitment is
-stored as such, and a build without it fails. `remove` refuses an override that later ones build on, and names
-them. A composite type cannot declare an entry that a stored override adds.
+`register` checks it laid over the default specification, the composite types
+and the stored overrides, without linearised unit commitment and piecewise
+options. An override that holds only with these options stays per-call.
+`remove` refuses an override that later ones build on, and names them. A
+composite type cannot declare an entry that a stored override adds.
 
 A loaded network reproduces the stored math, but not the options of the call:
 pass `linearized_unit_commitment` and `piecewise_options` again (see
 [#2146](https://github.com/PyPSA/PyPSA/issues/2146)). Each stored override
-records which entries it edits and which it adds. If a later PyPSA release
-removes an entry it edits, or adds one it adds, the build fails instead of
-changing the problem silently; check the override, remove it and register it
-again.
+records which entries it edits and which it adds. If a later PyPSA release or
+the options of a build remove an entry it edits, or add one it adds, the build
+fails instead of changing the problem silently. After a release, check the
+override, remove it and register it again; for the options of a build, pass it
+per call.
 
 `pypsa.optimization.spec.spec()` returns the specification of a network
 without composites and stored overrides. It is not the specification a given
