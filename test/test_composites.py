@@ -330,6 +330,9 @@ def test_composites_survive_copy_and_io(n, tmp_path, form):
     other = n.copy() if form == "copy" else pypsa.Network(path)
     n.optimize()
     assert other.composites.battery.members.equals(n.composites.battery.members)
+    pd.testing.assert_frame_equal(
+        other.composites.battery.static, n.composites.battery.static, check_dtype=False
+    )
     other.optimize()
     assert other.objective == pytest.approx(n.objective)
 
