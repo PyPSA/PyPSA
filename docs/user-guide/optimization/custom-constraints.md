@@ -155,9 +155,14 @@ override is a YAML file, YAML text or a dictionary, written as a
 Overrides apply in turn, so a later one wins. They name entries by their keys
 in the specification, as `Generator_ext_p_upper`, not by the names of the
 built model, as `Generator-ext-p-upper`. An added entry keeps its key as its
-name in `n.model`. An added parameter `<Component>_<attr>` reads the column
-`<attr>` of the component's static data. Other data sources are not supported
-yet.
+name in `n.model`. Added entries read their data from the network:
+
+* a parameter `<Component>_<attr>` reads the column `<attr>` of the
+  component's static data;
+* a relation `<Component>_<column>` maps each unit to the label in the column
+  `<column>`. The column must be the same in every scenario. Where a cell is
+  blank, the unit maps to none; declare such a relation `missing: absent`;
+* a dimension takes the labels its relations map units to.
 
 For example, a combined heat and power plant that must cover a heat demand, or
 a plant bound by a fuel supply contract, has to run a minimum number of
@@ -188,6 +193,42 @@ n.c.generators.static["full_load_hours_min"] = 0.0
 n.c.generators.static.loc[gas, "full_load_hours_min"] = 4000
 n.optimize(overrides=["full_load_hours.yaml"])
 ```
+
+A relation groups units across rows. In a battery, the charger and the
+discharger often share one inverter, so they must have the same rating. This
+file adds the dimension `battery`, two relations that map links to it and the
+constraint between them:
+
+``` yaml title="battery_inverter.yaml"
+dimensions:
+  battery:
+    description: batteries, each with a charger and a discharger
+relations:
+  Link_battery_charger: {key: Link, values: battery, missing: absent}
+  Link_battery_discharger: {key: Link, values: battery, missing: absent}
+constraints:
+  Link_battery_inverter:
+    description: the charger and the discharger of a battery have the same rating
+    dims: [scenario, battery]
+    expression: >-
+      sum(Link_p_nom_effective, over=Link, by=Link_battery_charger[battery])
+      == sum(Link_p_nom_effective, over=Link, by=Link_battery_discharger[battery])
+```
+
+The relations read the columns `battery_charger` and `battery_discharger`:
+
+``` py
+n.add("Link", "north charger", bus0="north", bus1="north battery",
+      p_nom_extendable=True, battery_charger="north")
+n.add("Link", "north discharger", bus0="north battery", bus1="north",
+      p_nom_extendable=True, battery_discharger="north")
+n.optimize(overrides=["battery_inverter.yaml"])
+```
+
+`Link_p_nom_effective` is the chosen rating of an extendable link and the given
+rating of a fixed link, so the constraint also holds when one side is fixed.
+A side whose link is not built, as an inactive one, sums to zero and so holds
+the other side at zero.
 
 Removing an entry takes one line each. A quick screening run may ignore the
 ramp limits of generators:

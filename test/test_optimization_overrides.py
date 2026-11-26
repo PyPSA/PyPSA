@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import pandas as pd
 import pytest
 import yaml
 from mathspec.errors import LanguageError
@@ -31,6 +32,19 @@ constraints:
     expression: >-
       sum(Generator_p * snapshot_weighting_generators, over=snapshot)
       >= Generator_full_load_hours_min * Generator_p_nom_ext
+"""
+CABLE = """
+dimensions:
+  cable: {description: "cables, each with a converter at both ends"}
+relations:
+  Link_cable_end0: {key: Link, values: cable, missing: absent}
+  Link_cable_end1: {key: Link, values: cable, missing: absent}
+constraints:
+  Link_cable_rating:
+    dims: [scenario, cable]
+    expression: >-
+      sum(Link_p_nom_effective, over=Link, by=Link_cable_end0[cable])
+      == sum(Link_p_nom_effective, over=Link, by=Link_cable_end1[cable])
 """
 
 
@@ -98,3 +112,63 @@ def test_an_override_of_another_type_fails(ac_dc_network, override):
 def test_an_override_is_kept_by_its_content():
     assert spec(overrides=[OVERRIDE]) is spec(overrides=[yaml.safe_dump(OVERRIDE)])
     assert spec(overrides=[OVERRIDE]) is not spec()
+
+
+@pytest.mark.parametrize(
+    ("blank", "spelling"),
+    [
+        (float("nan"), "key: Link, values: cable"),
+        ("", "key: [Link], values: [cable]"),
+        (" ", "key: Link, values: [cable]"),
+    ],
+)
+def test_an_added_relation_reads_a_static_column(ac_dc_network, blank, spelling):
+    n = ac_dc_network
+    links = n.c.links.static
+    links["cable_end0"] = links["cable_end1"] = pd.Series(blank, links.index, object)
+    links.loc["Norwich Converter", "cable_end0"] = "north sea"
+    links.loc["Bremen Converter", "cable_end1"] = "north sea"
+    links.loc["Bremen Converter", ["p_nom", "p_nom_extendable"]] = [400.0, False]
+    n.optimize(overrides=[CABLE.replace("key: Link, values: cable", spelling)])
+    assert list(n.model.constraints["Link_cable_rating"].indexes["cable"]) == [
+        "north sea"
+    ]
+    assert links.p_nom_opt["Norwich Converter"] == pytest.approx(400)
+
+
+@pytest.mark.parametrize(
+    ("override", "match"),
+    [
+        (
+            {"relations": {"Link_cable_end1": {"key": "Link", "values": "bus"}}},
+            "has no column cable_end1",
+        ),
+        (
+            {
+                "relations": {
+                    "Link_ends": {"key": "Link", "values": {"a": "bus", "b": "bus"}}
+                }
+            },
+            r"declare it \{key: Link, values: <dimension>\}",
+        ),
+        (
+            {
+                "dimensions": {"cable": {}},
+                "parameters": {"cable_length": {"dims": ["cable"]}},
+            },
+            "no data prep for cable: no relation maps units into it",
+        ),
+    ],
+)
+def test_added_data_without_a_source_fails(ac_dc_network, override, match):
+    with pytest.raises(NotImplementedError, match=match):
+        ac_dc_network.optimize.create_model(overrides=[override])
+
+
+def test_an_added_relation_refuses_labels_that_differ_by_scenario(ac_dc_network):
+    n = ac_dc_network
+    n.c.links.static["cable_end0"] = n.c.links.static["cable_end1"] = ""
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    n.c.links.static.loc[("high", "Norwich Converter"), "cable_end0"] = "north sea"
+    with pytest.raises(ValueError, match="differing values.*cable_end0"):
+        n.optimize.create_model(overrides=[CABLE])

@@ -7,8 +7,10 @@
 Every dimension, relation and parameter of the spec is one key of
 `NetworkSources`. linopy reads each key once, when the build needs it. A
 parameter named `<Component>_<attr>` after a PyPSA attribute is read off
-`c.da`; every other one is derived by the one function registered for it
-with `source`, as its description in the spec states.
+`c.da`, a relation `<Component>_<column>` off a static column, and a
+dimension takes the labels its relations map into it. Every other key is
+derived by the one function registered for it with `source`, as its
+description in the spec states.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ import pandas as pd
 import xarray as xr
 
 from pypsa._options import options
+from pypsa.components.common import invariant
 from pypsa.optimization.spec._render import (
     PLACEHOLDERS,
     WORD,
@@ -178,19 +181,71 @@ class NetworkSources(Mapping[str, Any]):
         return self.frame(name, value) if isinstance(value, xr.DataArray) else value
 
     def derivation(self, name: str) -> Callable[[], Any]:
-        """Return the derivation of `name`: its provider, else the PyPSA attribute it names.
+        """Return the derivation of `name`: its provider, else the PyPSA data it names.
+
+        A parameter `<Component>_<attr>` reads the attribute, a relation
+        `<Component>_<column>` reads the static column, and a dimension takes
+        the labels the relations map into it.
 
         Raises:
-            NotImplementedError: `name` has neither.
+            NotImplementedError: `name` has none of these.
 
         """
         if name in self._providers:
             return functools.partial(self._providers[name], self, name)
-        if name in self.spec.parameters and (c := self.component(name)) is not None:
+        c = self.component(name)
+        if name in self.spec.parameters and c is not None:
             self.attr(c, name)
             return functools.partial(self.attribute, c, name)
+        if name in self.spec.relations and c is not None:
+            return functools.partial(self.mapping, c, name)
+        if name in self.spec.dimensions and self.mapped_into(name):
+            return functools.partial(self.mapped, name)
         msg = f"no data prep for {name}"
+        if name in self.spec.dimensions:
+            msg += f": no relation maps units into it; declare one, as {{key: Link, values: {name}}}"
         raise NotImplementedError(msg)
+
+    def mapping(self, c: Components, name: str) -> pd.DataFrame:
+        """Map each unit to the label in the static column a relation `<Component>_<column>` names; a blank cell maps it to none.
+
+        Raises:
+            NotImplementedError: The relation is not keyed by the units alone
+                with one column as its values, or `c` has no such column.
+            ValueError: The column differs across scenarios.
+
+        """
+        column = name.removeprefix(f"{c.name}_")
+        (_, key), *values = self.spec.relations[name].pairs
+        if key != c._unit_dim or len(values) != 1:
+            msg = f"no data prep for {name}: it reads the column {column} of {c.name}, so declare it {{key: {c._unit_dim}, values: <dimension>}}"
+            raise NotImplementedError(msg)
+        if column not in c.static:
+            msg = f"no data prep for {name}: {c.name} has no column {column}"
+            raise NotImplementedError(msg)
+        labels = invariant(c.static[column]).loc[self.static(c).index]
+        labels = labels[~_blank(labels)]
+        return pd.DataFrame(
+            {
+                key: labels.index.to_numpy(dtype=object),
+                values[0][0]: labels.to_numpy(dtype=object),
+            }
+        )
+
+    def mapped_into(self, dim: str) -> list[tuple[str, str]]:
+        """Return the relations, with their column, that map units into dimension `dim`."""
+        relations = self.spec.relations.items()
+        return [
+            (k, role)
+            for k, r in relations
+            for role, d in r.pairs[len(r.key_roles) :]
+            if d == dim
+        ]
+
+    def mapped(self, dim: str) -> pd.Index:
+        """Return the labels the relations map into dimension `dim`, in their order of first appearance."""
+        labels = pd.concat([self[k][role] for k, role in self.mapped_into(dim)])
+        return pd.Index(labels.unique(), dtype=object)
 
     def component(self, name: str) -> Components | None:
         """Return the component a source name opens with, None for another name."""
@@ -536,13 +591,18 @@ def of_scenario(static: pd.DataFrame, n: Network, scenario: Any = None) -> pd.Da
     return static.xs(n.scenarios[0] if scenario is None else scenario, level="scenario")
 
 
+def _blank(labels: pd.Series) -> pd.Series:
+    """Whether each label is blank: missing, or empty but for whitespace."""
+    return labels.isna() | (labels.astype(str).str.strip() == "")
+
+
 def _ports_long(s: NetworkSources, c: _Multiport) -> pd.DataFrame:
     dim = c._unit_dim
     static = s.static(c)
     frames = []
     for k in sorted(map(int, c.ports)):
         col = f"bus{k}"
-        present = static[col].notna() & (static[col].astype(str).str.strip() != "")
+        present = ~_blank(static[col])
         frames.append(
             pd.DataFrame(
                 {
