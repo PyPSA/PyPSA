@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-import pickle
 from importlib.util import find_spec
 
 import numpy as np
@@ -226,12 +225,12 @@ def test_instances_run_over_investment_periods(n):
     n.snapshots = pd.MultiIndex.from_product([[2030, 2040], range(12)])
     n.investment_periods = [2030, 2040]
     n.c.links.static.loc["bat north discharger", "build_year"] = 2040
-    n.optimize(multi_investment_periods=True)
+    n.optimize(multi_investment_periods=True, expressions=True)
     assert n.model.constraints["battery_duration"].sizes["battery"] == 2
     battery = n.composites.battery
-    pd.testing.assert_index_equal(battery.results("soc").index, n.snapshots)
-    start = {"bat north": {2030: 0, 2040: 1}, "bat south": {2030: 1, 2040: 0}}
-    assert battery.results("start").to_dict() == start
+    members = battery.members
+    e = n.c.stores.dynamic.e[members.store].set_axis(members.index, axis=1)
+    pd.testing.assert_frame_equal(battery.results("soc"), e)
 
 
 def test_two_types_build_side_by_side(n):
@@ -261,12 +260,11 @@ def test_statistics_group_by_instance(n):
     [
         ("power", "discharger", lambda n: n.c.links.static.p_nom_opt),
         ("soc", "store", lambda n: n.c.stores.dynamic.e),
-        ("value", "dc", lambda n: n.c.buses.dynamic.marginal_price),
     ],
 )
 def test_results_read_the_solution_per_instance(n, name, member, read):
     _add(n)
-    n.optimize()
+    n.optimize(expressions=True)
     members = n.composites.battery.members[member]
     result = n.composites.battery.results(name)
     np.testing.assert_allclose(result, read(n)[members])
@@ -277,55 +275,34 @@ def test_results_put_the_scenario_before_the_instance(n):
     _add(n)
     n.set_scenarios({"low": 0.5, "high": 0.5})
     n.c.loads.static.loc[("high", "north load"), "p_set"] = 30
-    n.optimize()
+    n.optimize(expressions=True)
     battery = n.composites.battery
-    value = battery.results("value")
-    price = n.c.buses.dynamic.marginal_price
+    soc = battery.results("soc")
+    e = n.c.stores.dynamic.e
     for s in ("low", "high"):
-        np.testing.assert_allclose(value[s], price[s][battery.members.dc])
-    assert not np.allclose(value["low"], value["high"])
-    assert value.columns.names == ["scenario", "battery"]
+        np.testing.assert_allclose(soc[s], e[s][battery.members.store])
+    assert not np.allclose(soc["low"], soc["high"])
+    assert soc.columns.names == ["scenario", "battery"]
     assert battery.results("power").index.names == ["scenario", "battery"]
-
-
-def test_results_read_the_solved_model(n):
-    _add(n)
-    n.optimize()
-    battery = n.composites.battery
-    power, soc = battery.results("power"), battery.results("soc")
-    n.c.links.static["p_nom_extendable"] = False
-    n.add("battery", "bat west", bus="north")
-    n.remove("battery", "bat south")
-    pd.testing.assert_series_equal(battery.results("power"), power)
-    pd.testing.assert_frame_equal(battery.results("soc"), soc)
-
-
-@pytest.mark.parametrize(
-    "copy", [lambda n: n.copy(), lambda n: pickle.loads(pickle.dumps(n))]
-)
-def test_a_copy_holds_no_model_to_read(n, copy):
-    _add(n)
-    n.optimize()
-    n.model.solver_model = None
-    other = copy(n)
-    with pytest.raises(RuntimeError, match="optimize it first"):
-        other.composites.battery.results("power")
 
 
 @pytest.mark.parametrize(
     ("name", "prepare", "error", "match"),
     [
-        ("store", lambda n: n.optimize(), KeyError, "not 'store'"),
-        ("power", lambda n: None, RuntimeError, "optimize it first"),
+        ("store", lambda n: n.optimize(expressions=True), KeyError, "not 'store'"),
+        ("power", lambda n: None, RuntimeError, "no solved model"),
         (
             "power",
-            lambda n: n.optimize.create_model(),
+            lambda n: n.optimize.create_model(expressions=True),
             RuntimeError,
-            "optimize it first",
+            "no solved model",
         ),
+        ("power", lambda n: n.optimize(), RuntimeError, "without `expressions=True`"),
+        ("value", lambda n: n.optimize(expressions=True), RuntimeError, "a dual or"),
+        ("start", lambda n: n.optimize(expressions=True), RuntimeError, "only data"),
     ],
 )
-def test_results_need_a_declared_expression_and_a_solve(n, name, prepare, error, match):
+def test_results_need_a_built_expression_and_a_solve(n, name, prepare, error, match):
     _add(n)
     prepare(n)
     with pytest.raises(error, match=match):

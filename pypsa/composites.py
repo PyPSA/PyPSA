@@ -456,17 +456,17 @@ class Composite:
     def results(self, name: str) -> pd.Series | pd.DataFrame:
         """Return the expression `<type>_<name>` of the math over the solution of the last optimization, for its snapshots.
 
-        An expression over the instances alone is a Series by instance; one
-        over more dims, as the snapshots, is a DataFrame with them as rows. A
-        network with scenarios puts the scenario before the instance.
+        The network must be optimized with `expressions=True`. An expression
+        over the instances alone is a Series by instance; one over more dims,
+        as the snapshots, is a DataFrame with them as rows. A network with
+        scenarios puts the scenario before the instance.
 
         Raises:
             KeyError: The math declares no such expression.
-            RuntimeError: The network holds no solved model.
+            RuntimeError: The network holds no solved model, or its model does
+                not hold the expression.
 
         """
-        from pypsa.optimization.spec.build import evaluate  # noqa: PLC0415
-
         declared = [
             k.removeprefix(f"{self.name}_")
             for k in self.type.math.get("expressions", {})
@@ -474,13 +474,40 @@ class Composite:
         if name not in declared:
             msg = f"The math of {self.name} declares the expressions {declared}, not {name!r}."
             raise KeyError(msg)
-        da = evaluate(self.n, f"{self.name}_{name}")
+        da = self._solution(f"{self.name}_{name}")
         if "scenario" in da.dims and not self.n.has_scenarios:
             da = da.squeeze("scenario", drop=True)
         columns = [d for d in ("scenario", self.name) if d in da.dims]
         rows = [d for d in da.dims if d not in columns]
         values = da.transpose(*rows, *columns).to_series()
         return values.unstack(columns) if rows else values
+
+    def _solution(self, key: str) -> xr.DataArray:
+        """Return the solution of the expression *key* of the solved model, its snapshots labelled as `n.snapshots`.
+
+        Raises:
+            RuntimeError: The network holds no solved model, or its model does
+                not hold the expression.
+
+        """
+        m = self.n._model
+        if m is None or m.status != "ok":
+            msg = "The network holds no solved model: run `n.optimize(expressions=True)` first, as models are not saved with it."
+            raise RuntimeError(msg)
+        if key not in m.expressions:
+            msg = f"The network was optimized without `expressions=True`; pass it to read {key!r}."
+            if "total_cost" in m.expressions:
+                msg = f"{key!r} reads a dual or only data, so the model does not build it."
+            raise RuntimeError(msg)
+        da = m.expressions[key].solution
+        index = self.n.snapshots
+        if "snapshot" not in da.dims or not isinstance(index, pd.MultiIndex):
+            return da
+        labels = pd.MultiIndex.from_tuples(da.indexes["snapshot"], names=index.names)
+        da = da.drop_vars(index.names, errors="ignore")
+        return da.assign_coords(
+            xr.Coordinates.from_pandas_multiindex(labels, "snapshot")
+        )
 
     def providers(self) -> dict[str, Callable[[NetworkSources, str], Any]]:
         """Return the data of the type's dimension, relation and parameters for a build."""
