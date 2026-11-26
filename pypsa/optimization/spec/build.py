@@ -12,7 +12,8 @@ import re
 from collections.abc import Mapping
 from importlib.resources import files
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -290,17 +291,23 @@ BY_SENSE = {
 }
 
 
-def _split_by_label(m: Model) -> None:
-    """Replace each constraint of `BY_SENSE` with one constraint `GlobalConstraint-{label}` per built row label."""
+def _split_by_label(m: Model) -> dict[str, list[str]]:
+    """Replace each constraint of `BY_SENSE` with one constraint `GlobalConstraint-{label}` per built row label.
+
+    Return the labels split out of each.
+    """
+    split: dict[str, list[str]] = {}
     for name, sign in BY_SENSE.items():
         if name not in m.constraints:
             continue
         con = m.constraints[name]
         m.remove_constraints(name)
+        split[name] = []
         for label in con.indexes["name"]:
             built = con.labels.sel(name=label, drop=True) != -1
             if not built.any():
                 continue
+            split[name].append(label)
             m.add_constraints(
                 con.lhs.sel(name=label, drop=True),
                 sign,
@@ -309,6 +316,7 @@ def _split_by_label(m: Model) -> None:
                 mask=built,
                 scaling=con.scaling.sel(name=label, drop=True),
             )
+    return split
 
 
 def _relabel(
@@ -316,12 +324,13 @@ def _relabel(
     *,
     snapshots: pd.Index,
     network_index: pd.Index,
-) -> None:
+) -> tuple[dict[str, dict[str, str]], dict[str, xr.Coordinates]]:
     """Rename every dim of `m` as PyPSA names it, in linopy's order and with linopy's labels.
 
     Entries without a single row are removed, as PyPSA does not build them.
     A network without scenarios keeps its one scenario, labelled `BASE_SCENARIO`.
     A unit without a row stays as a masked coordinate.
+    Return the dims renamed per entry kept and the coords of each variable removed.
     """
     levels = (
         {
@@ -342,12 +351,16 @@ def _relabel(
             obj = obj.assign_coords({"snapshot": snapshots, **levels})
         return obj
 
+    renamed: dict[str, dict[str, str]] = {}
+    dropped: dict[str, xr.Coordinates] = {}
     for name, var in list(m.variables.items()):
         if not (var.labels.values != -1).any():
+            dropped[name] = var.labels.coords
             m.variables.remove(name)
             continue
         dims = tuple(var.labels.dims)
-        data = frame(var.data, dims, _pypsa_dims(dims, False))
+        renamed[name] = _pypsa_dims(dims, False)
+        data = frame(var.data, dims, renamed[name])
         m.variables.add(Variable(data, m, name, skip_broadcast=True))
 
     constraints = {}
@@ -355,13 +368,104 @@ def _relabel(
         if not (con.labels.values != -1).any():
             continue
         dims = tuple(con.labels.dims)
-        renamed = _pypsa_dims(dims, True) | DIMS.get(name, {})
-        lhs = frame(con.lhs, dims, renamed)
+        renamed[name] = _pypsa_dims(dims, True) | DIMS.get(name, {})
+        lhs = frame(con.lhs, dims, renamed[name])
         constraints[name] = _constraint(m, lhs, con)
     for name in list(m.constraints):
         m.constraints.remove(name)
     for con in constraints.values():
         m.constraints.add(con)
+    return renamed, dropped
+
+
+class Built(NamedTuple):
+    """What `build_model` built a model from: the spec linopy read, the sources of its data, the PyPSA name of each entry, the dims `_relabel` renamed per entry, the variables it removed and the labels of each global constraint split by label."""
+
+    spec: Spec
+    sources: NetworkSources
+    rename: Callable[[str], str]
+    dims: dict[str, dict[str, str]]
+    dropped: dict[str, xr.Coordinates]
+    split: dict[str, list[str]]
+
+
+def _solved(m: Model, built: Built) -> SimpleNamespace:
+    """Return `m` as `linopy.spec.evaluate` reads its solution, each entry laid out in the dims of its spec entry.
+
+    A removed variable reads as absent. A global constraint split by label
+    reads the duals of its parts, NaN at a label it did not build.
+    """
+    snapshots = built.sources.coords("snapshot")
+
+    def framed[T: (xr.Dataset, xr.DataArray)](obj: T, name: str) -> T:
+        obj = obj.rename({v: k for k, v in built.dims.get(name, {}).items()})
+        if "snapshot" not in obj.dims:
+            return obj
+        labels = [c for c in obj.coords if obj[c].dims == ("snapshot",)]
+        return obj.drop_vars(labels).assign_coords(snapshot=snapshots)
+
+    def dual(name: str) -> xr.DataArray | None:
+        if name not in built.split:
+            found = m.constraints[name]._dual
+            return None if found is None else framed(found, name)
+        labels = built.split[name]
+        parts = [m.constraints[f"GlobalConstraint-{label}"]._dual for label in labels]
+        if any(part is None for part in parts):
+            return None
+        joined = framed(
+            xr.concat(parts, pd.Index(labels, dtype=object, name="name")), name
+        )
+        coords = built.sources.coords("global_constraint")
+        return joined.reindex(global_constraint=coords)
+
+    absent = {
+        k: xr.Dataset(
+            {"labels": xr.DataArray(-1, coords)}
+            | dict.fromkeys(
+                ("lower", "upper", "solution"), xr.DataArray(np.nan, coords)
+            ),
+            attrs={"label_range": (-1, -1)},
+        )
+        for k, coords in built.dropped.items()
+    }
+    data = {k: v.data for k, v in m.variables.items()} | absent
+    variables = {
+        k: Variable(framed(d, k), m, k, skip_broadcast=True) for k, d in data.items()
+    }
+    named = {built.rename(k) for k in built.spec.constraints}
+    kept = named & (m.constraints.data.keys() | built.split.keys())
+    constraints = {k: SimpleNamespace(_dual=dual(k)) for k in kept}
+    return SimpleNamespace(
+        variables=variables, constraints=SimpleNamespace(data=constraints)
+    )
+
+
+def evaluate(n: Network, name: str) -> xr.DataArray:
+    """Return the expression *name* of the spec `n` was last optimized with, over its solution.
+
+    It keeps the dims its spec entry declares; its snapshots are labelled as `n.snapshots` labels them.
+
+    Raises:
+        RuntimeError: `n` holds no model, or its model holds no solution.
+
+    """
+    from linopy.spec import evaluate as fold  # noqa: PLC0415
+
+    built, m = n._built, n._model
+    if built is None or m is None or m.status != "ok":
+        msg = "The network holds no solved model: optimize it first, as models are not saved with it."
+        raise RuntimeError(msg)
+    sources = built.sources
+    view = _solved(m, built)
+    da = fold(built.spec, view, name, sources=sources, rename=built.rename)[name]
+    if "snapshot" not in da.dims:
+        return da
+    index = sources.network_index
+    if isinstance(index, pd.MultiIndex):
+        return da.assign_coords(
+            xr.Coordinates.from_pandas_multiindex(index, "snapshot")
+        )
+    return da.assign_coords(snapshot=index)
 
 
 #: Columns PyPSA never scales: unit commitment, modules, maintenance and angles.
@@ -555,8 +659,9 @@ def build_model(
         dim_order=_unit_dims(),
         **model_kwargs,
     )
-    _relabel(m, snapshots=model_index, network_index=network_index)
+    dims, dropped = _relabel(m, snapshots=model_index, network_index=network_index)
     rules = _rules(spec_scalings(linearized_unit_commitment), rename)
     _scale(m, n, sources, rules, objective_scaling)
-    _split_by_label(m)
+    split = _split_by_label(m)
+    n._built = Built(expanded, sources, rename, dims, dropped, split)
     return m

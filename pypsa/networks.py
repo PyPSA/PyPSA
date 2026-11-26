@@ -65,6 +65,7 @@ if TYPE_CHECKING:
     from scipy.sparse import spmatrix
 
     from pypsa.components.legacy import Component
+    from pypsa.optimization.spec.build import Built
 
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,7 @@ class Network(
     _linearized_uc: int
     _committable_big_m: float | None
     _optimize_window: SnapshotWindow | None
+    _built: Built | None
     iteration: int
 
     # ----------------
@@ -164,6 +166,7 @@ class Network(
         self._multi_invest: int = 0
         self._committable_big_m: float | None = None
         self._optimize_window: SnapshotWindow | None = None
+        self._built: Built | None = None
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -317,6 +320,10 @@ class Network(
         """
         return self.equals(other)
 
+    def __getstate__(self) -> dict:
+        """Return the state to pickle, without the build of the last optimization."""
+        return self.__dict__ | {"_built": None}
+
     def __setstate__(self, state: dict) -> None:
         """Restore state and the references lost on pickling."""
         self.__dict__.update(state)
@@ -332,7 +339,7 @@ class Network(
         """Return a deep copy, including SubNetwork objects linked to the copy."""
         n = self.__class__.__new__(self.__class__)
         memo[id(self)] = n
-        n.__dict__.update(copy.deepcopy(self.__dict__, memo))
+        n.__dict__.update(copy.deepcopy(self.__getstate__(), memo))
         n._copy_sub_networks(memo)
         n._restore_references()
         return n
@@ -581,8 +588,9 @@ class Network(
         ]
         not_equal = False
         if isinstance(other, self.__class__):
-            for key, value in self.__dict__.items():
-                other_value = other.__dict__[key]
+            others = other.__getstate__()
+            for key, value in self.__getstate__().items():
+                other_value = others[key]
                 if key == "_components":
                     value = {k: v for k, v in value.items() if k != "sub_networks"}
                     other_value = {
@@ -752,6 +760,7 @@ class Network(
     def model(self) -> None:
         """Delete the model object."""
         self._model = None
+        self._built = None
 
     @property
     def objective(self) -> float | None:
