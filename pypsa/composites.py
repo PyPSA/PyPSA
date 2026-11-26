@@ -477,7 +477,11 @@ class Composite:
 
     @property
     def static(self) -> pd.DataFrame:
-        """Return the parameters of each instance, read from its members."""
+        """Return the parameters of each instance, read from the static attributes of its members.
+
+        A parameter given as a time series shows its static value, as
+        `n.c.<component>.static` does; the series is in the member's `dynamic`.
+        """
         from pypsa.optimization.spec.sources import of_scenario  # noqa: PLC0415
 
         members = self.members
