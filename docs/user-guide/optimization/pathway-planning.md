@@ -118,7 +118,7 @@ where $T_a$ the set of snapshots in investment period $a$. In the example above,
 
 Global constraints can define a CO~2~ budget over all investment periods. The
 equations below assume no storage inflow or spillage. The [primary energy
-constraint](global-constraints.md#primary-energy) describes those terms.
+constraint](../optimization/global-constraints.md#primary-energy) describes those terms.
 
 $$\begin{gather*}\sum_a v_a^y \left[\sum_{n,s,t\in T_a}  w_t^g \cdot \eta_{n,s,a,t}^{-1} \cdot g_{n,s,a,t}\cdot \rho_s + \sum_{n,s}\left(e_{n,s,a,\textrm{initial}} - e_{n,s,a,t=|T_a|-1}\right) \cdot \rho_s\right.\\
 \left. + \sum_{n,s}\left(soc_{n,s,a,\textrm{initial}} - soc_{n,s,a,t=|T_a|-1}\right) \cdot \rho_s \right] \leq  \Gamma  \quad \leftrightarrow  \quad \mu\end{gather*}$$
