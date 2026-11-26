@@ -192,6 +192,11 @@ class CompositeType:
         }
         return declared | self.math
 
+    @property
+    def entries(self) -> set[str]:
+        """Return the names the type declares in the spec."""
+        return {k for section in self.patch().values() for k in section}
+
     def _check(self) -> None:
         from pypsa.optimization.spec._render import PLACEHOLDERS  # noqa: PLC0415
         from pypsa.optimization.spec.build import spec  # noqa: PLC0415
@@ -562,6 +567,10 @@ class Composites(Mapping[str, Composite]):
         known = self._definitions().get(t.name)
         if known is not None and known != asdict(t):
             msg = f"Another composite type {t.name!r} is registered."
+            raise ValueError(msg)
+        taken = {k for c in self.values() if c.name != t.name for k in c.type.entries}
+        if clash := sorted(t.entries & taken):
+            msg = f"The composite type {t.name!r} declares {clash}, which another registered type declares."
             raise ValueError(msg)
         spec(overrides=[t.patch()])
         self.n.meta.setdefault(META, {})[t.name] = asdict(t)

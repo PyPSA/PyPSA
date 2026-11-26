@@ -222,9 +222,16 @@ def test_instances_run_over_investment_periods(n):
     assert n.model.constraints["battery_duration"].sizes["battery"] == 2
 
 
+def _replaced(*pairs):
+    text = yaml.safe_dump(BATTERY)
+    for old, new in pairs:
+        text = text.replace(old, new)
+    return yaml.safe_load(text)
+
+
 def test_two_types_build_side_by_side(n):
     _add(n)
-    cell = yaml.safe_load(yaml.safe_dump(BATTERY).replace("battery", "cell"))
+    cell = _replaced(("battery", "cell"))
     n.composites.register(cell)
     n.add("cell", "c", bus="north")
     m = n.optimize.create_model()
@@ -371,9 +378,18 @@ def test_a_malformed_definition_is_refused(definition, match):
     ],
 )
 def test_wrong_math_is_refused_at_register(typo, match):
-    definition = yaml.safe_load(yaml.safe_dump(BATTERY).replace(*typo))
+    definition = _replaced(typo)
     with pytest.raises(LanguageError, match=match):
         pypsa.Network().composites.register(definition)
+
+
+@pytest.mark.parametrize("first", [True, False])
+def test_a_type_cannot_declare_the_names_of_another(first):
+    other = _replaced(("battery", "battery_power"))
+    n = pypsa.Network()
+    n.composites.register(BATTERY if first else other)
+    with pytest.raises(ValueError, match=r"declares \['battery_power'\]"):
+        n.composites.register(other if first else BATTERY)
 
 
 def test_another_type_of_the_same_name_is_refused(n):
