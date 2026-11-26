@@ -363,11 +363,11 @@ class NetworkSources(Mapping[str, Any]):
         return {"bool": bool, "int": int, "str": object}.get(declared, float)
 
     def filled(self, name: str, value: Any) -> xr.DataArray:
-        """Return a grid over the declared dims of `name`, every cell `value`."""
+        """Return a grid over the declared dims of `name`, every cell `value`; NaN makes an int or bool grid float."""
         dims = self.declared(name)
         coords = {d: self.coords(d) for d in dims}
         dtype = self.dtype(name)
-        if dtype is int and isinstance(value, float) and np.isnan(value):
+        if dtype in (int, bool) and isinstance(value, float) and np.isnan(value):
             dtype = float
         shape = [len(c) for c in coords.values()]
         return xr.DataArray(np.full(shape, value, dtype=dtype), coords, dims, name)

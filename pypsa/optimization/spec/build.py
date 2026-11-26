@@ -117,7 +117,6 @@ def _base(linearized_unit_commitment: bool) -> tuple[Spec, Spec]:
 #: The most patched formulations kept in memory; the oldest go first.
 KEEP = 8
 _PATCHED: dict[str, tuple[Spec, Spec]] = {}
-#: A patch under the label a refusal names it by.
 Layer = tuple[str, dict[str, Any]]
 
 
@@ -209,8 +208,9 @@ def _stack(
     They are the piecewise options, the composite types and the stored overrides, in turn.
 
     Raises:
-        ValueError: A stored override no longer edits or creates what it was
-            registered to.
+        ValueError: A stored override holds with linearised unit commitment
+            only and the build is without, or no longer edits or creates what
+            it was registered to.
 
     """
     layers = _piecewise_layers(linearized_unit_commitment, piecewise_options)
@@ -220,12 +220,12 @@ def _stack(
     keys = functools.reduce(
         laid, [p for _, p in layers], set(_keys(linearized_unit_commitment))
     )
-    stored, keys = n.optimize.overrides.layers(keys)
+    stored, keys = n.optimize.overrides.layers(keys, linearized_unit_commitment)
     return layers + stored, keys
 
 
-def holding(n: Network, layers: Sequence[Layer] = ()) -> set[str]:
-    """Return the keys the spec declares under *layers* laid over the stack of `n`, by the first formulation that holds them: the default, else linearised unit commitment.
+def holding(n: Network, layers: Sequence[Layer] = ()) -> tuple[set[str], bool]:
+    """Return the keys the spec declares under *layers* laid over the stack of `n` by the first formulation that holds them, the default, else linearised unit commitment, and whether it is the latter.
 
     Raises:
         ValueError: Neither holds them; the default's error.
@@ -239,7 +239,7 @@ def holding(n: Network, layers: Sequence[Layer] = ()) -> set[str]:
         except ValueError as e:
             errors.append(e)
         else:
-            return keys
+            return keys, linearized_unit_commitment
     raise errors[0]
 
 

@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from pypsa import Network
     from pypsa.optimization.spec.build import Layer, Override
 
-#: The key of `n.meta` that holds the stored overrides.
 META = "overrides"
 
 
@@ -129,12 +128,13 @@ class Overrides(Registry[dict[str, Any]]):
         if twin:
             msg = f"The override {name!r} is stored as {twin[0]!r}."
             raise ValueError(msg)
-        keys = holding(self.n, [(_label(name), patch)])
+        keys, linearized_unit_commitment = holding(self.n, [(_label(name), patch)])
         entries = written(patch).keys()
         self.n.meta.setdefault(META, {})[name] = {
             "patch": patch,
             "edits": sorted(entries & keys),
             "creates": sorted(entries - keys),
+            "linearized_unit_commitment": linearized_unit_commitment,
         }
         return self[name]
 
@@ -169,7 +169,9 @@ class Overrides(Registry[dict[str, Any]]):
             msg = f"The overrides {dependents} build on {name!r}; remove them first."
             raise ValueError(msg) from e
 
-    def layers(self, keys: set[str]) -> tuple[list[Layer], set[str]]:
+    def layers(
+        self, keys: set[str], linearized_unit_commitment: bool
+    ) -> tuple[list[Layer], set[str]]:
         """Return the stored patches, each with the label a refusal names it by, and the keys the spec declares under them.
 
         Parameters
@@ -177,17 +179,23 @@ class Overrides(Registry[dict[str, Any]]):
         keys : set of str
             The keys the spec declares below the stored overrides, as
             `section.key`.
+        linearized_unit_commitment : bool
+            Whether the build is with linearised unit commitment.
 
         Raises
         ------
         ValueError
-            An override edits a key the spec below it no longer declares,
-            which would add the entry, or creates one it now declares, which
-            would edit it.
+            An override holds with linearised unit commitment only and the
+            build is without; or it edits a key the spec below it no longer
+            declares, which would add the entry, or creates one it now
+            declares, which would edit it.
 
         """
         layers = []
         for name, entry in self._entries().items():
+            if entry["linearized_unit_commitment"] and not linearized_unit_commitment:
+                msg = f"The stored override {name!r} holds with linearised unit commitment only; build with `linearized_unit_commitment=True` or remove it."
+                raise ValueError(msg)
             gone = [k for k in entry["edits"] if k not in keys]
             taken = [k for k in entry["creates"] if k in keys]
             drift = []

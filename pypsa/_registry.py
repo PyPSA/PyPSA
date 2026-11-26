@@ -36,9 +36,7 @@ def jsonable(content: Any, what: str) -> Any:
 class Registry[T](Mapping[str, T]):
     """Named entries stored in order under one key of `n.meta`, so copies and saved networks keep them."""
 
-    #: The key of `n.meta` that holds the entries.
     META: ClassVar[str]
-    #: What an entry is called in messages.
     NOUN: ClassVar[str]
 
     def __init__(self, n: Network) -> None:
@@ -185,3 +183,30 @@ class Registry[T](Mapping[str, T]):
 def registries(n: Network) -> tuple[Registry, ...]:
     """Return the registries of a network."""
     return n.composites, n.optimize.overrides
+
+
+def united(n: Network, other: Network) -> dict[str, dict[str, Any]]:
+    """Return the entries of the registries of both networks by key of `n.meta`, those of `other` after those of `n`.
+
+    Raises:
+        ValueError: A name holds different content in both, or the build
+            stack does not hold with the entries of both.
+
+    """
+    from pypsa.optimization.spec.build import holding  # noqa: PLC0415
+
+    unions = {
+        mine.META: mine._union(theirs)
+        for mine, theirs in zip(registries(n), registries(other), strict=True)
+    }
+    unions = {k: v for k, v in unions.items() if v}
+    before = n.meta
+    n.meta = before | unions
+    try:
+        holding(n)
+    except ValueError as e:
+        msg = f"The composite types and stored overrides of both networks do not build together: {e}"
+        raise ValueError(msg) from e
+    finally:
+        n.meta = before
+    return unions

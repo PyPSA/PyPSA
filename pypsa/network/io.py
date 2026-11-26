@@ -52,7 +52,6 @@ if TYPE_CHECKING:
 
     from pypsa import Network
 logger = logging.getLogger(__name__)
-#: The most characters an Excel cell holds.
 EXCEL_CELL_LIMIT = 32767
 
 

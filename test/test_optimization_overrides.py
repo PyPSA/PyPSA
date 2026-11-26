@@ -286,12 +286,14 @@ def test_a_name_holds_one_override(ac_dc_network):
     assert list(overrides) == ["no_ramps"]
 
 
-def test_an_override_of_linearised_unit_commitment_applies_there_only(ac_dc_network):
+def test_an_override_of_linearised_unit_commitment_builds_there_only(ac_dc_network):
     n = ac_dc_network
     luc = {"constraints": {"Generator_com_partly_start_up": None}}
     n.optimize.overrides.register(luc, name="luc")
     n.optimize.create_model(linearized_unit_commitment=True)
-    with pytest.raises(ValueError, match=r"'luc' edits \['constraints.Generator_com"):
+    with pytest.raises(
+        ValueError, match="'luc' holds with linearised unit commitment only"
+    ):
         n.optimize.create_model()
 
 
@@ -303,6 +305,7 @@ def test_an_override_of_linearised_unit_commitment_applies_there_only(ac_dc_netw
                 "patch": {"constraints": {"Generator_old": HALF}},
                 "edits": ["constraints.Generator_old"],
                 "creates": [],
+                "linearized_unit_commitment": False,
             },
             r"'old' edits \['constraints.Generator_old'\], which the spec below it no longer declares",
         ),
@@ -311,6 +314,7 @@ def test_an_override_of_linearised_unit_commitment_applies_there_only(ac_dc_netw
                 "patch": {"constraints": {"Generator_ext_p_upper": HALF}},
                 "edits": [],
                 "creates": ["constraints.Generator_ext_p_upper"],
+                "linearized_unit_commitment": False,
             },
             r"'old' creates \['constraints.Generator_ext_p_upper'\], which the spec below it now declares",
         ),
@@ -356,12 +360,28 @@ def test_merge_unites_stored_overrides(ac_dc_network):
     assert list(n.merge(other).optimize.overrides) == ["no_ramps", "half"]
     other.optimize.overrides.remove("half")
     other.meta["overrides"] = {
-        "no_ramps": {"patch": OVERRIDE, "edits": [], "creates": []}
+        "no_ramps": {
+            "patch": OVERRIDE,
+            "edits": [],
+            "creates": [],
+            "linearized_unit_commitment": False,
+        }
     }
     with pytest.raises(
         ValueError, match=r"different override under the names \['no_ramps'\]"
     ):
         n.merge(other)
+
+
+def test_merge_refuses_overrides_that_do_not_build_together(ac_dc_network):
+    n = ac_dc_network
+    other = pypsa.Network()
+    other.set_snapshots(n.snapshots)
+    n.optimize.overrides.register(OVERRIDE, name="half")
+    other.optimize.overrides.register(OVERRIDE, name="half_too")
+    with pytest.raises(ValueError, match="do not build together"):
+        n.merge(other, inplace=True)
+    assert list(n.optimize.overrides) == ["half"]
 
 
 def test_equals_follows_the_order_of_stored_overrides(ac_dc_network):
@@ -383,6 +403,20 @@ def test_an_added_parameter_without_a_column_takes_its_missing_value(
     )
     m = ac_dc_network.optimize.create_model(overrides=[override])
     assert ("Generator_full_load_hours" in m.constraints) is built
+
+
+def test_an_added_bool_parameter_without_a_column_is_absent(ac_dc_network):
+    override = """
+parameters:
+  Generator_capped: {dims: [Generator], dtype: bool, missing: absent}
+constraints:
+  Generator_cap:
+    dims: [scenario, Generator, snapshot]
+    where: Generator_capped
+    expression: Generator_p <= 0
+"""
+    m = ac_dc_network.optimize.create_model(overrides=[override])
+    assert "Generator_cap" not in m.constraints
 
 
 @pytest.mark.parametrize(

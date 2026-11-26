@@ -545,7 +545,11 @@ class Composites(Registry[Composite]):
         return pd.Index(_tags(self.n).composite.unique(), dtype=object)
 
     def patches(self) -> dict[str, dict[str, Any]]:
-        """Return the spec patch of each registered type, by name.
+        """Return the spec patch of each registered type, by name."""
+        return {k: c.type.patch() for k, c in self.items()}
+
+    def providers(self) -> dict[str, Callable[[NetworkSources, str], Any]]:
+        """Return the data of every registered type for a build.
 
         Raises:
             ValueError: Components are tagged with a type that is not
@@ -556,8 +560,4 @@ class Composites(Registry[Composite]):
         if unknown:
             msg = f"Components are tagged with the composite types {sorted(unknown)}, which are not registered; register them with `n.composites.register`."
             raise ValueError(msg)
-        return {k: c.type.patch() for k, c in self.items()}
-
-    def providers(self) -> dict[str, Callable[[NetworkSources, str], Any]]:
-        """Return the data of every registered type for a build."""
         return {k: f for c in self.values() for k, f in c.providers().items()}

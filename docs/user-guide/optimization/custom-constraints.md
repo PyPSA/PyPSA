@@ -283,7 +283,8 @@ layer wins:
 A stored override may edit, remove and add entries, as a per-call one may.
 `register` checks it laid over the specification, the composite types and the
 stored overrides: with the default formulation, else with linearised unit
-commitment. `remove` refuses an override that later ones build on, and names
+commitment. An override that holds only with linearised unit commitment is
+stored as such, and a build without it fails. `remove` refuses an override that later ones build on, and names
 them. A composite type cannot declare an entry that a stored override adds.
 
 A loaded network reproduces the stored math, but not the options of the call:

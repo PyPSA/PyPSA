@@ -46,6 +46,7 @@ math:
         at(Store_e_nom_effective, by=battery_members[store])
         <= battery_max_hours * at(Link_p_nom_effective, by=battery_members[discharger])
 """)
+CELL = yaml.safe_load(yaml.safe_dump(BATTERY).replace("battery", "cell"))
 INSTANCES = pd.Index(["bat north", "bat south"])
 
 
@@ -218,8 +219,7 @@ def test_instances_run_over_investment_periods(n):
 
 def test_two_types_build_side_by_side(n):
     _add(n)
-    cell = yaml.safe_load(yaml.safe_dump(BATTERY).replace("battery", "cell"))
-    n.composites.register(cell)
+    n.composites.register(CELL)
     n.add("cell", "c", bus="north")
     m = n.optimize.create_model()
     assert {"battery_inverter", "cell_inverter"} <= set(m.constraints)
@@ -285,9 +285,7 @@ def test_merge_unites_composite_types(n):
 
 
 def test_equals_follows_the_order_of_types(n):
-    n.composites.register(
-        yaml.safe_load(yaml.safe_dump(BATTERY).replace("battery", "cell"))
-    )
+    n.composites.register(CELL)
     other = n.copy()
     assert n.equals(other)
     other.meta["composites"] = dict(reversed(other.meta["composites"].items()))
@@ -328,13 +326,18 @@ def test_an_incomplete_instance_fails(n):
     n.optimize.create_model()
 
 
-def test_tags_without_their_type_fail(n):
+def test_tags_without_their_type_fail_until_registered_again(n):
     _add(n)
+    n.composites.register(CELL)
+    n.add("cell", "c", bus="north")
     n.meta = {}
     with pytest.raises(
-        ValueError, match=r"types \['battery'\], which are not registered"
+        ValueError, match=r"types \['battery', 'cell'\], which are not registered"
     ):
         n.optimize.create_model()
+    n.composites.register(CELL)
+    n.composites.register(BATTERY)
+    n.optimize.create_model()
 
 
 def test_an_instance_is_built_in_full_or_not_at_all(n):
