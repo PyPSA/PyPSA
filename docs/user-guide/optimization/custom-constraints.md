@@ -266,7 +266,8 @@ n.optimize.evaluate("Bus_injection")              # a DataFrame of snapshots by 
 
 An expression over `snapshot` has the snapshots as rows and its other
 dimensions as columns. In a network with scenarios, `scenario` comes first, as
-in `n.c.generators.dynamic.p`.
+in `n.c.generators.dynamic.p`. The axes take the names of the dimensions of
+the expression, as `Generator`, not `name` as in `n.c.generators.static`.
 
 An override can add an expression. It can read variables, parameters and
 duals. This one gives what each generator earns at the price of its bus, as
@@ -287,10 +288,11 @@ n.optimize(overrides=["revenue.yaml"])
 n.optimize.evaluate("Generator_revenue")
 ```
 
-`evaluate` reads the model of the last optimization, not the network, and
-covers only its snapshots. After a rolling horizon, these are the snapshots of
-the last window. A copy or a saved network keeps no model, so optimize it
-again.
+`evaluate` reads the model of the last optimization and the data it was
+built from, not the network as it is now, and covers only its snapshots. After
+a rolling horizon, these are the snapshots of the last window. A copy, a
+pickled or a saved network keeps no record of the build, even where it keeps
+the model, so optimize it again.
 
 ## Handling snapshots in multi-investment optimizations
 

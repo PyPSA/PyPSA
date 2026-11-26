@@ -708,17 +708,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             as rows and its other dimensions as columns, or a Series by
             snapshot if it has no other. An expression without `snapshot` is
             a Series over its dimensions, or a float if it has none. In a
-            network with scenarios, `scenario` comes first.
-            An expression over both `period` and `snapshot` labels each
-            snapshot as a tuple.
+            network with scenarios, `scenario` comes first. The axes take the
+            names of the dimensions of the expression, as `Generator`, not
+            `name` as in `n.c.generators.static`. An expression over both
+            `period` and `snapshot` labels each snapshot as a tuple.
 
         Raises
         ------
         KeyError
             The specification declares no expression *name*.
         RuntimeError
-            The network holds no solved model, as after `create_model`, after
-            a failed solve, or on a copy or a loaded network.
+            The network holds no record of a solved optimization, as after
+            `create_model` or a failed solve. A copy, a deep copy or an
+            unpickled network keeps no such record, even where it keeps the
+            model, so optimize it again.
 
         """
         da = evaluate_expression(self._n, name)

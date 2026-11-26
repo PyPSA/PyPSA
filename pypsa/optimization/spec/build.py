@@ -526,14 +526,18 @@ def evaluate(n: Network, name: str) -> xr.DataArray:
     `n.snapshots` labels them, as tuples where a dim is a level of them.
 
     Raises:
-        RuntimeError: `n` holds no model, or its model holds no solution.
+        RuntimeError: `n` holds no record of a solved optimization.
 
     """
     from linopy.spec import evaluate as fold  # noqa: PLC0415
 
     built, m = n._built, n._model
     if built is None or m is None or m.status != "ok":
-        msg = "The network holds no solved model: optimize it first, as models are not saved with it."
+        msg = (
+            "The network holds no record of a solved optimization, so optimize it "
+            "again. A copy, a deep copy or an unpickled network keeps no such "
+            "record, even where it keeps the model."
+        )
         raise RuntimeError(msg)
     view = _solved(m, built)
     da = fold(built.spec, view, name, sources=built.sources, rename=built.rename)

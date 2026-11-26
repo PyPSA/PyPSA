@@ -400,7 +400,7 @@ def _deleted(n: pypsa.Network) -> pypsa.Network:
     ids=["unsolved", "built", "deleted", "copy", "pickle"],
 )
 def test_evaluate_needs_a_solved_model(ac_dc_network, prepare):
-    with pytest.raises(RuntimeError, match="optimize it first"):
+    with pytest.raises(RuntimeError, match="optimize it again"):
         prepare(ac_dc_network).optimize.evaluate("total_cost")
 
 
