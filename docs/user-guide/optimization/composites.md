@@ -60,6 +60,15 @@ math:
       expression: >-
         at(Store_e_nom_effective, by=battery_members[store])
         <= battery_max_hours * at(Link_p_nom_effective, by=battery_members[discharger])
+  expressions:
+    battery_power:
+      description: the rating of the discharger
+      dims: [scenario, battery]
+      expression: at(Link_p_nom_effective, by=battery_members[discharger])
+    battery_soc:
+      description: the energy in the store
+      dims: [scenario, battery, snapshot]
+      expression: at(Store_e, by=battery_members[store])
 ```
 
 The math may use every entry of the formulation. PyPSA declares three more
@@ -107,6 +116,23 @@ n.composites.battery.members   # the members of each instance
 n.composites.battery.static    # the parameters of each instance, read from its members
 n.statistics.energy_balance(groupby="composite")
 ```
+
+## Reading results
+
+The `expressions` of the math define the results of a type. After
+`n.optimize()`, `results` evaluates one of them over the solution, one value
+per instance:
+
+``` py
+n.composites.battery.results("power")  # a Series by instance
+n.composites.battery.results("soc")    # a DataFrame of snapshots by instance
+```
+
+An expression can read variables, parameters and duals, as
+`at(dual(Bus_nodal_balance), by=battery_members[dc])` for the value of stored
+energy. In a stochastic network, the scenario comes before the instance.
+`results` reads the model of the last optimization, so it is not available on
+a copy or a saved network.
 
 ## Rules
 

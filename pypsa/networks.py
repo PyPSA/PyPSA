@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from scipy.sparse import spmatrix
 
     from pypsa.components.legacy import Component
+    from pypsa.optimization.spec.build import Built
 
 
 logger = logging.getLogger(__name__)
@@ -93,6 +94,7 @@ class Network(
     _linearized_uc: int
     _committable_big_m: float | None
     _optimize_window: SnapshotWindow | None
+    _built: Built | None
     iteration: int
 
     # ----------------
@@ -165,6 +167,7 @@ class Network(
         self._multi_invest: int = 0
         self._committable_big_m: float | None = None
         self._optimize_window: SnapshotWindow | None = None
+        self._built: Built | None = None
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)

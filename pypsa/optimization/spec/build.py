@@ -9,10 +9,11 @@ from __future__ import annotations
 import functools
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from importlib.resources import files
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -364,6 +365,88 @@ def _relabel(
         m.constraints.add(con)
 
 
+class Built(NamedTuple):
+    """What `build_model` built a model from: the spec linopy read, the reader of the network's data and the PyPSA name of each entry."""
+
+    spec: Spec
+    read: Callable[[], NetworkSources]
+    rename: Callable[[str], str]
+
+
+class _Entries(Mapping[str, Any]):
+    """The variables or the constraints of a built model, each laid out in the dims of its spec entry.
+
+    A constraint is read for its dual alone, as `linopy.spec.evaluate` reads it.
+    """
+
+    def __init__(
+        self, m: Model, built: Built, snapshots: pd.Index, constraint: bool
+    ) -> None:
+        self.entries = m.constraints if constraint else m.variables
+        self.constraint = constraint
+        self.snapshots = snapshots
+        section = built.spec.constraints if constraint else built.spec.variables
+        self.dims = {built.rename(k): tuple(e.dims) for k, e in section.items()}
+
+    def __getitem__(self, name: str) -> Any:
+        if name not in self.dims:
+            raise KeyError(name)
+        renamed = _pypsa_dims(self.dims[name], self.constraint) | DIMS.get(name, {})
+        entry = self.entries[name]
+        if not self.constraint:
+            data = self._framed(entry.data, renamed)
+            return Variable(data, entry.model, name, skip_broadcast=True)
+        dual = entry._dual
+        return SimpleNamespace(
+            _dual=None if dual is None else self._framed(dual, renamed)
+        )
+
+    def __iter__(self) -> Iterator[str]:
+        return (name for name in self.entries if name in self.dims)
+
+    def __len__(self) -> int:
+        return sum(1 for _ in self)
+
+    def _framed[T: (xr.Dataset, xr.DataArray)](
+        self, obj: T, renamed: dict[str, str]
+    ) -> T:
+        obj = obj.rename({v: k for k, v in renamed.items()})
+        if "snapshot" not in obj.dims:
+            return obj
+        labels = [c for c in obj.coords if obj[c].dims == ("snapshot",)]
+        return obj.drop_vars(labels).assign_coords(snapshot=self.snapshots)
+
+
+def evaluate(n: Network, *names: str) -> dict[str, xr.DataArray]:
+    """Return the expressions *names* of the spec `n` was last optimized with, over its solution.
+
+    Each keeps the dims its spec entry declares; its snapshots are labelled as the model labels them.
+
+    Raises:
+        RuntimeError: `n` holds no model.
+
+    """
+    from linopy.spec import evaluate as fold  # noqa: PLC0415
+
+    if n._model is None or n._built is None:
+        msg = "The network holds no model: optimize it first, as models are not saved with it."
+        raise RuntimeError(msg)
+    built = n._built
+    sources = built.read()
+    snapshots = sources.coords("snapshot")
+    solved = SimpleNamespace(
+        variables=_Entries(n._model, built, snapshots, constraint=False),
+        constraints=SimpleNamespace(
+            data=_Entries(n._model, built, snapshots, constraint=True)
+        ),
+    )
+    folded = fold(built.spec, solved, *names, sources=sources, rename=built.rename)
+    return {
+        k: v.assign_coords(snapshot=sources.model_index) if "snapshot" in v.dims else v
+        for k, v in folded.items()
+    }
+
+
 #: Columns PyPSA never scales: unit commitment, modules, maintenance and angles.
 UNSCALED = {
     "status",
@@ -545,7 +628,8 @@ def build_model(
     n.calculate_dependent_values()
     overrides = [*n.composites.patches(), *overrides]
     s, expanded = _formulation(linearized_unit_commitment, piecewise_options, overrides)
-    sources = NetworkSources(
+    read = functools.partial(
+        NetworkSources,
         n,
         s,
         network_index,
@@ -553,6 +637,7 @@ def build_model(
         providers=n.composites.providers(),
         **options,
     )
+    sources = read()
     mode = (options.get("transmission_losses") or {}).get("mode")
     rename = _renamer(s, spec_names(linearized_unit_commitment), mode)
     m = Model.from_spec(
@@ -564,6 +649,7 @@ def build_model(
         **model_kwargs,
     )
     _relabel(m, snapshots=model_index, network_index=network_index)
+    n._built = Built(expanded, read, rename)
     rules = _rules(spec_scalings(linearized_unit_commitment), rename)
     _scale(m, n, sources, rules, objective_scaling)
     _split_by_label(m)

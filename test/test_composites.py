@@ -45,6 +45,16 @@ math:
       expression: >-
         at(Store_e_nom_effective, by=battery_members[store])
         <= battery_max_hours * at(Link_p_nom_effective, by=battery_members[discharger])
+  expressions:
+    battery_power:
+      dims: [scenario, battery]
+      expression: at(Link_p_nom_effective, by=battery_members[discharger])
+    battery_soc:
+      dims: [scenario, battery, snapshot]
+      expression: at(Store_e, by=battery_members[store])
+    battery_value:
+      dims: [scenario, battery, snapshot]
+      expression: at(dual(Bus_nodal_balance), by=battery_members[dc])
 """)
 INSTANCES = pd.Index(["bat north", "bat south"])
 
@@ -214,6 +224,7 @@ def test_instances_run_over_investment_periods(n):
     n.c.links.static.loc["bat north discharger", "build_year"] = 2040
     n.optimize(multi_investment_periods=True)
     assert n.model.constraints["battery_duration"].sizes["battery"] == 2
+    assert n.composites.battery.results("soc").index.equals(n.snapshots)
 
 
 def test_two_types_build_side_by_side(n):
@@ -236,6 +247,57 @@ def test_statistics_group_by_instance(n):
     n.optimize()
     balance = n.statistics.energy_balance(groupby="composite")
     assert set(balance.index.get_level_values("composite")) == {"", *INSTANCES}
+
+
+@pytest.mark.parametrize(
+    ("name", "member", "read"),
+    [
+        ("power", "discharger", lambda n: n.c.links.static.p_nom_opt),
+        ("soc", "store", lambda n: n.c.stores.dynamic.e),
+        ("value", "dc", lambda n: n.c.buses.dynamic.marginal_price),
+    ],
+)
+def test_results_read_the_solution_per_instance(n, name, member, read):
+    _add(n)
+    n.optimize()
+    members = n.composites.battery.members[member]
+    result = n.composites.battery.results(name)
+    np.testing.assert_allclose(result, read(n)[members])
+    assert result.axes[-1].equals(INSTANCES)
+
+
+def test_results_put_the_scenario_before_the_instance(n):
+    _add(n)
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    n.optimize()
+    battery = n.composites.battery
+    assert battery.results("power").index.names == ["scenario", "battery"]
+    assert battery.results("soc").columns.names == ["scenario", "battery"]
+
+
+@pytest.mark.parametrize(
+    ("name", "prepare", "error", "match"),
+    [
+        (
+            "store",
+            lambda n: n.optimize(),
+            KeyError,
+            "power', 'soc', 'value'], not 'store'",
+        ),
+        ("power", lambda n: None, RuntimeError, "optimize it first"),
+        (
+            "power",
+            lambda n: n.optimize.create_model(),
+            AttributeError,
+            "solve the model",
+        ),
+    ],
+)
+def test_results_need_a_declared_expression_and_a_solve(n, name, prepare, error, match):
+    _add(n)
+    prepare(n)
+    with pytest.raises(error, match=match):
+        n.composites.battery.results(name)
 
 
 def test_a_type_without_instances_adds_no_rows(n):

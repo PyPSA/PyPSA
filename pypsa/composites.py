@@ -449,6 +449,36 @@ class Composite:
             read[p] = static[attr].reindex(members[member]).to_numpy()
         return pd.DataFrame(read, index=members.index)[list(self.type.parameters)]
 
+    def results(self, name: str) -> pd.Series | pd.DataFrame:
+        """Return the expression `<type>_<name>` of the math over the solution of the last optimization.
+
+        An expression over the instances alone is a Series by instance; one
+        over the snapshots too is a DataFrame of snapshots by instance. A
+        network with scenarios puts the scenario before the instance.
+
+        Raises:
+            KeyError: The math declares no such expression.
+            RuntimeError: The network holds no model.
+
+        """
+        from pypsa.optimization.spec.build import evaluate  # noqa: PLC0415
+
+        declared = [
+            k.removeprefix(f"{self.name}_")
+            for k in self.type.math.get("expressions", {})
+        ]
+        if name not in declared:
+            msg = f"The math of {self.name} declares the expressions {declared}, not {name!r}."
+            raise KeyError(msg)
+        key = f"{self.name}_{name}"
+        da = evaluate(self.n, key)[key]
+        if not self.n.has_scenarios:
+            da = da.squeeze("scenario", drop=True)
+        columns = [d for d in ("scenario", self.name) if d in da.dims]
+        rows = [d for d in da.dims if d not in columns]
+        values = da.transpose(*rows, *columns).to_series()
+        return values.unstack(columns) if rows else values
+
     def providers(self) -> dict[str, Callable[[NetworkSources, str], Any]]:
         """Return the data of the type's dimension, relation and parameters for a build."""
         t = self.name
