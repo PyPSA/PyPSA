@@ -120,23 +120,23 @@ n.statistics.energy_balance(groupby="composite")
 ## Reading results
 
 The `expressions` of the math define the results of a type. Each expression
-has the dimension of the type, here `battery`, in its `dims`. After
-`n.optimize()`, `results` evaluates one expression over the solution. Give its
-name without the prefix `battery_`:
+has the dimension of the type, here `battery`, in its `dims`. Optimize with
+`expressions=True`, then `results` reads one expression from the solved model.
+Give its name without the prefix `battery_`:
 
 ``` py
+n.optimize(expressions=True)
 n.composites.battery.results("power")  # a Series by instance
 n.composites.battery.results("soc")    # a DataFrame of snapshots by instance
 ```
 
-An expression can read variables, parameters and duals. For example,
-`at(dual(Bus_nodal_balance), by=battery_members[dc])` gives the price of
-energy at each battery's bus `dc`. In a stochastic network, the scenario comes
-first, then the instance.
-
-`results` needs the model of the last `n.optimize()` and covers only its
-snapshots. After a rolling horizon, these are the snapshots of the last window.
-A copy or a saved network keeps no model, so optimize it again.
+In a stochastic network, the scenario comes first, then the instance.
+`results` reads `n.model.expressions`, so the rules of
+[reading expressions](custom-constraints.md#reading-expressions) hold: an
+expression that reads only data or a dual is not built. `results` covers the
+snapshots of the last `n.optimize()`. After a rolling horizon, these are the
+snapshots of the last window. A saved network keeps no model, so optimize it
+again.
 
 ## Rules
 
