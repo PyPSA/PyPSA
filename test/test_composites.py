@@ -438,6 +438,11 @@ def test_a_type_cannot_declare_the_names_of_another(first):
         n.composites.register(other if first else BATTERY)
 
 
+def test_editing_a_read_type_leaves_the_stored_type(n):
+    n.composites.battery.type.templates["charger"]["efficiency"] = 0.1
+    assert n.composites.battery.type.templates["charger"]["efficiency"] == "$efficiency"
+
+
 def test_another_type_of_the_same_name_is_refused(n):
     n.composites.register(BATTERY)
     with pytest.raises(ValueError, match="Another composite type"):

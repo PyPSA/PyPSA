@@ -13,6 +13,7 @@ stored in `n.meta`, so copies and saved networks keep their composites.
 
 from __future__ import annotations
 
+import copy
 import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import asdict, dataclass
@@ -120,7 +121,7 @@ class CompositeType:
         """
         from pypsa.optimization.spec.build import _layer  # noqa: PLC0415
 
-        d = _layer(definition)
+        d = copy.deepcopy(_layer(definition))
         unknown = d.keys() - SECTIONS
         if unknown or "name" not in d:
             msg = f"A composite definition has a name and the sections {sorted(SECTIONS - {'name'})}; it has {sorted(d)}."
