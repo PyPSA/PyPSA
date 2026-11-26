@@ -44,6 +44,7 @@ from pypsa.optimization.global_constraints import (
 )
 from pypsa.optimization.piecewise import PiecewiseOptions
 from pypsa.optimization.spec import build_model
+from pypsa.optimization.spec.build import evaluate as evaluate_expression
 from pypsa.optimization.window import SnapshotWindow
 
 if TYPE_CHECKING:
@@ -683,6 +684,52 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             _assert_data_integrity(self._n)
 
         return status, condition
+
+    def evaluate(self, name: str) -> pd.DataFrame | pd.Series | float:
+        """Evaluate an expression of the formulation over the solution of the last optimization.
+
+        <!-- md:guide optimization/custom-constraints.md -->
+
+        The expression is one of the `expressions` of the specification the
+        model was built from, or one added by `overrides`. It is read from the
+        solved model, not from the network, and covers the snapshots of the
+        last optimization.
+
+        Parameters
+        ----------
+        name : str
+            Key of the expression in the specification, as `"total_cost"`
+            or `"Generator_p_nom_effective"`.
+
+        Returns
+        -------
+        pd.DataFrame | pd.Series | float
+            An expression over `snapshot` is a DataFrame with the snapshots
+            as rows and its other dimensions as columns, or a Series by
+            snapshot if it has no other. An expression without `snapshot` is
+            a Series over its dimensions, or a float if it has none. In a
+            network with scenarios, `scenario` comes first.
+
+        Raises
+        ------
+        KeyError
+            The specification declares no expression *name*.
+        RuntimeError
+            The network holds no solved model, as after `create_model`, after
+            a failed solve, or on a copy or a loaded network.
+
+        """
+        da = evaluate_expression(self._n, name)
+        if not self._n.has_scenarios and "scenario" in da.dims:
+            da = da.squeeze("scenario", drop=True)
+        others = (d for d in da.dims if d != "snapshot")
+        columns = sorted(others, key=lambda d: d != "scenario")
+        if "snapshot" not in da.dims:
+            return da.transpose(*columns).to_series() if columns else da.item()
+        frame = da.transpose("snapshot", *columns)
+        if len(columns) > 1:
+            frame = frame.stack(column=columns)
+        return frame.to_pandas()
 
     def assign_solution(self) -> None:
         """Map solution to network components."""
