@@ -42,7 +42,7 @@ from pypsa.optimization.spec.checks import check
 from pypsa.optimization.spec.sources import NetworkSources
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterable, Iterator, Sequence
     from importlib.resources.abc import Traversable
 
     from mathspec.spec import Spec
@@ -439,8 +439,38 @@ def _detached(spec: Spec, sources: NetworkSources) -> dict[str, Any]:
     return dims | {k: _owned(sources[k]) for k in names}
 
 
+class _Lazy[V](Mapping[str, V]):
+    """The mapping of `keys` to what `make` makes of each, made on first access."""
+
+    def __init__(self, keys: Iterable[str], make: Callable[[str], V]) -> None:
+        self._keys = dict.fromkeys(keys)
+        self._make = functools.cache(make)
+
+    def __getitem__(self, key: str) -> V:
+        if key not in self._keys:
+            raise KeyError(key)
+        return self._make(key)
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._keys
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._keys)
+
+    def __len__(self) -> int:
+        return len(self._keys)
+
+
+def _absent(coords: xr.Coordinates) -> xr.Dataset:
+    """Return the data of a variable without a column over `coords`."""
+    nan = xr.DataArray(np.nan, coords)
+    data = {"labels": xr.DataArray(-1, coords)}
+    data |= dict.fromkeys(("lower", "upper", "solution"), nan)
+    return xr.Dataset(data, attrs={"label_range": (-1, -1)})
+
+
 def _solved(m: Model, built: Built) -> SimpleNamespace:
-    """Return `m` as `linopy.spec.evaluate` reads its solution, each entry laid out in the dims of its spec entry.
+    """Return `m` as `linopy.spec.evaluate` reads its solution, each entry laid out in the dims of its spec entry when first read.
 
     A removed variable reads as absent. A global constraint split by label
     reads the duals of its parts, NaN at a label it did not build.
@@ -453,6 +483,11 @@ def _solved(m: Model, built: Built) -> SimpleNamespace:
             return obj
         labels = [c for c in obj.coords if obj[c].dims == ("snapshot",)]
         return obj.drop_vars(labels).assign_coords(snapshot=snapshots)
+
+    def variable(name: str) -> Variable:
+        dropped = built.dropped.get(name)
+        data = m.variables[name].data if dropped is None else _absent(dropped)
+        return Variable(framed(data, name), m, name, skip_broadcast=True)
 
     def dual(name: str) -> xr.DataArray | None:
         if name not in built.split:
@@ -467,26 +502,11 @@ def _solved(m: Model, built: Built) -> SimpleNamespace:
         )
         return joined.reindex(global_constraint=built.sources["global_constraint"])
 
-    absent = {
-        k: xr.Dataset(
-            {"labels": xr.DataArray(-1, coords)}
-            | dict.fromkeys(
-                ("lower", "upper", "solution"), xr.DataArray(np.nan, coords)
-            ),
-            attrs={"label_range": (-1, -1)},
-        )
-        for k, coords in built.dropped.items()
-    }
-    data = {k: v.data for k, v in m.variables.items()} | absent
-    variables = {
-        k: Variable(framed(d, k), m, k, skip_broadcast=True) for k, d in data.items()
-    }
     named = {built.rename(k) for k in built.spec.constraints}
     kept = named & (m.constraints.data.keys() | built.split.keys())
-    constraints = {k: SimpleNamespace(_dual=dual(k)) for k in kept}
-    return SimpleNamespace(
-        variables=variables, constraints=SimpleNamespace(data=constraints)
-    )
+    variables = _Lazy([*m.variables.data, *built.dropped], variable)
+    duals = _Lazy(kept, lambda k: SimpleNamespace(_dual=dual(k)))
+    return SimpleNamespace(variables=variables, constraints=SimpleNamespace(data=duals))
 
 
 def evaluate(n: Network, name: str) -> xr.DataArray:
