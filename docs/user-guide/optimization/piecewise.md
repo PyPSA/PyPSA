@@ -68,6 +68,7 @@ For instance, the incremental (delta) formulation currently adds the variables `
 ```
 
 Only committable units have rows in `_active_bound`.
+The [linearized unit commitment](unit-commitment.md#linearization) does not support such a gate and raises a `ValueError` for a committable unit with a curve.
 Each quantity of the curve has one constraint `_<quantity>` that ties it to the curve, e.g. `Generator-marginal_cost_piecewise_p` and `Generator-marginal_cost_piecewise_cost`.
 The quantities are `p` and `cost` for a marginal cost, the nominal capacity (`p_nom`, `s_nom` or `e_nom`) and `cost` for a capital cost, `p` and `primary` for a Generator efficiency, `p` and `delivery` for a Link efficiency and `p` and `transfer` for a Process rate.
 For a component with unit commitment, the rows of the units that are not committable are in separate constraints with the suffix `_ungated`, e.g. `Generator-marginal_cost_piecewise_cost_ungated`.

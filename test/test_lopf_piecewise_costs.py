@@ -605,6 +605,11 @@ def test_piecewise_names_and_scaling(
             {"bus0": "bus0", "bus1": "bus1", "efficiency": {0: 0, 0.5: 0.4, 1: 0.6}},
             "Link_efficiency",
         ),
+        (
+            "Process",
+            {"bus0": "bus0", "bus1": "bus1", "rate1": {0: 0, 0.5: 0.4, 1: 0.6}},
+            "Process_rate",
+        ),
     ],
 )
 def test_linearized_unit_commitment_refuses_committable_curve(
