@@ -24,20 +24,11 @@ parameters:
     description: a given storing schedule. No value means no row
     dims: [scenario, snapshot, StorageUnit]
     missing: absent
-  StorageUnit_state_of_charge_set:
-    description: a given state of charge schedule. No value means no row
-    dims: [scenario, snapshot, StorageUnit]
-    missing: absent
 
 variables:
   StorageUnit_p_dispatch:
     name: StorageUnit-p_dispatch
     description: power delivered to the bus
-    dims: [scenario, snapshot, StorageUnit]
-    where: StorageUnit_active
-  StorageUnit_state_of_charge:
-    name: StorageUnit-state_of_charge
-    description: energy stored at the end of a snapshot
     dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_active
 
@@ -138,9 +129,3 @@ constraints:
     dims: [scenario, snapshot, StorageUnit]
     where: StorageUnit_p_store_set AND StorageUnit_active
     expression: StorageUnit_p_store == StorageUnit_p_store_set
-  StorageUnit_state_of_charge_set:
-    name: StorageUnit-state_of_charge_set
-    description: the state of charge follows the given schedule
-    dims: [scenario, snapshot, StorageUnit]
-    where: StorageUnit_state_of_charge_set AND StorageUnit_active
-    expression: StorageUnit_state_of_charge == StorageUnit_state_of_charge_set

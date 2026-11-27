@@ -12,7 +12,6 @@ given:
     snapshot_weighting_objective: {dims: [snapshot]}
     snapshot_weighting_stores: {dims: [snapshot]}
   variables:
-    COMPONENT_LEVEL: {dims: [scenario, snapshot, UNIT]}
     COMPONENT_POWER: {dims: [scenario, snapshot, UNIT]}
     COMPONENT_marginal_cost_piecewise: {dims: [scenario, snapshot, UNIT]}
   conditions:
@@ -67,6 +66,10 @@ parameters:
       overrides the two other flags and is false without investment periods
     dims: [scenario, UNIT]
     dtype: bool
+  COMPONENT_LEVEL_set:
+    description: a given schedule of the energy stored. No value means no row
+    dims: [scenario, snapshot, UNIT]
+    missing: absent
   COMPONENT_opens_late:
     description: true at the first snapshot of an asset that becomes active after the first snapshot of the horizon
     dims: [snapshot, UNIT]
@@ -106,6 +109,11 @@ macros:
       by=snapshot_period[period]), over=UNIT), over=snapshot)
 
 variables:
+  COMPONENT_LEVEL:
+    name: COMPONENT-LEVEL
+    description: energy stored at the end of a snapshot
+    dims: [scenario, snapshot, UNIT]
+    where: COMPONENT_active
   COMPONENT_p_store:
     name: COMPONENT-p_store
     description: power taken from the bus to store
@@ -261,6 +269,12 @@ constraints:
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_ext
     expression: COMPONENT_p_store >= 0
+  COMPONENT_LEVEL_set:
+    name: COMPONENT-LEVEL_set
+    description: the energy stored follows the given schedule
+    dims: [scenario, snapshot, UNIT]
+    where: COMPONENT_LEVEL_set AND COMPONENT_active
+    expression: COMPONENT_LEVEL == COMPONENT_LEVEL_set
 
 assumptions:
   COMPONENT_active_in_one_run:

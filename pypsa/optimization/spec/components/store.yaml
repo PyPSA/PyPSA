@@ -9,10 +9,6 @@ parameters:
   Store_e_max_pu:
     description: most energy stored, per unit of nominal capacity
     dims: [scenario, snapshot, Store]
-  Store_e_set:
-    description: a given energy schedule. No value means no row
-    dims: [scenario, snapshot, Store]
-    missing: absent
   Store_max_hours:
     description: >-
       energy capacity in hours of discharge at the power rating `e_nom /
@@ -36,13 +32,6 @@ parameters:
     description: most full cycles over the horizon, discharge over `e_nom`. No value means no row
     dims: [scenario, Store]
     missing: absent
-
-variables:
-  Store_e:
-    name: Store-e
-    description: energy stored at the end of a snapshot
-    dims: [scenario, snapshot, Store]
-    where: Store_active
 
 expressions:
   Store_discharge_floor_pu:
@@ -164,9 +153,3 @@ constraints:
     expression: >-
       sum((Store_p + Store_p_store) * snapshot_weighting_stores, over=snapshot) <=
       Store_cycles_max * Store_e_nom_effective
-  Store_e_set:
-    name: Store-e_set
-    description: the energy stored follows the given schedule
-    dims: [scenario, snapshot, Store]
-    where: Store_e_set AND Store_active
-    expression: Store_e == Store_e_set
