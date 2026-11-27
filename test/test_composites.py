@@ -345,6 +345,7 @@ def test_a_type_without_instances_adds_no_rows(n):
         "copy",
         "slice",
         "netcdf",
+        "csv_folder",
         pytest.param(
             "hdf5",
             marks=pytest.mark.skipif(
@@ -356,8 +357,9 @@ def test_a_type_without_instances_adds_no_rows(n):
 def test_composites_survive_copy_and_io(n, tmp_path, form):
     _add(n)
     n.add("Bus", "west")
-    path = tmp_path / {"netcdf": "net.nc", "hdf5": "net.h5"}.get(form, "")
-    if form in ("netcdf", "hdf5"):
+    files = {"netcdf": "net.nc", "hdf5": "net.h5", "csv_folder": "net"}
+    path = tmp_path / files.get(form, "")
+    if form in files:
         getattr(n, f"export_to_{form}")(path)
     other = {"copy": n.copy, "slice": lambda: n.slice_network(n.c.buses.names)}.get(
         form, lambda: pypsa.Network(path)

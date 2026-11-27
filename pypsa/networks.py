@@ -325,7 +325,7 @@ class Network(
 
     def __setstate__(self, state: dict) -> None:
         """Restore state and the references lost on pickling."""
-        self.__dict__.update(state)
+        self.__dict__.update({"_registries": {}} | state)
         self._restore_references()
 
     def __copy__(self) -> Network:
