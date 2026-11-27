@@ -10,6 +10,7 @@ import functools
 import hashlib
 import json
 import logging
+import os
 import re
 from collections.abc import Mapping
 from importlib.resources import files
@@ -74,9 +75,9 @@ Override = str | Path | Mapping[str, Any]
 
 
 def is_path(override: Override) -> TypeGuard[str | Path]:
-    """Return whether *override* names a file: a path, or a `str` with no newline."""
+    """Return whether *override* names a file: a path, or a `str` that names an existing file."""
     return isinstance(override, Path) or (
-        isinstance(override, str) and "\n" not in override
+        isinstance(override, str) and os.path.isfile(override)  # noqa: PTH113
     )
 
 
@@ -84,7 +85,7 @@ def _layer(override: Override) -> dict[str, Any]:
     """Return *override* as the mapping it states.
 
     Raises:
-        FileNotFoundError: A `str` with no newline names no file.
+        FileNotFoundError: A `str` names no file and is no YAML text of a mapping.
         TypeError: *override* is not a path, YAML text or mapping, or states
             no mapping.
 
@@ -96,7 +97,15 @@ def _layer(override: Override) -> dict[str, Any]:
     if is_path(override):
         stated = yaml.safe_load(Path(override).read_text())
     elif isinstance(override, str):
-        stated = yaml.safe_load(override)
+        error = None
+        try:
+            stated = yaml.safe_load(override)
+        except yaml.YAMLError as e:
+            stated, error = None, e
+        if not isinstance(stated, Mapping):
+            msg = f"No file {override!r} exists, and the string is not YAML text of an override either."
+            msg += f" YAML reads: {error}" if error else ""
+            raise FileNotFoundError(msg) from error
     else:
         msg = f"An override is a YAML path, YAML text or a mapping, not {type(override).__name__}."
         raise TypeError(msg)

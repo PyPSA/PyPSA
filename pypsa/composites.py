@@ -8,7 +8,8 @@ A composite type is defined once, as a YAML file, YAML text or a mapping, and
 registered on a network with `n.composites.register`. Each instance added with
 `n.add("<type>", ...)` is nothing but its member components, tagged with the
 columns `composite`, `composite_type` and `composite_member`. The definition is
-stored in `n.meta`, so copies and saved networks keep their composites.
+kept by the network, so copies and saved networks keep their composites. A
+saved network holds it under the meta key `"_pypsa"`.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ import pandas as pd
 import xarray as xr
 
 from pypsa._registry import Registry, builds_on, jsonable
-from pypsa.components.types import component_types_df
+from pypsa.components.types import all_components
 from pypsa.components.types import get as component_type
 from pypsa.network.transform import _build_suffixed_names
 
@@ -34,7 +35,7 @@ if TYPE_CHECKING:
     from pypsa.optimization.spec.build import Override
     from pypsa.optimization.spec.sources import NetworkSources
 
-#: The key of `n.meta` that holds the registered definitions.
+#: The key of the registries of a network that holds the registered definitions.
 META = "composites"
 #: The sections of a definition.
 SECTIONS = {"name", "description", "parameters", "components", "math"}
@@ -64,6 +65,11 @@ def _tags(n: Network) -> pd.DataFrame:
         return pd.DataFrame(columns=["name", *TAGS, "class_name"])
     tags = pd.concat(frames).rename_axis("name").reset_index()
     return tags[tags.composite_type.notna() & (tags.composite_type != "")]
+
+
+def _components() -> set[str]:
+    """Return the names and list names of every component type, custom ones included."""
+    return {*all_components, *(c.name for c in all_components.values())}
 
 
 def _instances(n: Network, ctype: str) -> list[str]:
@@ -214,10 +220,9 @@ class CompositeType:
 
         t = self.name
         base = spec()
-        taken = {*component_types_df.index, *component_types_df.list_name}
-        taken |= {*base.dimensions, *PLACEHOLDERS, *dir(Composites)}
+        taken = _components() | {*base.dimensions, *PLACEHOLDERS, *dir(Composites)}
         if not isinstance(t, str) or not t.isidentifier() or t in taken:
-            msg = f"A composite type is named by an identifier that is no component, dimension, placeholder or attribute of `n.composites`, not {t!r}."
+            msg = f"A composite type is named by an identifier that is no component, dimension, placeholder or attribute of `n.composites`, not {t!r}; rename the type."
             raise ValueError(msg)
         unknown = [c for c in self.components if _dim(c) not in base.dimensions]
         if unknown or not self.components:
@@ -284,7 +289,7 @@ class Composite:
 
     @cached_property
     def type(self) -> CompositeType:
-        """Return the type, read from `n.meta`."""
+        """Return the type, read from the network."""
         return CompositeType.read(self.n.composites._entries()[self.name])
 
     def add(
@@ -362,17 +367,35 @@ class Composite:
         """Remove instances: every member of each.
 
         Raises:
-            ValueError: An instance does not exist.
+            ValueError: An instance does not exist, or a component carries a
+                member the type does not have. Nothing is removed then.
 
         """
         names = _build_suffixed_names(name, suffix)
-        tags = _tags(self.n)
-        tags = tags[tags.composite_type == self.name]
+        tags = self._tagged()
         if len(unknown := names.difference(tags.composite)):
             msg = f"There are no {self.name} instances {list(unknown)}."
             raise ValueError(msg)
         for class_name, rows in tags[tags.composite.isin(names)].groupby("class_name"):
             self.n.remove(class_name, rows.name)
+
+    def _tagged(self) -> pd.DataFrame:
+        """Return the tags of the members of the instances of this type.
+
+        Raises:
+            ValueError: A component is tagged with a member the type does
+                not have, or with a member of another component class.
+
+        """
+        tags = _tags(self.n)
+        tags = tags[tags.composite_type == self.name]
+        members = CompositeType(**self.n.composites._entries()[self.name]).members
+        stray = tags.composite_member.map(members) != tags.class_name
+        if stray.any():
+            found = list(tags.class_name[stray] + " " + tags.name[stray])
+            msg = f"The components {found} are tagged as members of a {self.name}, but a {self.name} has only the members {members}. Correct or clear their `composite_member` tags."
+            raise ValueError(msg)
+        return tags
 
     def _laid(
         self,
@@ -463,11 +486,11 @@ class Composite:
         """Return the members of each instance: instances by member, each a component name.
 
         Raises:
-            ValueError: An instance lacks a member.
+            ValueError: An instance lacks a member, or a component carries a
+                member the type does not have.
 
         """
-        tags = _tags(self.n)
-        tags = tags[tags.composite_type == self.name]
+        tags = self._tagged()
         members = (
             tags.pivot(index="composite", columns="composite_member", values="name")
             .reindex(index=tags.composite.unique(), columns=list(self.type.members))
@@ -549,7 +572,7 @@ class Composite:
 
 
 class Composites(Registry[Composite]):
-    """The composite types registered on a network, read from `n.meta`.
+    """The composite types registered on a network.
 
     Examples
     --------
@@ -570,11 +593,15 @@ class Composites(Registry[Composite]):
 
         Raises:
             KeyError: No type of this name is registered.
+            ValueError: A component type of this name exists.
 
         """
         if name not in self._entries():
             msg = f"No composite type {name!r} is registered."
             raise KeyError(msg)
+        if name in _components():
+            msg = f"{name!r} names both a composite type and a component type, so `n.add` and `n.remove` cannot tell them apart. Rename the component type, or remove the composite type with `n.composites.remove({name!r})`."
+            raise ValueError(msg)
         return Composite(self.n, name)
 
     def register(self, definition: Override) -> Composite:

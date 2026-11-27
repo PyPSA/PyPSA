@@ -2,7 +2,10 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""The base of the registries a network keeps under `n.meta["_pypsa"]`, as its composite types and its stored overrides."""
+"""The base of the registries a network keeps, as its composite types and its stored overrides.
+
+A saved network holds them under the meta key `"_pypsa"`.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +17,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     from pypsa import Network
+    from pypsa.network.abstract import _NetworkABC
 
 ROOT = "_pypsa"
 
@@ -47,7 +51,7 @@ def builds_on(patch: Mapping[str, Any], touched: set[str], created: list[str]) -
 
 
 class Registry[T](Mapping[str, T]):
-    """Named entries stored in order under one key of `n.meta["_pypsa"]`, so copies and saved networks keep them."""
+    """Named entries a network keeps in order, so copies and saved networks keep them."""
 
     META: ClassVar[str]
     NOUN: ClassVar[str]
@@ -64,18 +68,19 @@ class Registry[T](Mapping[str, T]):
         """Return the stored entries, by name in order.
 
         Raises:
-            ValueError: `n.meta["_pypsa"]` or its entry of this registry is
-                no mapping of names to mappings.
+            ValueError: The registries of the network, or the entry of this
+                registry, are no mapping of names to mappings, as a saved
+                network with a malformed meta key `"_pypsa"` gives.
 
         """
-        root = self.n.meta.get(ROOT, {})
+        root = self.n._registries
         nested = isinstance(root, Mapping)
         entries = root.get(self.META, {}) if nested else root
         if not isinstance(entries, Mapping) or not all(
             isinstance(e, Mapping) for e in entries.values()
         ):
             where = f"[{ROOT!r}][{self.META!r}]" if nested else f"[{ROOT!r}]"
-            msg = f"`n.meta{where}` maps each name to a mapping, not {type(entries).__name__}: {str(entries)[:200]}"
+            msg = f"The saved meta {where} maps each name to a mapping, not {type(entries).__name__}: {str(entries)[:200]}"
             raise ValueError(msg)
         return dict(entries)
 
@@ -152,14 +157,11 @@ class Registry[T](Mapping[str, T]):
         return True
 
     def _write(self, entries: dict[str, Any]) -> None:
-        """Store `entries` in a new mapping under `n.meta["_pypsa"]`, dropping the keys where there are none."""
-        root = {k: v for k, v in self.n.meta.get(ROOT, {}).items() if k != self.META}
+        """Store `entries` in a new mapping of the registries of the network, dropping the key where there are none."""
+        root = {k: v for k, v in self.n._registries.items() if k != self.META}
         if entries:
             root[self.META] = entries
-        if root:
-            self.n.meta[ROOT] = root
-        else:
-            self.n.meta.pop(ROOT, None)
+        self.n._registries = root
 
     def _set(self, entries: dict[str, Any]) -> None:
         """Store `entries` where the build stack of the network holds with them.
@@ -171,20 +173,19 @@ class Registry[T](Mapping[str, T]):
         """
         from pypsa.optimization.spec.build import holding  # noqa: PLC0415
 
-        before = dict(self.n.meta)
+        before = self.n._registries
         self._write(entries)
         try:
             holding(self.n)
         except BaseException:
-            self.n.meta.clear()
-            self.n.meta.update(before)
+            self.n._registries = before
             raise
 
     def _builds(self, upto: str | None = None) -> bool:
         """Whether the build stack of the network holds, or its part up to and with the entry `upto`."""
         from pypsa.optimization.spec.build import holding  # noqa: PLC0415
 
-        before = self.n.meta
+        before = self.n._registries
         if upto is not None:
             root: dict[str, Any] = {}
             for r in registries(self.n):
@@ -196,13 +197,13 @@ class Registry[T](Mapping[str, T]):
                     }
                     break
                 root[r.META] = entries
-            self.n._meta = before | {ROOT: root}
+            self.n._registries = root
         try:
             holding(self.n)
         except ValueError:
             return False
         finally:
-            self.n._meta = before
+            self.n._registries = before
         return True
 
     def _dependents(self, name: str, entries: dict[str, Any]) -> list[str]:
@@ -261,7 +262,7 @@ def registries(n: Network) -> tuple[Registry, ...]:
 
 
 def united(n: Network, other: Network) -> dict[str, dict[str, Any]]:
-    """Return the entries of the registries of both networks as `n.meta["_pypsa"]` holds them, those of `other` after those of `n`.
+    """Return the entries of the registries of both networks as the network keeps them, those of `other` after those of `n`.
 
     Raises:
         ValueError: A name holds different content in both, or the build
@@ -275,13 +276,27 @@ def united(n: Network, other: Network) -> dict[str, dict[str, Any]]:
         for mine, theirs in zip(registries(n), registries(other), strict=True)
     }
     unions = {k: v for k, v in unions.items() if v}
-    before = n.meta
-    n._meta = before | {ROOT: unions}
+    before = n._registries
+    n._registries = unions
     try:
         holding(n)
     except ValueError as e:
         msg = f"The composite types and stored overrides of both networks do not build together: {e}"
         raise ValueError(msg) from e
     finally:
-        n._meta = before
+        n._registries = before
     return unions
+
+
+def carry(n: _NetworkABC, new: _NetworkABC) -> None:
+    """Give `new` a deep copy of the registries of `n`.
+
+    Parameters
+    ----------
+    n : Network
+        The network to take the composite types and stored overrides from.
+    new : Network
+        The network built from `n`, which keeps a copy that shares nothing with `n`.
+
+    """
+    new._registries = copy.deepcopy(n._registries)

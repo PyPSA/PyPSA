@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 
 from pypsa._options import options
+from pypsa._registry import carry
 from pypsa.constants import HOURS_PER_YEAR
 from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
@@ -1070,7 +1071,7 @@ class NetworkIndexMixin(_NetworkABC):
     ) -> Network:
         """Return a sliced copy of the network.
 
-        The copy keeps `n.meta`, as its composite types and stored overrides.
+        The copy keeps `n.meta` and the composite types and stored overrides of the network.
 
         Parameters
         ----------
@@ -1247,6 +1248,7 @@ class NetworkIndexMixin(_NetworkABC):
         for attr in ["name", "_crs"]:
             setattr(n, attr, getattr(self, attr))
         n.meta = copy.deepcopy(self.meta)
+        carry(self, n)
 
         n.snapshot_weightings = self.snapshot_weightings.loc[n.snapshots]
 

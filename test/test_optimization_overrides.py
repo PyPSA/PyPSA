@@ -59,16 +59,31 @@ def _as(form, tmp_path):
         return OVERRIDE
     if form == "text":
         return yaml.safe_dump(OVERRIDE)
+    if form == "line":
+        return yaml.safe_dump(OVERRIDE, default_flow_style=True, width=1000).strip()
     path = tmp_path / "override.yaml"
     path.write_text(yaml.safe_dump(OVERRIDE))
     return str(path) if form == "str" else path
 
 
-@pytest.mark.parametrize("form", ["mapping", "text", "str", "path"])
+@pytest.mark.parametrize("form", ["mapping", "text", "line", "str", "path"])
 def test_an_override_removes_and_adds_constraints(ac_dc_network, tmp_path, form):
     m = ac_dc_network.optimize.create_model(overrides=[_as(form, tmp_path)])
     assert "Generator-ext-p-upper" not in m.constraints
     assert "Generator_p_half" in m.constraints
+
+
+@pytest.mark.parametrize("override", ["noramp.yaml", "{constraints: [", "- a\n- b\n"])
+def test_an_override_that_is_no_file_nor_yaml_text_fails(ac_dc_network, override):
+    with pytest.raises(FileNotFoundError, match="not YAML text of an override"):
+        ac_dc_network.optimize.create_model(overrides=[override])
+
+
+def test_an_override_given_as_one_line_is_named_by_its_place(ac_dc_network):
+    with pytest.raises(LanguageError, match="override #1 of `overrides`"):
+        ac_dc_network.optimize.create_model(
+            overrides=["{constraints: {Generator_nonexistent: null}}"]
+        )
 
 
 def test_an_override_removes_ramp_limits(ac_dc_network):
@@ -245,7 +260,7 @@ def test_stored_overrides_survive_copy_and_io(ac_dc_network, tmp_path, form):
         (NO_RAMPS, None, ValueError, "takes a `name`"),
         (NO_RAMPS, "no-ramps", ValueError, "identifier"),
         (NO_RAMPS, "register", ValueError, "identifier"),
-        ("# nothing\n", "empty", TypeError, "states a mapping"),
+        ("# nothing\n", "empty", FileNotFoundError, "not YAML text"),
         ({"constraints": {"Generator_p_half": (1, 2)}}, "x", ValueError, "JSON"),
         (
             {"parameters": {"Generator_x": {"default": np.int64(1)}}},
@@ -267,7 +282,7 @@ def test_a_stored_override_is_refused(ac_dc_network, override, name, error, matc
     n = ac_dc_network
     with pytest.raises(error, match=match):
         n.optimize.overrides.register(override, name=name)
-    assert "_pypsa" not in n.meta
+    assert n._registries == {}
 
 
 @pytest.mark.parametrize("single", [NO_RAMPS, "no_ramps.yaml"])
@@ -349,7 +364,7 @@ def test_a_stored_override_that_drifted_from_the_spec_fails(
 ):
     n = ac_dc_network
     n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
-    n.meta["_pypsa"]["overrides"] |= {"old": stored, "older": stored}
+    n._registries["overrides"] |= {"old": stored, "older": stored}
     with pytest.raises(ValueError, match=match):
         n.optimize.create_model()
     with pytest.raises(ValueError, match="register it again"):
@@ -370,26 +385,29 @@ def test_an_entry_linearised_unit_commitment_rewrites_is_no_change(ac_dc_network
 def test_clear_drops_stored_overrides_that_no_longer_build(ac_dc_network):
     n = ac_dc_network
     n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
-    n.meta["_pypsa"]["overrides"]["old"] = {
+    n._registries["overrides"]["old"] = {
         "patch": {"constraints": {"Generator_old": None}},
         "edits": {"constraints.Generator_old": "0"},
         "creates": [],
     }
     n.optimize.overrides.clear()
-    assert "_pypsa" not in n.meta
+    assert n._registries == {}
     n.optimize.create_model()
 
 
 @pytest.mark.parametrize(
     ("root", "match"),
     [
-        ("garbage", r"`n.meta\['_pypsa'\]` maps each name to a mapping, not str"),
+        (
+            "garbage",
+            r"The saved meta \['_pypsa'\] maps each name to a mapping, not str",
+        ),
         ({"overrides": {"old": "garbage"}}, "maps each name to a mapping"),
         ({"overrides": {"old": NO_RAMPS}}, "'old' lacks the `patch`"),
     ],
 )
 def test_stored_overrides_are_mappings(ac_dc_network, root, match):
-    ac_dc_network.meta["_pypsa"] = root
+    ac_dc_network._registries = root
     with pytest.raises(ValueError, match=match):
         ac_dc_network.optimize.create_model()
 
@@ -413,16 +431,6 @@ def test_meta_keys_of_the_user_stay_theirs(ac_dc_network):
     assert n.meta["overrides"] == {"solver": {"threads": 4}}
 
 
-def test_setting_meta_keeps_stored_overrides(ac_dc_network):
-    n = ac_dc_network
-    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
-    n.meta = {"wildcards": {"clusters": 5}}
-    assert list(n.optimize.overrides) == ["no_ramps"]
-    assert n.meta["wildcards"] == {"clusters": 5}
-    n.meta = {"_pypsa": {}}
-    assert list(n.optimize.overrides) == []
-
-
 def test_spatial_clustering_keeps_stored_overrides(ac_dc_network):
     n = ac_dc_network
     n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
@@ -438,20 +446,20 @@ def test_an_override_others_build_on_is_kept(ac_dc_network, drifted):
     n.optimize.overrides.register(parameter, name="parameter")
     n.optimize.overrides.register(constraint, name="constraint")
     if drifted:
-        n.meta["_pypsa"]["overrides"]["other"] = {
+        n._registries["overrides"]["other"] = {
             "patch": {"constraints": {"Generator_p_ramp_limit_up": None}},
             "edits": {"constraints.Generator_p_ramp_limit_up": "0"},
             "creates": [],
         }
-    meta = copy.deepcopy(n.meta)
+    registries = copy.deepcopy(n._registries)
     with pytest.raises(ValueError, match=r"\['constraint'\] build on 'parameter'"):
         n.optimize.overrides.remove("parameter")
-    assert n.meta == meta
+    assert n._registries == registries
     if drifted:
         n.optimize.overrides.remove("other")
     n.optimize.overrides.remove("constraint")
     n.optimize.overrides.remove("parameter")
-    assert "_pypsa" not in n.meta
+    assert n._registries == {}
 
 
 def test_merge_unites_stored_overrides(ac_dc_network):
@@ -463,7 +471,7 @@ def test_merge_unites_stored_overrides(ac_dc_network):
     assert list(n.merge(other).optimize.overrides) == ["no_ramps", "half"]
     other.optimize.overrides.remove("half")
     stored = {"patch": OVERRIDE, "edits": {}, "creates": []}
-    other.meta["_pypsa"] = {"overrides": {"no_ramps": stored}}
+    other._registries = {"overrides": {"no_ramps": stored}}
     with pytest.raises(
         ValueError, match=r"different override under the names \['no_ramps'\]"
     ):
@@ -487,8 +495,8 @@ def test_equals_follows_the_order_of_stored_overrides(ac_dc_network):
     n.optimize.overrides.register(OVERRIDE, name="half")
     other = n.copy()
     assert n.equals(other)
-    stored = other.meta["_pypsa"]["overrides"]
-    other.meta["_pypsa"]["overrides"] = dict(reversed(stored.items()))
+    stored = other._registries["overrides"]
+    other._registries["overrides"] = dict(reversed(stored.items()))
     assert not n.equals(other)
 
 
@@ -517,22 +525,29 @@ constraints:
     assert "Generator_cap" not in m.constraints
 
 
-@pytest.mark.parametrize(
-    "solve",
-    [
-        lambda n: n.optimize.optimize_security_constrained(
-            branch_outages=n.c.lines.static.index[:2], overrides=[OVERRIDE]
-        ),
-        lambda n: n.optimize.optimize_mga(overrides=[OVERRIDE]),
-        lambda n: n.optimize.optimize_mga_in_direction(
-            {"wind": 1},
-            {"wind": {"Generator": {"p_nom": {"Manchester Wind": 1}}}},
-            overrides=[OVERRIDE],
-        ),
-    ],
-)
+SOLVES = [
+    lambda n, **kw: n.optimize.optimize_security_constrained(
+        branch_outages=n.c.lines.static.index[:2], **kw
+    ),
+    lambda n, **kw: n.optimize.optimize_mga(**kw),
+    lambda n, **kw: n.optimize.optimize_mga_in_direction(
+        {"wind": 1}, {"wind": {"Generator": {"p_nom": {"Manchester Wind": 1}}}}, **kw
+    ),
+]
+
+
+@pytest.mark.parametrize("solve", SOLVES)
 def test_other_solves_take_overrides(ac_dc_network, solve):
     n = ac_dc_network
     n.optimize()
-    solve(n)
+    solve(n, overrides=[OVERRIDE])
     assert "Generator_p_half" in n.model.constraints
+
+
+@pytest.mark.parametrize("solve", SOLVES)
+def test_other_solves_take_expressions(ac_dc_network, solve):
+    n = ac_dc_network
+    n.set_snapshots(n.snapshots[:2])
+    n.optimize()
+    solve(n, expressions=True)
+    assert "total_cost" in n.model.expressions

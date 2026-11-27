@@ -248,9 +248,11 @@ def test_get_network_from_collection():
 
 def test_slice_network():
     n = pypsa.examples.ac_dc_meshed()
+    n.meta["author"] = "me"
 
     # Test slicing by buses - single bus
     n_single = n.slice_network(buses="Manchester")
+    assert n_single.meta == n.meta
     assert len(n_single.buses) == 1
     assert "Manchester" in n_single.c.buses.static.index
     # Check connected components are included

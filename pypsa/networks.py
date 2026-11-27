@@ -33,7 +33,7 @@ import pyproj
 import validators
 from pyproj import CRS, Transformer
 
-from pypsa._registry import ROOT
+from pypsa._registry import carry
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import (
     as_index,
@@ -140,6 +140,7 @@ class Network(
         # Set attributes
         self._name = name
         self._meta: dict = {}
+        self._registries: dict[str, dict] = {}
         self._crs: CRS = CRS.from_epsg(DEFAULT_EPSG)
 
         # Dimensions
@@ -596,6 +597,9 @@ class Network(
                     other_value = {
                         k: v for k, v in other_value.items() if k != "sub_networks"
                     }
+                if key == "_registries":
+                    value = {k: list(v.items()) for k, v in value.items()}
+                    other_value = {k: list(v.items()) for k, v in other_value.items()}
                 if not equals(
                     value,
                     other_value,
@@ -607,10 +611,6 @@ class Network(
                     not_equal = True
                     if not log_mode:
                         break
-            overrides = self.optimize.overrides, other.optimize.overrides
-            if not equals(*overrides, log_mode=log_mode, path="n.optimize.overrides"):
-                logger.warning("Mismatch in attribute: %s", "optimize.overrides")
-                not_equal = True
         else:
             logger.warning(
                 "Can only compare two pypsa.Network objects with each other. Got %s.",
@@ -682,9 +682,7 @@ class Network(
         <!-- md:badge-version v0.20.0 -->
 
         Any additional meta data can be added to the network by setting the `meta`
-        attribute. Meta data will be saved on export. Setting it keeps the
-        composite types and stored overrides in `meta["_pypsa"]` unless the new
-        dictionary holds that key.
+        attribute. Meta data will be saved on export.
 
         Examples
         --------
@@ -703,8 +701,6 @@ class Network(
         if not isinstance(new, (dict | Dict)):
             msg = f"Meta must be a dictionary, received a {type(new)}"
             raise TypeError(msg)
-        if ROOT in self._meta and ROOT not in new:
-            new = {**new, ROOT: self._meta[ROOT]}
         self._meta = new
 
     @property
@@ -1096,6 +1092,7 @@ class Network(
             if attr in vars(self):
                 setattr(n, attr, copy.deepcopy(vars(self)[attr]))
 
+        carry(self, n)
         n._copy_sub_networks({})
         n._restore_references()
         return n

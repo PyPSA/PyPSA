@@ -555,7 +555,7 @@ class TestExcelIO:
         fn = tmpdir / "excel_export.xlsx"
         scipy_network.export_to_excel(fn)
         scipy_network.meta = {"long": {"text": "x" * 32767}}
-        with pytest.raises(ValueError, match=r"`n.meta\['long'\]` takes 32779"):
+        with pytest.raises(ValueError, match=r"The meta key 'long' takes 32779"):
             scipy_network.export_to_excel(fn)
         assert not pypsa.Network(fn).c.buses.static.empty
 

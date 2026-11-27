@@ -491,6 +491,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         model_kwargs: dict | None = None,
         objective_scaling: float = 1.0,
         overrides: Sequence[Override] | None = None,
+        expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Compute Security-Constrained Linear Optimal Power Flow (SCLOPF).
@@ -524,6 +525,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             `n.optimize.create_model`.
         overrides : list[str | Path | dict], optional
             Changes to the optimisation problem, see `n.optimize.create_model`.
+        expressions : bool, default False
+            Whether to build the named expressions, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -558,6 +561,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 model_kwargs=model_kwargs,
                 objective_scaling=objective_scaling,
                 overrides=overrides,
+                expressions=expressions,
                 **kwargs,
             )
 
@@ -578,6 +582,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             objective_scaling=objective_scaling,
             branch_outages=outages,
             overrides=overrides,
+            expressions=expressions,
             **model_kwargs,
         )
 

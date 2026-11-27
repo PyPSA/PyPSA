@@ -38,6 +38,7 @@ class _NetworkABC(ABC):
     _scenarios_data: pd.DataFrame
     _risk_preference: dict[str, float] | None
     meta: dict
+    _registries: dict[str, dict]
     static: pd.DataFrame
     dynamic: Callable
     _import_series_from_df: Callable

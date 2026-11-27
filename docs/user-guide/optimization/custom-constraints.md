@@ -152,6 +152,9 @@ override is a YAML file, YAML text or a dictionary, written as a
 * a field it states on an existing entry replaces that field;
 * an entry set to `null` is removed.
 
+A `Path`, or a string that names an existing file, is read as a file; any other
+string is read as YAML text.
+
 Overrides apply in turn, so a later one wins. They name entries by their keys
 in the specification, as `Generator_ext_p_upper`, not by the names of the
 built model, as `Generator-ext-p-upper`. An added entry keeps its key as its
@@ -270,10 +273,9 @@ n.optimize()
 ```
 
 A file is stored under its stem; text and a dictionary take a `name`, an
-identifier. The patch is stored by its content in
-`n.meta["_pypsa"]["overrides"]`, a key PyPSA reserves and keeps when `n.meta`
-is set to a new dictionary, so it holds JSON values only: no NumPy numbers, dates, tuples or keys that are not
-text. A build lays the layers over the specification in this order, and a later
+identifier. The network keeps the patch by its content, and a saved network
+holds it under the meta key `"_pypsa"`, so the patch holds JSON values only: no
+NumPy numbers, dates, tuples or keys that are not text. A build lays the layers over the specification in this order, and a later
 layer wins:
 
 1. the specification, patched for `linearized_unit_commitment`;

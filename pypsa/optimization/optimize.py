@@ -368,7 +368,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             composites and the stored overrides of `n.optimize.overrides`, so a
             later one wins. A patch edits, removes (``null``) or adds entries
             under their spec keys; an entry it adds keeps its key as name. They
-            apply to this call only.
+            apply to this call only. A `Path`, or a `str` that names an existing
+            file, is read as a file; any other `str` is read as YAML text.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
@@ -531,7 +532,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             composites and the stored overrides of `n.optimize.overrides`, so a
             later one wins. A patch edits, removes (``null``) or adds entries
             under their spec keys; an entry it adds keeps its key as name. They
-            apply to this call only.
+            apply to this call only. A `Path`, or a `str` that names an existing
+            file, is read as a file; any other `str` is read as YAML text.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The

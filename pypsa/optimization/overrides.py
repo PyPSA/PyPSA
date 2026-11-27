@@ -5,8 +5,9 @@
 """Overrides stored on a network, which every build of `n.optimize()` lays over the formulation.
 
 Each is a `mathspec.override` patch, as the argument `overrides` of
-`n.optimize()` takes. It is stored in `n.meta["_pypsa"]`, so copies and saved
-networks keep it, and a loaded network builds the model its author built.
+`n.optimize()` takes. The network keeps it, so copies and saved networks keep
+it, and a loaded network builds the model its author built. A saved network
+holds it under the meta key `"_pypsa"`.
 """
 
 from __future__ import annotations
@@ -38,7 +39,7 @@ def _label(name: str) -> str:
 
 
 class Overrides(Registry[dict[str, Any]]):
-    """The overrides stored on a network, read from `n.meta`.
+    """The overrides stored on a network.
 
     A build lays them over the formulation after the composite types and
     before the per-call `overrides` of `n.optimize()`, in the order they were
@@ -96,6 +97,8 @@ class Overrides(Registry[dict[str, Any]]):
 
         Raises
         ------
+        FileNotFoundError
+            A `str` names no file and is no YAML text of a mapping.
         ValueError
             The name is missing, no identifier or taken by another patch;
             the patch holds other values than JSON or is stored under another
@@ -104,6 +107,7 @@ class Overrides(Registry[dict[str, Any]]):
             The patch does not hold with the formulation.
 
         """
+        layer = _layer(override)
         stem = None
         if name is None and is_path(override):
             name = stem = Path(override).stem
@@ -117,7 +121,7 @@ class Overrides(Registry[dict[str, Any]]):
                 raise
             msg = f"{e} Pass `name` to store the file under another name."
             raise ValueError(msg) from e
-        patch = jsonable(_layer(override), f"The override {name!r}")
+        patch = jsonable(layer, f"The override {name!r}")
         if self._holds(name, patch):
             return self[name]
         twin = [k for k, e in self._entries().items() if e["patch"] == patch]

@@ -322,6 +322,7 @@ class OptimizationAbstractMGAMixin:
         model_kwargs: dict | None = None,
         objective_scaling: float = 1.0,
         overrides: Sequence[Override] | None = None,
+        expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Run modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
@@ -354,6 +355,8 @@ class OptimizationAbstractMGAMixin:
             `n.optimize.create_model`.
         overrides : list[str | Path | dict], optional
             Changes to the optimisation problem, see `n.optimize.create_model`.
+        expressions : bool, default False
+            Whether to build the named expressions, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -393,6 +396,7 @@ class OptimizationAbstractMGAMixin:
             multi_investment_periods=multi_investment_periods,
             objective_scaling=objective_scaling,
             overrides=overrides,
+            expressions=expressions,
             **model_kwargs,
         )
 
@@ -484,6 +488,7 @@ class OptimizationAbstractMGAMixin:
         model_kwargs: dict | None = None,
         objective_scaling: float = 1.0,
         overrides: Sequence[Override] | None = None,
+        expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str, pd.Series | None]:
         """Run MGA in a given direction in a low-dimension projection.
@@ -517,6 +522,8 @@ class OptimizationAbstractMGAMixin:
             `n.optimize.create_model`.
         overrides : list[str | Path | dict], optional
             Changes to the optimisation problem, see `n.optimize.create_model`.
+        expressions : bool, default False
+            Whether to build the named expressions, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -564,6 +571,7 @@ class OptimizationAbstractMGAMixin:
             multi_investment_periods=multi_investment_periods,
             objective_scaling=objective_scaling,
             overrides=overrides,
+            expressions=expressions,
             **model_kwargs,
         )
 
@@ -607,6 +615,7 @@ class OptimizationAbstractMGAMixin:
         model_kwargs: dict,
         objective_scaling: float,
         overrides: Sequence[Override] | None,
+        expressions: bool,
         kwargs: dict,
     ) -> tuple[dict, pd.Series | None]:
         """Solve a single direction for parallel execution (helper method).
@@ -628,6 +637,7 @@ class OptimizationAbstractMGAMixin:
                 model_kwargs=model_kwargs,
                 objective_scaling=objective_scaling,
                 overrides=overrides,
+                expressions=expressions,
                 **kwargs,
             )
         except KeyboardInterrupt:
@@ -655,6 +665,7 @@ class OptimizationAbstractMGAMixin:
         max_parallel: int = 4,
         objective_scaling: float = 1.0,
         overrides: Sequence[Override] | None = None,
+        expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Run MGA optimization in multiple directions in parallel.
@@ -702,6 +713,8 @@ class OptimizationAbstractMGAMixin:
             `n.optimize.create_model`.
         overrides : list[str | Path | dict], optional
             Changes to the optimisation problem, see `n.optimize.create_model`.
+        expressions : bool, default False
+            Whether to build the named expressions, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -779,6 +792,7 @@ class OptimizationAbstractMGAMixin:
                                 model_kwargs,
                                 objective_scaling,
                                 overrides,
+                                expressions,
                                 kwargs,
                             )
                             for direction in directions

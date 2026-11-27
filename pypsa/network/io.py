@@ -31,7 +31,9 @@ from pyproj import CRS
 
 from pypsa._future import future_flag
 from pypsa._options import options
+from pypsa._registry import ROOT
 from pypsa.common import _check_for_update, check_optional_dependency
+from pypsa.composites import TAGS
 from pypsa.consistency import check_for_unknown_buses
 from pypsa.constants import piecewise_attrs
 from pypsa.descriptors import (
@@ -56,7 +58,7 @@ EXCEL_CELL_LIMIT = 32767
 
 
 def _excel_meta(meta: dict) -> list[list]:
-    """Return the rows of `n.meta` as the Excel sheet `meta` holds them, a dict as JSON.
+    """Return the rows of the saved meta data as the Excel sheet `meta` holds them, a dict as JSON.
 
     Raises:
         ValueError: A value takes more characters than an Excel cell holds.
@@ -67,7 +69,7 @@ def _excel_meta(meta: dict) -> list[list]:
         if isinstance(value, dict):
             value = json.dumps(value)
         if isinstance(value, str) and len(value) > EXCEL_CELL_LIMIT:
-            msg = f"`n.meta[{key!r}]` takes {len(value)} characters, more than an Excel cell holds ({EXCEL_CELL_LIMIT}). Export to netCDF, HDF5 or CSV instead."
+            msg = f"The meta key {key!r} takes {len(value)} characters, more than an Excel cell holds ({EXCEL_CELL_LIMIT}). Export to netCDF, HDF5 or CSV instead."
             raise ValueError(msg)
         rows.append([key, value])
     return rows
@@ -1351,6 +1353,30 @@ class NetworkIOMixin(_NetworkABC):
     within any Network instance.
     """
 
+    def _saved_meta(self) -> dict:
+        """Return the meta data as a saved network holds it.
+
+        A saved network holds `n.meta` and, under the meta key `"_pypsa"`, the
+        composite types and stored overrides of the network.
+
+        Returns
+        -------
+        dict
+            The meta data to save.
+
+        Raises
+        ------
+        ValueError
+            `n.meta` holds the key `"_pypsa"`, which saved networks reserve.
+
+        """
+        if ROOT in self.meta:
+            msg = f"The meta key {ROOT!r} is reserved for the composite types and stored overrides in saved networks. Rename or delete `n.meta[{ROOT!r}]` before you export."
+            raise ValueError(msg)
+        if not self._registries:
+            return self.meta
+        return self.meta | {ROOT: self._registries}
+
     def _export_to_exporter(
         self,
         exporter: _Exporter,
@@ -1374,6 +1400,7 @@ class NetworkIOMixin(_NetworkABC):
             should then set "ignore_standard_types" when initialising the netowrk).
 
         """
+        meta = self._saved_meta()
         # exportable component types
         allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
         skip_attrs = {
@@ -1421,7 +1448,7 @@ class NetworkIOMixin(_NetworkABC):
             crs["_crs"] = self.crs.to_wkt()
         exporter.save_crs(crs)
 
-        exporter.save_meta(self.meta)
+        exporter.save_meta(meta)
 
         # export snapshots
         snapshots = self.snapshot_weightings.reset_index()
@@ -1548,8 +1575,9 @@ class NetworkIOMixin(_NetworkABC):
             Skip importing time
 
         """
-        # n.meta
-        self.meta = importer.get_meta()
+        meta = importer.get_meta()
+        self._registries = meta.pop(ROOT, {})
+        self.meta = meta
 
         # n.crs
         crs = importer.get_crs()
@@ -1833,7 +1861,7 @@ class NetworkIOMixin(_NetworkABC):
         [pypsa.Network.export_to_csv_folder][]
 
         """
-        _excel_meta(self.meta)
+        _excel_meta(self._saved_meta())
         with _ExporterExcel(path, engine=engine) as exporter:
             self._export_to_exporter(
                 exporter, export_standard_types=export_standard_types
@@ -1898,6 +1926,7 @@ class NetworkIOMixin(_NetworkABC):
         """
         kwargs.setdefault("complevel", 4)
 
+        self._saved_meta()
         with _ExporterHDF5(path, **kwargs) as exporter:
             self._export_to_exporter(
                 exporter,
@@ -2080,6 +2109,8 @@ class NetworkIOMixin(_NetworkABC):
             fill = attrs["default"].reindex(added_cols).dropna()
             if not fill.empty:
                 new_static = new_static.fillna(fill.to_dict())
+            tags = new_static.columns.intersection(TAGS)
+            new_static[tags] = new_static[tags].fillna("")
 
         if cls_name == "Shape":
             new_static = gpd.GeoDataFrame(new_static, crs=self.crs)

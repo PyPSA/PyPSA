@@ -129,8 +129,9 @@ See [Reading expressions](custom-constraints.md#reading-expressions).
 
 ## Rules
 
-* The definition is stored in `n.meta["_pypsa"]`, so a copy, a slice `n[buses]`, a
-  merge, clustering and a saved network keep its composites. `n.merge` refuses
+* The network keeps the definition, so a copy, a slice `n[buses]`, a merge,
+  clustering and a saved network keep its composites. A saved network holds it
+  under the meta key `"_pypsa"`. `n.merge` refuses
   two different types of one name.
 * `register` checks the math against the default formulation, the other types and the
   [stored overrides](custom-constraints.md#storing-overrides-on-the-network),
