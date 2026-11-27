@@ -15,3 +15,4 @@ SPDX-License-Identifier: CC-BY-4.0
         filters:
           - "!^_[^_]"
           - "!logger"
+          - "!^__getattr__$"

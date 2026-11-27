@@ -31,7 +31,44 @@ SPDX-License-Identifier: CC-BY-4.0
     - The docs show the math in [Formulation (generated)](./user-guide/optimization/formulation/index.md), rendered from the YAML files at build time: one page per trait and per component, each entry with its math, its YAML source and a legend of its symbols. The user guide pages of the optimisation section embed these entries instead of hand-written equations.
     - The new argument `overrides` of [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] patches the specification before the build: it adds, replaces or removes entries. Added parameters and relations read the static columns of the network; added dimensions take the labels their relations map to. See [Overriding the formulation](./user-guide/optimization/custom-constraints.md#overriding-the-formulation).
     - **Behavior change**: PyPSA now requires Python 3.12 and `linopy>=1.0`.
-    - **Behavior change**: The modules `pypsa.optimization.constraints` and `pypsa.optimization.variables` and the `define_*` functions are removed.
+    - **Behavior change**: The modules `pypsa.optimization.constraints` and `pypsa.optimization.variables` and the `define_*` functions are removed. Importing a removed name raises an `ImportError` that names the entries of the specification that replace it. To change these entries, use `overrides`. In the table, `<Component>` stands for a component, as `Generator`, and `<attr>` and `<nom>` for its dispatch and capacity attributes, as `p` and `p_nom`; files are under `pypsa/optimization/spec/`.
+
+        ??? note "Removed names and their replacements"
+
+            | Removed from `pypsa.optimization` | Now in the specification |
+            |---|---|
+            | `constraints.define_operational_constraints_for_non_extendables` | `<Component>_fix_<attr>_lower`, `_upper` |
+            | `constraints.define_operational_constraints_for_extendables` | `<Component>_ext_<attr>_lower`, `_upper` |
+            | `constraints.define_operational_constraints_for_committables` | `<Component>_com_*` (`traits/commitment.yaml`) |
+            | `constraints.define_committability_variables_constraints_with_fixed_upper_limit` | `<Component>_status_p_fixed_upper`, `_start_up_p_fixed_upper`, `_shut_down_p_fixed_upper` |
+            | `constraints.define_committability_variables_constraints_with_variable_upper_limit` | `<Component>_status_<nom>_variable_upper`, `_start_up_<nom>_variable_upper`, `_shut_down_<nom>_variable_upper` |
+            | `constraints.define_maintenance_constraints` | `<Component>_maint*` (`traits/maintenance.yaml`) |
+            | `constraints.define_nominal_constraints_for_extendables` | `<Component>_ext_<nom>_lower`, `_upper` |
+            | `constraints.define_fixed_nominal_constraints` | `<Component>_<nom>_set` |
+            | `constraints.define_modular_constraints` | `<Component>_<nom>_modularity` |
+            | `constraints.define_fixed_operation_constraints` | `<Component>_<attr>_set` |
+            | `constraints.define_ramp_limit_constraints` | `<Component>_p_ramp_limit_*` (`traits/ramping.yaml`) |
+            | `constraints.define_total_supply_constraints` | `<Component>_e_sum_min`, `_e_sum_max` |
+            | `constraints.define_nodal_balance_constraints` | `Bus_nodal_balance` |
+            | `constraints.define_kirchhoff_voltage_constraints` | `Kirchhoff_Voltage_Law` |
+            | `constraints.define_voltage_angle_constraints` | `Line_v_ang_lower`, `_upper`, `Transformer_v_ang_*` |
+            | `constraints.define_storage_unit_constraints` | `StorageUnit_energy_balance` |
+            | `constraints.define_store_constraints` | `Store_energy_balance` |
+            | `constraints.define_tangent_loss_constraints`, `define_secant_loss_constraints` | `<Component>_loss_upper`, `_loss_tangents_pos`, `_loss_tangents_neg` |
+            | `variables.define_operational_variables` | `<Component>_<attr>`, as `Generator_p`, `Line_s`, `Store_e` |
+            | `variables.define_nominal_variables` | `<Component>_<nom>_ext` |
+            | `variables.define_modular_variables` | `<Component>_n_mod` |
+            | `variables.define_status_variables`, `define_start_up_variables`, `define_shut_down_variables` | `<Component>_status`, `_start_up`, `_shut_down` |
+            | `variables.define_maintenance_variables`, `define_maintenance_start_variables`, `define_maintenance_capacity_variables`, `define_maintenance_status_variables` | `<Component>_maintenance`, `_maintenance_start`, `_maintenance_capacity`, `_maintenance_status` |
+            | `variables.define_spillage_variables` | `<Component>_spill` |
+            | `variables.define_phase_shift_variables` | `Transformer_phase_shift` |
+            | `variables.define_loss_variables` | `<Component>_loss` |
+            | `variables.define_cvar_variables` | `CVaR`, `CVaR_a`, `CVaR_theta` |
+            | `global_constraints.define_primary_energy_limit`, `define_operational_limit`, `define_tech_capacity_expansion_limit`, `define_transmission_volume_expansion_limit`, `define_transmission_expansion_cost_limit` | `GlobalConstraint_upper`, `_lower`, `_fix`, over the expressions `primary_energy`, `operational_limit`, `tech_capacity_expansion`, `transmission_volume_expansion`, `transmission_expansion_cost` |
+            | `global_constraints.define_growth_limit` | `Carrier_growth_limit` |
+            | `piecewise.define_piecewise` | `<Component>_<attr>_piecewise`, tuned by `piecewise_options` |
+            | `optimize.define_objective` | `objective`, over the expression `total_cost` |
+            | `constraints.DEG2RAD`, `constraints.PHASE_SHIFT`, `constraints.lookup` | no replacement |
     - **Behavior change**: Unsupported input is now refused with a `ValueError` that quotes the broken assumption, where some cases raised `NotImplementedError` before. Error messages from the model build name the unit dimension after the component, as `Line` or `StorageUnit`, while the model itself uses `name`.
     - **Behavior change**: Each model variable and constraint lists the dimension `name` first, then its other dimensions by name, as `(name, snapshot)` or `(name, scenario, snapshot)`. Before, `snapshot` or `scenario` came first. An entry without `name` lists its dimensions by name only, as `Kirchhoff-Voltage-Law` over `(cycle, scenario, snapshot)`. Some piecewise entries put `_breakpoint` last, as `Link-p_piecewise_delivery_ungated` over `(name, port, scenario, snapshot, _breakpoint)`. Select by label, as `.sel(name=...)`, not by position.
     - **Behavior change**: The model of a network without scenarios carries a `scenario` dimension with the one label `"base"` on every variable and constraint that depends on the scenario, as `Generator-p` over `(name, scenario, snapshot)`. Entries shared by all scenarios, as `Generator-p_nom`, have no `scenario` dimension. Before, the model of such a network had no `scenario` dimension. Optimization expressions from `n.optimize.expressions` carry the dimension too. Code that reads model entries as pandas objects, e.g. `n.model["Generator-p"].solution.to_pandas()`, or custom constraints that rely on the old dimensions need `.sel(scenario="base")` or `.squeeze("scenario")`. See [#2139](https://github.com/PyPSA/PyPSA/issues/2139).

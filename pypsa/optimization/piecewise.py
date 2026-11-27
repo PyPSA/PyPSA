@@ -7,9 +7,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
+
+from pypsa.optimization._removed import removed_names
 
 SIGNS_T = Literal["=", "<=", ">="]
 
@@ -75,3 +77,7 @@ def get_piecewise_names(c: Any, pw_attr: str, active_names: pd.Index) -> pd.Inde
         .columns.unique("name")
         .intersection(active_names)
     )
+
+
+if not TYPE_CHECKING:
+    __getattr__ = removed_names(__name__)

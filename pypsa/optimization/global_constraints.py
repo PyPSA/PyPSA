@@ -14,6 +14,7 @@ import pandas as pd
 from linopy import merge
 
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization._removed import removed_names
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -118,3 +119,7 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
             mask=mask,
             scaling=n.c.buses._scaling(buses),
         )
+
+
+if not TYPE_CHECKING:
+    __getattr__ = removed_names(__name__)

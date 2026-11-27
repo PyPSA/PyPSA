@@ -32,6 +32,7 @@ from pypsa.consistency import (
 from pypsa.constants import PYPSA_DATA_DIR
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _assert_data_integrity
+from pypsa.optimization._removed import removed_names
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
@@ -1144,3 +1145,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             marginal_cost=marginal_cost,
             p_nom=p_nom,
         )
+
+
+if not TYPE_CHECKING:
+    __getattr__ = removed_names(__name__)

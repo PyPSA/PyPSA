@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import importlib
 import warnings
 
 import pytest
@@ -137,3 +138,29 @@ def test_aggregate_multi_graph_deprecated(ac_dc_network):
 def test_network_iplot_deprecated(ac_dc_network):
     with pytest.warns(DeprecationWarning, match="explore"):
         ac_dc_network.plot.iplot(iplot=False)
+
+
+@pytest.mark.parametrize(
+    "access", ["from pypsa.optimization.{} import {}", "pypsa.optimization.{}.{}"]
+)
+@pytest.mark.parametrize(
+    ("module", "name", "hint"),
+    [
+        ("constraints", "define_nodal_balance_constraints", "Bus_nodal_balance"),
+        ("constraints", "DEG2RAD", "no replacement"),
+        ("variables", "define_nominal_variables", "Generator_p_nom_ext"),
+        ("global_constraints", "define_growth_limit", "Carrier_growth_limit"),
+        ("piecewise", "define_piecewise", "piecewise_options"),
+        ("optimize", "define_objective", "total_cost"),
+    ],
+)
+def test_removed_optimization_names(module, name, hint, access):
+    namespace = {"pypsa": __import__(f"pypsa.optimization.{module}")}
+    with pytest.raises(ImportError, match=rf"(?s)removed in PyPSA 1\.5\.0.*{hint}"):
+        exec(access.format(module, name), namespace)
+
+
+@pytest.mark.parametrize("module", ["constraints", "variables", "piecewise"])
+def test_unknown_optimization_name_raises_attribute_error(module):
+    module = importlib.import_module(f"pypsa.optimization.{module}")
+    assert not hasattr(module, "no_such_name")
