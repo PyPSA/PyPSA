@@ -49,6 +49,8 @@ DIGESTS = DATA / "model_digests.json"
 REGENERATE = "python test/test_optimization_spec_lock.py"
 VARIANTS = ("default", "linearized_unit_commitment")
 REMOVED = "removed"
+NOISE = 1e-10
+FUTURE = [f"future.{name}" for name in pypsa.options.future._children]
 
 
 def risk_averse_growth_limit() -> None:
@@ -207,7 +209,8 @@ def _stop(model: Model, *args: Any, **kwargs: Any) -> None:
 
 def build(case: str) -> Model:
     """Return the model a case builds, stopped before the solve."""
-    with pytest.MonkeyPatch.context() as patch:
+    current = pypsa.option_context(*(arg for flag in FUTURE for arg in (flag, False)))
+    with pytest.MonkeyPatch.context() as patch, current:
         patch.setattr(Model, "solve", _stop)
         try:
             CASES[case]()
@@ -257,10 +260,9 @@ def _sum(values: np.ndarray) -> float:
 def _terms(
     rows: np.ndarray, columns: np.ndarray, coeffs: np.ndarray
 ) -> tuple[int, float]:
-    held = columns != -1
+    held = (columns != -1) & (np.abs(coeffs) > NOISE)
     matrix = scipy.sparse.coo_array((coeffs[held], (rows[held], columns[held])))
     matrix = matrix.tocsr()
-    matrix.eliminate_zeros()
     return matrix.nnz, _sum(np.abs(matrix.data))
 
 
@@ -375,9 +377,6 @@ def _dumps(data: Any, depth: int, indent: str = "") -> str:
 
 if __name__ == "__main__":
     pypsa.options.debug.runtime_verification = True
-    for name in pypsa.options.future._children:
-        if pypsa.options.get_option(f"future.{name}") is None:
-            pypsa.options.set_option(f"future.{name}", False)
     digests = {case: digest(build(case)) for case in CASES}
     SPEC_KEYS.write_text(_dumps(spec_lock(), 3) + "\n")
     DIGESTS.write_text(_dumps(digests, 3) + "\n")
