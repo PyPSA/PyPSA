@@ -866,6 +866,39 @@ def test_import_from_pandapower_network(
         assert len(n.c.shunt_impedances.static) == len(net.shunt)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 12), reason="Test requires Python 3.12 or higher"
+)
+@pytest.mark.skipif(
+    Version(pd.__version__) >= Version("3.1"),
+    reason="pandapower does not yet support pandas>=3.1",
+)
+def test_import_from_pandapower_line_rating():
+    pp = pytest.importorskip("pandapower", reason="pandapower not installed")
+    net = pp.create_empty_network()
+    b1 = pp.create_bus(net, vn_kv=110.0, name="B1")
+    b2 = pp.create_bus(net, vn_kv=110.0, name="B2")
+    pp.create_ext_grid(net, b1, name="Grid")
+    pp.create_load(net, b2, p_mw=60.0, q_mvar=20.0, name="Load")
+    pp.create_line_from_parameters(
+        net,
+        b1,
+        b2,
+        length_km=10.0,
+        r_ohm_per_km=0.12,
+        x_ohm_per_km=0.39,
+        c_nf_per_km=9.5,
+        max_i_ka=0.5,
+        df=0.8,
+        parallel=2,
+        name="Line",
+    )
+    n = pypsa.Network()
+    n.import_from_pandapower_net(net, extra_line_data=True)
+    expected = 3**0.5 * 110.0 * 0.5 * 0.8 * 2
+    assert n.c.lines.static.s_nom.iloc[0] == pytest.approx(expected)
+
+
 def test_io_time_dependent_efficiencies(tmpdir):
     n = pypsa.Network()
     s = [1, 0.95, 0.99]
