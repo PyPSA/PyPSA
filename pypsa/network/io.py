@@ -52,6 +52,25 @@ if TYPE_CHECKING:
 
     from pypsa import Network
 logger = logging.getLogger(__name__)
+EXCEL_CELL_LIMIT = 32767
+
+
+def _excel_meta(meta: dict) -> list[list]:
+    """Return the rows of `n.meta` as the Excel sheet `meta` holds them, a dict as JSON.
+
+    Raises:
+        ValueError: A value takes more characters than an Excel cell holds.
+
+    """
+    rows = []
+    for key, value in meta.items():
+        if isinstance(value, dict):
+            value = json.dumps(value)
+        if isinstance(value, str) and len(value) > EXCEL_CELL_LIMIT:
+            msg = f"`n.meta[{key!r}]` takes {len(value)} characters, more than an Excel cell holds ({EXCEL_CELL_LIMIT}). Export to netCDF, HDF5 or CSV instead."
+            raise ValueError(msg)
+        rows.append([key, value])
+    return rows
 
 
 def _coerce_string_dtypes(df: pd.DataFrame) -> pd.DataFrame:
@@ -738,15 +757,7 @@ class _ExporterExcel(_Exporter):
 
     def save_meta(self, meta: dict) -> None:
         """Save meta data (`n.meta`)."""
-        # Convert meta dictionary to DataFrame with proper handling of nested dicts
-        meta_items = []
-        for key, value in meta.items():
-            # If value is a dict, serialize it as JSON
-            if isinstance(value, dict):
-                value = json.dumps(value)
-            meta_items.append([key, value])
-
-        df = pd.DataFrame(meta_items, columns=["Key", "Value"])
+        df = pd.DataFrame(_excel_meta(meta), columns=["Key", "Value"])
         df.to_excel(self.writer, sheet_name="meta", index=False)
 
     def save_crs(self, crs: dict) -> None:
@@ -1822,6 +1833,7 @@ class NetworkIOMixin(_NetworkABC):
         [pypsa.Network.export_to_csv_folder][]
 
         """
+        _excel_meta(self.meta)
         with _ExporterExcel(path, engine=engine) as exporter:
             self._export_to_exporter(
                 exporter, export_standard_types=export_standard_types

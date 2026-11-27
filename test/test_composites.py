@@ -53,7 +53,19 @@ math:
         at(Store_e_nom_effective, by=battery_members[store])
         <= battery_max_hours * at(Link_p_nom_effective, by=battery_members[discharger])
 """)
+CELL = yaml.safe_load(yaml.safe_dump(BATTERY).replace("battery", "cell"))
 INSTANCES = pd.Index(["bat north", "bat south"])
+FLOOR = {
+    "dims": ["scenario", "battery"],
+    "expression": "at(Store_e_nom_effective, by=battery_members[store]) >= battery_max_hours",
+}
+CELL_ON_BATTERY = copy.deepcopy(CELL)
+CELL_ON_BATTERY["math"]["constraints"]["cell_floor"] = FLOOR
+DRIFTED = {
+    "patch": {"constraints": {"Generator_p_ramp_limit_up": None}},
+    "edits": {"constraints.Generator_p_ramp_limit_up": "0"},
+    "creates": [],
+}
 
 
 @pytest.fixture
@@ -96,7 +108,9 @@ def test_a_type_registers_from_each_form(form, tmp_path):
     battery = n.composites.register(definition)
     assert n.composites.battery.name == battery.name == "battery"
     assert list(n.composites) == ["battery"]
-    assert n.meta["composites"]["battery"]["components"] == BATTERY["components"]
+    assert (
+        n.meta["_pypsa"]["composites"]["battery"]["components"] == BATTERY["components"]
+    )
 
 
 def test_add_expands_an_instance_into_tagged_members(n):
@@ -197,7 +211,7 @@ def test_remove_drops_every_member_of_an_instance(n):
 
 def test_instances_remove_where_their_type_no_longer_reads(n):
     _add(n)
-    n.meta["composites"]["battery"]["parameters"]["legacy"] = 1
+    n.meta["_pypsa"]["composites"]["battery"]["parameters"]["legacy"] = 1
     n.remove("battery", INSTANCES)
     assert n.composites.instances.empty
 
@@ -255,8 +269,7 @@ def _replaced(*pairs):
 
 def test_two_types_build_side_by_side(n):
     _add(n)
-    cell = _replaced(("battery", "cell"))
-    n.composites.register(cell)
+    n.composites.register(CELL)
     n.add("cell", "c", bus="north")
     m = n.optimize.create_model()
     assert {"battery_inverter", "cell_inverter"} <= set(m.constraints)
@@ -312,6 +325,7 @@ def test_a_type_without_instances_adds_no_rows(n):
     "form",
     [
         "copy",
+        "slice",
         "netcdf",
         pytest.param(
             "hdf5",
@@ -325,9 +339,11 @@ def test_composites_survive_copy_and_io(n, tmp_path, form):
     _add(n)
     n.add("Bus", "west")
     path = tmp_path / {"netcdf": "net.nc", "hdf5": "net.h5"}.get(form, "")
-    if form != "copy":
+    if form in ("netcdf", "hdf5"):
         getattr(n, f"export_to_{form}")(path)
-    other = n.copy() if form == "copy" else pypsa.Network(path)
+    other = {"copy": n.copy, "slice": lambda: n.slice_network(n.c.buses.names)}.get(
+        form, lambda: pypsa.Network(path)
+    )()
     n.optimize()
     assert other.composites.battery.members.equals(n.composites.battery.members)
     pd.testing.assert_frame_equal(
@@ -335,6 +351,73 @@ def test_composites_survive_copy_and_io(n, tmp_path, form):
     )
     other.optimize()
     assert other.objective == pytest.approx(n.objective)
+
+
+def test_merge_unites_composite_types(n):
+    _add(n)
+    other = pypsa.Network()
+    other.set_snapshots(n.snapshots)
+    other.add("Bus", "east")
+    merged = other.merge(n)
+    assert list(merged.composites) == ["battery"]
+    assert "battery_inverter" in merged.optimize.create_model().constraints
+    other.composites.register(_with(description="other"))
+    with pytest.raises(ValueError, match=r"different composite type .*\['battery'\]"):
+        other.merge(n)
+
+
+def test_spatial_clustering_keeps_composite_types(n):
+    _add(n)
+    n.optimize.overrides.register(
+        {"constraints": {"battery_duration": None}}, name="free"
+    )
+    busmap = n.c.buses.static.index.to_series().replace("south", "north")
+    clustered = n.cluster.spatial.cluster_by_busmap(busmap)
+    assert clustered.meta["_pypsa"] == n.meta["_pypsa"]
+    clustered.optimize()
+    assert clustered.composites.battery.static.index.equals(INSTANCES)
+
+
+def test_equals_follows_the_order_of_types(n):
+    n.composites.register(CELL)
+    other = n.copy()
+    assert n.equals(other)
+    types = other.meta["_pypsa"]["composites"]
+    other.meta["_pypsa"]["composites"] = dict(reversed(types.items()))
+    assert not n.equals(other)
+
+
+def test_a_stored_override_edits_a_type(n):
+    _add(n)
+    n.optimize.overrides.register(
+        {"constraints": {"battery_duration": None}}, name="free"
+    )
+    assert "battery_duration" not in n.optimize.create_model().constraints
+
+
+def test_a_type_refuses_an_entry_a_stored_override_creates():
+    n = pypsa.Network()
+    inverter = {
+        "dims": ["Generator"],
+        "where": "Generator_p_nom_extendable",
+        "expression": "Generator_p_nom_ext >= 0",
+    }
+    n.optimize.overrides.register(
+        {"constraints": {"battery_inverter": inverter}}, name="own"
+    )
+    with pytest.raises(
+        ValueError, match=r"'own' creates \['constraints.battery_inverter'\]"
+    ):
+        n.composites.register(BATTERY)
+    assert list(n.composites) == []
+
+
+def test_a_type_is_checked_with_the_default_formulation(n):
+    definition = copy.deepcopy(CELL)
+    definition["math"]["constraints"]["cell_duration"]["where"] = "Generator_tightened"
+    with pytest.raises(LanguageError, match="Generator_tightened"):
+        n.composites.register(definition)
+    assert list(n.composites) == ["battery"]
 
 
 def test_plain_buses_cluster_beside_instances(n):
@@ -356,13 +439,18 @@ def test_an_incomplete_instance_fails(n):
     n.optimize.create_model()
 
 
-def test_tags_without_their_type_fail(n):
+def test_tags_without_their_type_fail_until_registered_again(n):
     _add(n)
-    n.meta = {}
+    n.composites.register(CELL)
+    n.add("cell", "c", bus="north")
+    del n.meta["_pypsa"]
     with pytest.raises(
-        ValueError, match=r"types \['battery'\], which are not registered"
+        ValueError, match=r"types \['battery', 'cell'\], which are not registered"
     ):
         n.optimize.create_model()
+    n.composites.register(CELL)
+    n.composites.register(BATTERY)
+    n.optimize.create_model()
 
 
 def test_an_instance_is_built_in_full_or_not_at_all(n):
@@ -456,14 +544,71 @@ def test_editing_a_read_type_leaves_the_stored_type(n):
     assert n.composites.battery.type.templates["charger"]["efficiency"] == "$efficiency"
 
 
-def test_a_stale_type_leaves_others_to_register(n):
-    n.meta["composites"]["battery"]["parameters"]["legacy"] = 1
-    n.composites.register(_replaced(("battery", "cell")))
+def test_a_stale_type_blocks_registration_until_removed(n):
+    n.meta["_pypsa"]["composites"]["battery"]["parameters"]["legacy"] = 1
     with pytest.raises(ValueError, match="declares"):
         n.composites.register(_replaced(("battery", "battery_power")))
+    with pytest.raises(ValueError, match=r"parameters \['legacy'\]"):
+        n.composites.register(_replaced(("battery", "cell")))
+    n.composites.remove("battery")
+    n.composites.register(_replaced(("battery", "cell")))
 
 
 def test_another_type_of_the_same_name_is_refused(n):
     n.composites.register(BATTERY)
     with pytest.raises(ValueError, match="Another composite type"):
         n.composites.register(_with(description="other"))
+
+
+def test_remove_unregisters_a_type_without_instances(n):
+    with pytest.raises(KeyError, match="No composite type 'cell'"):
+        n.composites.remove("cell")
+    _add(n)
+    meta = copy.deepcopy(n.meta)
+    with pytest.raises(ValueError, match=r"\['bat north', 'bat south'\] exist"):
+        n.composites.remove("battery")
+    assert n.meta == meta
+    n.remove("battery", INSTANCES)
+    n.composites.remove("battery")
+    assert list(n.composites) == []
+    n.optimize.create_model()
+    n.composites.register(_with(description="other"))
+
+
+@pytest.mark.parametrize("drifted", [False, True])
+@pytest.mark.parametrize(
+    ("reader", "match"),
+    [
+        ({"constraints": {"battery_duration": None}}, r"\['own'\] build on 'battery'"),
+        ({"constraints": {"floor": FLOOR}}, r"\['own'\] build on 'battery'"),
+        (CELL_ON_BATTERY, r"\['cell'\] build on 'battery'"),
+    ],
+    ids=["override edits", "override reads", "type reads"],
+)
+def test_a_type_others_build_on_is_kept(n, reader, match, drifted):
+    if "name" in reader:
+        n.composites.register(reader)
+    else:
+        n.optimize.overrides.register(reader, name="own")
+    if drifted:
+        n.meta["_pypsa"].setdefault("overrides", {})["other"] = copy.deepcopy(DRIFTED)
+    meta = copy.deepcopy(n.meta)
+    with pytest.raises(ValueError, match=match):
+        n.composites.remove("battery")
+    assert n.meta == meta
+
+
+@pytest.mark.parametrize("own", [False, True])
+def test_remove_drops_a_type_that_no_longer_builds(n, own):
+    if own:
+        n.optimize.overrides.register({"constraints": {"floor": FLOOR}}, name="own")
+    constraints = n.meta["_pypsa"]["composites"]["battery"]["math"]["constraints"]
+    duration = constraints["battery_duration"]
+    duration["expression"] = duration["expression"].replace("e_nom", "e_gone")
+    with pytest.raises(LanguageError, match="Store_e_gone"):
+        n.optimize.create_model()
+    n.composites.remove("battery")
+    assert list(n.composites) == []
+    if own:
+        n.optimize.overrides.remove("own")
+    n.optimize.create_model()

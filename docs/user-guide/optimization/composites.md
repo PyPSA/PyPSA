@@ -129,11 +129,15 @@ See [Reading expressions](custom-constraints.md#reading-expressions).
 
 ## Rules
 
-* The definition is stored in `n.meta`, so a copy or a saved network keeps its
-  composites. `n.merge`, `n[buses]` and clustering do not keep it; the build
-  then refuses the tagged members until the type is registered again.
-* `register` checks the math against the formulation, so a wrong name fails
-  there, not at the build.
+* The definition is stored in `n.meta["_pypsa"]`, so a copy, a slice `n[buses]`, a
+  merge, clustering and a saved network keep its composites. `n.merge` refuses
+  two different types of one name.
+* `register` checks the math against the default formulation, the other types and the
+  [stored overrides](custom-constraints.md#storing-overrides-on-the-network),
+  so a wrong name fails there, not at the build. A type cannot declare an
+  entry that a stored override adds.
+* `n.composites.remove("battery")` unregisters a type once no instance or stored
+  override uses it, also where its math no longer builds.
 * `n.add` takes no `overwrite` for a composite, and refuses an instance whose
   member names exist.
 * Every key of the math starts with `<type>_`. The math adds to the

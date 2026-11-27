@@ -13,6 +13,7 @@ and convert the Network accordingly.
 
 from __future__ import annotations
 
+import copy
 import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
@@ -1069,6 +1070,8 @@ class NetworkIndexMixin(_NetworkABC):
     ) -> Network:
         """Return a sliced copy of the network.
 
+        The copy keeps `n.meta`, as its composite types and stored overrides.
+
         Parameters
         ----------
         buses : slice, list, or str, or tuple
@@ -1243,6 +1246,7 @@ class NetworkIndexMixin(_NetworkABC):
         # catch all remaining attributes of network
         for attr in ["name", "_crs"]:
             setattr(n, attr, getattr(self, attr))
+        n.meta = copy.deepcopy(self.meta)
 
         n.snapshot_weightings = self.snapshot_weightings.loc[n.snapshots]
 

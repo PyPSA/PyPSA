@@ -7,12 +7,14 @@
 from __future__ import annotations
 
 import functools
+import hashlib
 import json
+import logging
 import re
 from collections.abc import Mapping
 from importlib.resources import files
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 import numpy as np
 import pandas as pd
@@ -50,6 +52,7 @@ if TYPE_CHECKING:
     from pypsa.optimization.piecewise import PiecewiseOptions
 
 SPEC = files("pypsa.optimization.spec")
+logger = logging.getLogger(__name__)
 
 
 @functools.cache
@@ -70,24 +73,37 @@ def _rendered(linearized_unit_commitment: bool) -> tuple[Spec, Names, Scalings]:
 Override = str | Path | Mapping[str, Any]
 
 
+def is_path(override: Override) -> TypeGuard[str | Path]:
+    """Return whether *override* names a file: a path, or a `str` with no newline."""
+    return isinstance(override, Path) or (
+        isinstance(override, str) and "\n" not in override
+    )
+
+
 def _layer(override: Override) -> dict[str, Any]:
     """Return *override* as the mapping it states.
 
     Raises:
         FileNotFoundError: A `str` with no newline names no file.
-        TypeError: *override* is not a path, YAML text or mapping.
+        TypeError: *override* is not a path, YAML text or mapping, or states
+            no mapping.
 
     """
     import yaml  # noqa: PLC0415
 
     if isinstance(override, Mapping):
         return dict(override)
-    if isinstance(override, str) and "\n" in override:
-        return yaml.safe_load(override)
-    if isinstance(override, str | Path):
-        return yaml.safe_load(Path(override).read_text())
-    msg = f"An override is a YAML path, YAML text or a mapping, not {type(override).__name__}."
-    raise TypeError(msg)
+    if is_path(override):
+        stated = yaml.safe_load(Path(override).read_text())
+    elif isinstance(override, str):
+        stated = yaml.safe_load(override)
+    else:
+        msg = f"An override is a YAML path, YAML text or a mapping, not {type(override).__name__}."
+        raise TypeError(msg)
+    if not isinstance(stated, Mapping):
+        msg = f"An override states a mapping, not {type(stated).__name__}."
+        raise TypeError(msg)
+    return dict(stated)
 
 
 def _expanded(s: Spec) -> tuple[Spec, Spec]:
@@ -102,31 +118,135 @@ def _base(linearized_unit_commitment: bool) -> tuple[Spec, Spec]:
 #: The most patched formulations kept in memory; the oldest go first.
 KEEP = 8
 _PATCHED: dict[str, tuple[Spec, Spec]] = {}
+Layer = tuple[str, dict[str, Any]]
 
 
 def _formulation(
-    linearized_unit_commitment: bool = False,
-    piecewise_options: Sequence[PiecewiseOptions] = (),
-    overrides: Sequence[Override] = (),
+    linearized_unit_commitment: bool = False, layers: Sequence[Layer] = ()
 ) -> tuple[Spec, Spec]:
-    """Return the spec of `spec()` and its piecewise curves written out, which linopy builds from."""
+    """Return the spec with *layers* laid over it in turn, and its piecewise curves written out, which linopy builds from.
+
+    Raises:
+        mathspec.errors.LanguageError: A layer does not hold; the message names it by its label.
+
+    """
     import mathspec  # noqa: PLC0415
+    from mathspec.errors import LanguageError  # noqa: PLC0415
 
     base = _base(linearized_unit_commitment)
-    piecewise = (
-        [_piecewise_patch(base[0], piecewise_options)] if piecewise_options else []
-    )
-    patches = [*piecewise, *map(_layer, overrides)]
-    if not patches:
+    if not layers:
         return base
+    labels = [label for label, _ in layers]
+    patches = [patch for _, patch in layers]
     key = json.dumps(
         [linearized_unit_commitment, patches], sort_keys=True, default=repr
     )
     if key not in _PATCHED:
-        _PATCHED[key] = _expanded(mathspec.override(base[0], patches))
+        try:
+            patched = mathspec.override(base[0], patches)
+        except LanguageError as e:
+            named = re.sub(
+                r"(?:patch )?'#(\d+)'", lambda m: labels[int(m[1]) - 1], str(e)
+            )
+            raise LanguageError(named) from None
+        _PATCHED[key] = _expanded(patched)
         while len(_PATCHED) > KEEP:
             del _PATCHED[next(iter(_PATCHED))]
     return _PATCHED[key]
+
+
+def _piecewise_layers(
+    linearized_unit_commitment: bool, piecewise_options: Sequence[PiecewiseOptions]
+) -> list[Layer]:
+    """Return the layer of the piecewise options, none without options."""
+    if not piecewise_options:
+        return []
+    base = _base(linearized_unit_commitment)[0]
+    return [("the piecewise options", _piecewise_patch(base, piecewise_options))]
+
+
+def _per_call(overrides: Sequence[Override]) -> list[Layer]:
+    """Return the layer of each per-call override, a path named by itself."""
+    return [(_per_call_label(k, o), _layer(o)) for k, o in enumerate(overrides, 1)]
+
+
+def _per_call_label(place: int, override: Override) -> str:
+    if is_path(override):
+        return f"the override {str(override)!r}"
+    return f"the override #{place} of `overrides`"
+
+
+def written(patch: Mapping[str, Any]) -> dict[str, Any]:
+    """Return what a patch writes by `<section>.<key>`, and the objective by `objective`."""
+    entries = {
+        f"{section}.{key}": entry
+        for section, keyed in patch.items()
+        if section != "objective" and isinstance(keyed, Mapping)
+        for key, entry in keyed.items()
+    }
+    return entries | ({"objective": patch["objective"]} if "objective" in patch else {})
+
+
+def laid(keys: set[str], patch: Mapping[str, Any]) -> set[str]:
+    """Return the keys a spec declares once `patch` is laid over it."""
+    entries = written(patch)
+    return (keys | entries.keys()) - {k for k, e in entries.items() if e is None}
+
+
+@functools.cache
+def _keys(linearized_unit_commitment: bool) -> frozenset[str]:
+    """Return the keys of the spec, as `written` names them."""
+    return frozenset(written(_base(linearized_unit_commitment)[0].to_dict()))
+
+
+@functools.cache
+def fingerprint(key: str) -> str:
+    """Return a hash of the entry `key` of the default spec as `written` names it, without its description."""
+    entry = written(_base(False)[0].to_dict()).get(key)
+    if isinstance(entry, Mapping):
+        entry = {k: v for k, v in entry.items() if k != "description"}
+    text = json.dumps(entry, sort_keys=True)
+    return hashlib.sha256(text.encode()).hexdigest()[:16]
+
+
+def _stack(
+    n: Network,
+    linearized_unit_commitment: bool,
+    piecewise_options: Sequence[PiecewiseOptions] = (),
+) -> tuple[list[Layer], set[str]]:
+    """Return the layers a build of `n` lays over the spec before per-call overrides, and the keys the spec declares under them.
+
+    They are the piecewise options, the composite types and the stored overrides, in turn.
+
+    Raises:
+        ValueError: A stored override no longer edits or creates what it was
+            registered to, or PyPSA changed an entry it edits.
+
+    """
+    plain = not linearized_unit_commitment and not piecewise_options
+    if not plain:
+        _stack(n, linearized_unit_commitment=False)
+    layers = _piecewise_layers(linearized_unit_commitment, piecewise_options)
+    layers += [
+        (f"the composite type {k!r}", p) for k, p in n.composites.patches().items()
+    ]
+    keys = functools.reduce(
+        laid, [p for _, p in layers], set(_keys(linearized_unit_commitment))
+    )
+    stored, keys = n.optimize.overrides.layers(keys, plain)
+    return layers + stored, keys
+
+
+def holding(n: Network, layers: Sequence[Layer] = ()) -> set[str]:
+    """Return the keys the default spec declares under *layers* laid over the stack of `n`.
+
+    Raises:
+        ValueError: The default formulation does not hold them.
+
+    """
+    stack, keys = _stack(n, linearized_unit_commitment=False)
+    _formulation(False, [*stack, *layers])
+    return keys
 
 
 def spec(
@@ -134,8 +254,10 @@ def spec(
     piecewise_options: Sequence[PiecewiseOptions] = (),
     overrides: Sequence[Override] = (),
 ) -> Spec:
-    """Return the spec of `n.optimize()` for a network without composites, patched for linearised unit commitment and piecewise options on request, with *overrides* laid over it in turn."""
-    return _formulation(linearized_unit_commitment, piecewise_options, overrides)[0]
+    """Return the spec of `n.optimize()` for a network without composites and stored overrides, patched for linearised unit commitment and piecewise options on request, with *overrides* laid over it in turn."""
+    piecewise = _piecewise_layers(linearized_unit_commitment, piecewise_options)
+    layers = [*piecewise, *_per_call(overrides)]
+    return _formulation(linearized_unit_commitment, layers)[0]
 
 
 def _patch(linearized_unit_commitment: bool) -> Traversable | None:
@@ -541,7 +663,7 @@ def build_model(
     expressions: bool = False,
     **options: Any,
 ) -> Model:
-    """Build the model of `n` over the build's snapshots from the spec, with its composites and then *overrides* laid over it."""
+    """Build the model of `n` over the build's snapshots from the spec, with its composites, its stored overrides and then *overrides* laid over it."""
     check(
         n,
         network_index,
@@ -551,8 +673,11 @@ def build_model(
     )
     model_kwargs = model_kwargs or {}
     n.calculate_dependent_values()
-    overrides = [*n.composites.patches(), *overrides]
-    s, expanded = _formulation(linearized_unit_commitment, piecewise_options, overrides)
+    stack, _ = _stack(n, linearized_unit_commitment, piecewise_options)
+    layers = [*stack, *_per_call(overrides)]
+    s, expanded = _formulation(linearized_unit_commitment, layers)
+    if stored := list(n.optimize.overrides):
+        logger.info("The build applies the stored overrides %s.", stored)
     sources = NetworkSources(
         n,
         s,

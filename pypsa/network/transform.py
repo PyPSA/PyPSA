@@ -15,13 +15,14 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pandas as pd
 from rapidfuzz.distance.Levenshtein import distance
 
 from pypsa._options import options
+from pypsa._registry import ROOT, united
 from pypsa.components.common import as_components
 from pypsa.components.types import all_standard_attrs_set
 from pypsa.descriptors import nominal_attrs
@@ -560,6 +561,10 @@ class NetworkTransformMixin(_NetworkABC):
         Requires disjunct sets of component indices and, if time-dependent data is
         merged, identical snapshots and snapshot weightings.
 
+        The composite types and stored overrides of both are kept, those of
+        `other` after those of `n`. A name registered with different content
+        in both, or entries that do not build together, raise a `ValueError`.
+
         If a component in `ther` does not have values for attributes present in
         `n`, default values are set.
 
@@ -618,7 +623,10 @@ class NetworkTransformMixin(_NetworkABC):
                 else:
                     msg = "Snapshot weightings do not agree, cannot merge networks."
                     raise ValueError(msg)
+        root = united(cast("Network", self), other)
         new = self if inplace else self.copy()
+        if root:
+            new.meta[ROOT] = root
         if other.srid != new.srid:
             logger.warning(
                 "Spatial Reference System Indentifier of networks do not agree: "
