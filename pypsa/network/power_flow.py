@@ -1413,7 +1413,22 @@ class SubNetworkPowerFlowMixin:
         Tuple of three pandas.Series indicating number of iterations,
         remaining error, and convergence status for each snapshot
 
+        Raises
+        ------
+        NotImplementedError
+            If the sub-network does not have the carrier "AC".
+
         """
+        carrier = self.n.c.sub_networks.static.at[self.name, "carrier"]
+        if carrier != "AC":
+            msg = (
+                f"Non-linear power flow supports only AC sub-networks, but "
+                f"sub-network '{self.name}' has the carrier '{carrier}'. Use "
+                f"`n.lpf()`, or see https://github.com/PyPSA/PyPSA/issues/40 "
+                f"for a workaround."
+            )
+            raise NotImplementedError(msg)
+
         if not isinstance(slack_weights, (str | pd.Series | dict)):
             msg = (
                 f"Type of 'slack_weights' must be string, pd.Series or dict. Got "
