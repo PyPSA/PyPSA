@@ -306,20 +306,37 @@ its kind: `Generator_p_set` is a parameter and also a constraint.
 
 !!! warning "Which keys are stable"
 
-    Overrides are new. The keys of parameters, variables, constraints,
-    dimensions and the objective follow the rules above and are stable. Until
-    the first release with overrides, they can still change a little. All
-    other keys are internal helpers: they can change in any release without
-    notice. A test locks every key, so no key changes by accident.
+    Overrides are new. Until the first release with overrides, a key can
+    still change. From that release until PyPSA 2.0, a stable key keeps its
+    name and its meaning. If a stable key must change before 2.0, the old key
+    stays valid and gives a deprecation warning. A test locks every key, so
+    no key changes by accident.
+
+    The stable keys are:
+
+    * the keys of variables, constraints and dimensions, and the objective,
+    * the keys of parameters that carry the name of an attribute (rule 2),
+    * the keys of the expressions `total_cost` and `<Component>_<nom>_effective`,
+      as `Link_p_nom_effective` or `Store_e_nom_effective`.
+
+    All other keys are internal helpers: they can change in any release
+    without notice.
+
+    A stable key does not mean stable math. A release can change the math of
+    an entry, for example to correct an error. A
+    [stored override](#storing-overrides-on-the-network) of such an entry then
+    fails the build with a clear error, and you must store it again.
 
 | Kind | Example key | Stable |
 | --- | --- | --- |
-| parameter | `Generator_p_max_pu` | yes |
 | variable | `Generator_p` | yes |
 | constraint | `Generator_fix_p_upper` | yes |
 | dimension | `snapshot` | yes |
 | objective | `objective` | yes |
-| expression | `Generator_p_nom_effective` | no |
+| parameter with the name of an attribute | `Generator_p_max_pu` | yes |
+| parameter that PyPSA derives | `Generator_big_m` | no |
+| expression | `total_cost`, `Link_p_nom_effective` | yes |
+| other expression | `Generator_opex` | no |
 | condition | `Generator_ext` | no |
 | relation | `Generator_bus` | no |
 | piecewise | `Generator_marginal_cost_lp` | no |
@@ -407,9 +424,9 @@ define a [composite](../optimization/composites.md).
 
 The specification also holds `expressions`: named terms that its constraints
 and objective read, as `total_cost` or `Generator_p_nom_effective`.
-[Formulation (generated)](formulation/index.md) lists them. Their keys are
-internal helpers and can change in any release (see
-[How keys are named](#how-keys-are-named)). With
+[Formulation (generated)](formulation/index.md) lists them. Only the keys
+`total_cost` and `<Component>_<nom>_effective` are stable; the other keys can
+change in any release (see [How keys are named](#how-keys-are-named)). With
 `expressions=True`, `n.optimize()` adds each one to `n.model.expressions`, and
 `.solution` gives its value after the solve:
 
