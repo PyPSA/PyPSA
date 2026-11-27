@@ -69,7 +69,8 @@ math:
         <= battery_max_hours * at(Link_p_nom_effective, by=battery_members[discharger])
 ```
 
-The math may use every entry of the formulation. PyPSA declares three more
+The math may use every entry of the formulation, by its
+[key](custom-constraints.md#how-keys-are-named). PyPSA declares three more
 for each type:
 
 * the dimension `battery`, over the instances;

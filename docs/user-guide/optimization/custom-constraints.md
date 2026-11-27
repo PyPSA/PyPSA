@@ -157,7 +157,8 @@ string is read as YAML text.
 
 Overrides apply in turn, so a later one wins. They name entries by their keys
 in the specification, as `Generator_ext_p_upper`, not by the names of the
-built model, as `Generator-ext-p-upper`. An added entry keeps its key as its
+built model, as `Generator-ext-p-upper`; see
+[How keys are named](#how-keys-are-named). An added entry keeps its key as its
 name in `n.model`. Added entries read their data from the network:
 
 * a parameter `<Component>_<attr>` reads the column `<attr>` of the
@@ -252,6 +253,97 @@ Committable extendable generators state their ramp limits in the
 PyPSA checks the specification with its overrides once per process, so a
 repeated build with the same overrides skips the check.
 
+### How keys are named
+
+An override names each entry by its key. A key that the specification lacks
+fails the build, and the error proposes the closest key. A key is unique within
+its kind: `Generator_p_set` is a parameter and also a constraint.
+
+1. **Prefix.** The key of a component's entry starts with the class name of the
+   component and `_`, as `Generator_p`, `StorageUnit_state_of_charge` or
+   `Bus_nodal_balance`. A system-wide entry has no component prefix, as
+   `snapshot_weighting_objective`, `total_cost` or `Kirchhoff_Voltage_Law`.
+   Some groups of system-wide entries share a prefix that is no component:
+   `CVaR_`, `FlowBased_`, `Cycle_` and `Outage_`.
+2. **Parameters.** A parameter `<Component>_<attr>` reads the attribute `<attr>`
+   of the component, static or varying, as `Generator_p_max_pu`,
+   `Link_marginal_cost` or `Store_e_nom`. PyPSA prepares some of these values
+   first. `Generator_capital_cost` is the cost per period, also from
+   `overnight_cost`. `Generator_p_nom_max` is the tightest bound of the
+   scenarios. `Generator_active` also applies the build year and the lifetime;
+   the attribute `active` itself is `Generator_active_asset`. Other parameters
+   have no attribute, and PyPSA derives them, as `Generator_big_m`, `Line_BODF`
+   or `snapshot_weighting_generators`.
+3. **Variables and constraints.** Take the name in `n.model` and replace each
+   `-` with `_`: `Generator-p` is `Generator_p`, `Generator-fix-p-upper` is
+   `Generator_fix_p_upper`, `Line-ext-s_nom-lower` is `Line_ext_s_nom_lower`.
+   These are the names of earlier PyPSA versions. The rule works in this
+   direction only, since the names in `n.model` mix `-` and `_`. The
+   exceptions:
+    * The capacity variables add `_ext`: `Generator-p_nom` is
+      `Generator_p_nom_ext`, `Store-e_nom` is `Store_e_nom_ext`.
+      `Generator_p_nom` is the parameter.
+    * `GlobalConstraint_upper`, `GlobalConstraint_lower` and
+      `GlobalConstraint_fix` hold all global constraints of one sense. `n.model`
+      holds one constraint per global constraint, named after its label, as
+      `GlobalConstraint-co2_limit`.
+    * With `transmission_losses` in the mode `secants`, `Line_loss_tangents_pos`
+      builds `Line-loss_secants-pos`. The same holds for `_neg` and for
+      transformers.
+    * A piecewise curve, as `Generator_marginal_cost_lp`, builds variables and
+      constraints that have no key, as `Generator-marginal_cost_piecewise_delta`.
+    * The variable `objective_constant` is not part of the specification.
+
+    An entry that an override adds keeps its key as its name in `n.model`.
+4. **Dimensions.** The dimension of a component's units is its class name, as
+   `Generator` or `StorageUnit`. All other dimensions are in lower case, as
+   `snapshot`, `period`, `scenario`, `bus`, `carrier` or `port`. An override
+   uses these names, also where `n.model` names a dimension otherwise. In
+   `n.model`, the dimension of units is `name` where an entry has one only. On
+   a constraint, `bus` and `global_constraint` also become `name`.
+   `breakpoint` becomes `_breakpoint`, and `Carrier-growth_limit` names its
+   dimensions `Carrier` and `periods`.
+
+!!! warning "Which keys are stable"
+
+    Overrides are new. The keys of parameters, variables, constraints,
+    dimensions and the objective follow the rules above and are stable. Until
+    the first release with overrides, they can still change a little. All
+    other keys are internal helpers: they can change in any release without
+    notice. A test locks every key, so no key changes by accident.
+
+| Kind | Example key | Stable |
+| --- | --- | --- |
+| parameter | `Generator_p_max_pu` | yes |
+| variable | `Generator_p` | yes |
+| constraint | `Generator_fix_p_upper` | yes |
+| dimension | `snapshot` | yes |
+| objective | `objective` | yes |
+| expression | `Generator_p_nom_effective` | no |
+| condition | `Generator_ext` | no |
+| relation | `Generator_bus` | no |
+| piecewise | `Generator_marginal_cost_lp` | no |
+| macro | `Generator_operating_cost` | no |
+| assumption | `Generator_maintenance_duration_positive` | no |
+
+The objective has no inner key: an override names the section itself, as
+`{"objective": {"expression": "my_cost"}}`.
+
+To find a key:
+
+* Look it up in [Formulation (generated)](formulation/index.md). It has a
+  page for the system and one per component, with each entry under its key
+  as heading. The tab
+  "YAML" shows the name in `n.model` as `name:`. The table "Symbols" lists
+  the parameters and relations that the page reads.
+* Read the YAML files in `pypsa/optimization/spec/`. The trait files write
+  keys with placeholders, as `COMPONENT_ext_NOM_upper`; each trait page
+  lists the names that each component gives them. The entries for
+  `linearized_unit_commitment` are in `linearized_uc/` and on no page.
+* Take a name from `n.model` and apply rule 3.
+* List the keys of one kind, as
+  `list(pypsa.optimization.spec.spec().constraints)`.
+
 ### Storing overrides on the network
 
 The argument `overrides` applies to one call. To make an override part of the
@@ -315,7 +407,9 @@ define a [composite](../optimization/composites.md).
 
 The specification also holds `expressions`: named terms that its constraints
 and objective read, as `total_cost` or `Generator_p_nom_effective`.
-[Formulation (generated)](formulation/index.md) lists them. With
+[Formulation (generated)](formulation/index.md) lists them. Their keys are
+internal helpers and can change in any release (see
+[How keys are named](#how-keys-are-named)). With
 `expressions=True`, `n.optimize()` adds each one to `n.model.expressions`, and
 `.solution` gives its value after the solve:
 
