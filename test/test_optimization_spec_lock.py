@@ -21,6 +21,7 @@ import numpy as np
 import pytest
 import scipy.sparse
 from linopy import Model
+from pypsa.optimization.spec.build import fingerprint, spec, written
 from test_flow_based import triangle
 from test_optimization_spec_equivalence import CASES as SOLVED
 from test_optimization_spec_equivalence import (
@@ -31,7 +32,6 @@ from test_optimization_spec_equivalence import (
 )
 
 import pypsa
-from pypsa.optimization.spec.build import fingerprint, spec, written
 
 if TYPE_CHECKING:
     from collections.abc import Callable

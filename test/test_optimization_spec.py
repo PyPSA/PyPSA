@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 import yaml
+from pypsa.optimization.spec.build import SPEC, spec
 
 import pypsa
 from pypsa.optimization.spec._docs import marker, pages
@@ -23,7 +24,6 @@ from pypsa.optimization.spec._render import (
     renamer,
     render,
 )
-from pypsa.optimization.spec.build import SPEC, spec
 from pypsa.optimization.spec.sources import (
     _SOURCES,
     NetworkSources,

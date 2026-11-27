@@ -11,9 +11,9 @@ import pandas as pd
 import pytest
 import yaml
 from mathspec.errors import LanguageError
+from pypsa.optimization.spec.build import spec
 
 import pypsa
-from pypsa.optimization.spec.build import spec
 
 HALF = {
     "dims": ["Generator", "scenario", "snapshot"],
