@@ -13,10 +13,7 @@ from linopy import Model
 
 from pypsa.optimization.spec.checks import check
 from pypsa.optimization.spec.layers import (
-    _formulation,
-    _per_call,
-    _repeated,
-    _stack,
+    _effective,
     _unit_dims,
     spec_names,
     spec_scalings,
@@ -46,7 +43,7 @@ def build_model(
     piecewise_options: Sequence[Any] = (),
     overrides: Sequence[Override] = (),
     objective_scaling: float = 1.0,
-    expressions: bool = False,
+    include_expressions: bool = False,
     **options: Any,
 ) -> Model:
     """Build the model of `n` over the build's snapshots from the spec, with its composites, its stored overrides and then *overrides* laid over it.
@@ -57,7 +54,7 @@ def build_model(
             removes already.
 
     """
-    from mathspec.errors import LanguageError  # noqa: PLC0415
+    from pypsa.composites import providers  # noqa: PLC0415
 
     check(
         n,
@@ -68,16 +65,9 @@ def build_model(
     )
     model_kwargs = model_kwargs or {}
     n.calculate_dependent_values()
-    stack, _ = _stack(n, linearized_unit_commitment, piecewise_options)
-    per_call = _per_call(overrides)
-    try:
-        s, expanded = _formulation(linearized_unit_commitment, [*stack, *per_call])
-    except LanguageError as e:
-        if repeated := _repeated(n, per_call):
-            text = "; ".join(repeated)
-            msg = f"{text[:1].upper()}{text[1:]}. Drop the removal from `overrides`."
-            raise LanguageError(msg) from e
-        raise
+    s, expanded = _effective(
+        n, linearized_unit_commitment, piecewise_options, overrides
+    )
     if stored := list(n.optimize.overrides):
         logger.info("The build applies the stored overrides %s.", stored)
     sources = NetworkSources(
@@ -85,7 +75,7 @@ def build_model(
         s,
         network_index,
         model_index,
-        providers=n.composites.providers(),
+        providers=providers(n),
         **options,
     )
     mode = (options.get("transmission_losses") or {}).get("mode")
@@ -93,7 +83,7 @@ def build_model(
     m = Model.from_spec(
         expanded,
         sources,
-        expressions=expressions,
+        expressions=include_expressions,
         rename=rename,
         dim_order=_unit_dims(),
         **model_kwargs,

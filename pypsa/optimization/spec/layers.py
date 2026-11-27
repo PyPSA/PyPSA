@@ -51,8 +51,22 @@ def _rendered(linearized_unit_commitment: bool) -> tuple[Spec, Names, Scalings]:
     return render(SPEC, _patch(linearized_unit_commitment))
 
 
-#: A layer over the spec: a YAML file, YAML text or a mapping, written as a `mathspec.override` patch.
 Override = str | Path | Mapping[str, Any]
+"""A change to the optimisation problem: a YAML file, YAML text or a mapping, written as a `mathspec.override` patch.
+
+A `Path`, or a `str` that names an existing file, is read as a file; any other
+`str` is read as YAML text. Annotate a helper that returns overrides with it:
+
+```py
+from pypsa.optimization import Override
+
+def no_ramps(component: str) -> Override:
+    keys = [f"{component}_p_ramp_limit_{d}" for d in ("up", "down")]
+    return {"constraints": dict.fromkeys(keys)}
+
+n.optimize(overrides=[no_ramps("Generator")])
+```
+"""
 
 
 def is_path(override: Override) -> TypeGuard[str | Path]:
@@ -223,18 +237,49 @@ def _stack(
             registered to, or PyPSA changed an entry it edits.
 
     """
+    from pypsa import composites  # noqa: PLC0415
+    from pypsa.optimization import overrides  # noqa: PLC0415
+
     plain = not linearized_unit_commitment and not piecewise_options
     if not plain:
         _stack(n, linearized_unit_commitment=False)
     layers = _piecewise_layers(linearized_unit_commitment, piecewise_options)
     layers += [
-        (f"the composite type {k!r}", p) for k, p in n.composites.patches().items()
+        (f"the composite type {k!r}", p) for k, p in composites.patches(n).items()
     ]
     keys = functools.reduce(
         laid, [p for _, p in layers], set(_keys(linearized_unit_commitment))
     )
-    stored, keys = n.optimize.overrides.layers(keys, plain)
+    stored, keys = overrides.layers(n, keys, plain)
     return layers + stored, keys
+
+
+def _effective(
+    n: Network,
+    linearized_unit_commitment: bool = False,
+    piecewise_options: Sequence[PiecewiseOptions] = (),
+    overrides: Sequence[Override] = (),
+) -> tuple[Spec, Spec]:
+    """Return the spec a build of `n` builds from, with the stack of `n` and then *overrides* laid over it, and its piecewise curves written out.
+
+    Raises:
+        mathspec.errors.LanguageError: A layer does not hold, as where an
+            override in *overrides* removes an entry a stored override
+            removes already.
+
+    """
+    from mathspec.errors import LanguageError  # noqa: PLC0415
+
+    stack, _ = _stack(n, linearized_unit_commitment, piecewise_options)
+    per_call = _per_call(overrides)
+    try:
+        return _formulation(linearized_unit_commitment, [*stack, *per_call])
+    except LanguageError as e:
+        if repeated := _repeated(n, per_call):
+            text = "; ".join(repeated)
+            msg = f"{text[:1].upper()}{text[1:]}. Drop the removal from `overrides`."
+            raise LanguageError(msg) from e
+        raise
 
 
 def holding(n: Network, layers: Sequence[Layer] = ()) -> set[str]:

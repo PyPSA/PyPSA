@@ -97,11 +97,11 @@ n.add("battery", ["north", "south"], bus=["north", "south"], max_hours=[4, 8])
 n.optimize()
 ```
 
-`n.composites.battery.add(...)` does the same as `n.add("battery", ...)`, and
-takes a `suffix` alike. A parameter is a scalar for all instances, a list or a
+`n.add("battery", ...)` takes the parameters of the type and a `suffix`, as for
+a component. A parameter is a scalar for all instances, a list or a
 Series over the instances, or, for a time-varying attribute of a member, a
 DataFrame with the instances as columns or a Series over the snapshots for all
-of them. If `add` fails, it adds nothing. A member is named `<instance> <member>`, as `north charger`, and
+of them. If `n.add` fails, it adds nothing. A member is named `<instance> <member>`, as `north charger`, and
 carries three columns: `composite` with its instance, `composite_type` and
 `composite_member`. The parameters of the math take one value per instance.
 They are stored in the columns `<type>_<parameter>` of the first member listed,
@@ -113,16 +113,18 @@ network, that column may differ by scenario.
 ## Reading instances
 
 ``` py
-n.composites.battery.members   # the members of each instance
-n.composites.battery.static    # the parameters of each instance, read from its members
+n.composites                       # Composites ['battery']
+n.composites["battery"].members    # the members of each instance
+n.composites["battery"].static     # the parameters of each instance, read from its members
+n.composites["battery"].definition # the definition, as `register` takes it
 n.statistics.energy_balance(groupby="composite")
 ```
 
-With `expressions=True`, the build adds each expression of the math to
+With `include_expressions=True`, the build adds each expression of the math to
 `n.model.expressions`, over the instances:
 
 ``` py
-n.optimize(expressions=True)
+n.optimize(include_expressions=True)
 n.model.expressions["battery_power"].solution
 ```
 
@@ -138,8 +140,16 @@ See [Reading expressions](custom-constraints.md#reading-expressions).
   [stored overrides](custom-constraints.md#storing-overrides-on-the-network),
   so a wrong name fails there, not at the build. A type cannot declare an
   entry that a stored override adds.
-* `n.composites.remove("battery")` unregisters a type once no instance or stored
-  override uses it, also where its math no longer builds.
+* `n.composites` reads as a mapping of each type name to its
+  [`Composite`][pypsa.composites.Composite]. Change it with `register`,
+  `unregister` and `clear`, as
+  [`n.optimize.overrides`](custom-constraints.md#storing-overrides-on-the-network).
+* `register` refuses a name that is registered. With `overwrite=True` it
+  replaces the type in its place. Instances may stay where the new type keeps
+  the members and the parameters.
+* `n.composites.unregister("battery")` unregisters a type once no instance or
+  stored override uses it, also where its math no longer builds.
+  `n.composites.clear()` does so for all types.
 * `n.add` takes no `overwrite` for a composite, and refuses an instance whose
   member names exist.
 * Every key of the math starts with `<type>_`. The math adds to the

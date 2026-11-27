@@ -274,7 +274,9 @@ def _solved(
 ) -> pypsa.Network:
     n = request.getfixturevalue(network)
     multi_invest = n.has_investment_periods
-    n.optimize(multi_investment_periods=multi_invest, expressions=True, **kwargs)
+    n.optimize(
+        multi_investment_periods=multi_invest, include_expressions=True, **kwargs
+    )
     return n
 
 
@@ -325,7 +327,7 @@ def test_the_total_cost_is_the_objective(request, network, objective_scaling):
 def test_an_expression_takes_the_dims_of_its_variable(request, network, name, variable):
     n = request.getfixturevalue(network)
     m = n.optimize.create_model(
-        multi_investment_periods=n.has_investment_periods, expressions=True
+        multi_investment_periods=n.has_investment_periods, include_expressions=True
     )
     expr, var = m.expressions[name], m.variables[variable]
     assert expr.coord_dims == var.dims
@@ -359,7 +361,7 @@ def test_an_expression_over_two_components_keeps_their_dims(ac_dc_network):
     dims = ["scenario", "Generator", "Link"]
     added = {"Generator_Link_p_nom": {"dims": dims, "expression": body}}
     m = ac_dc_network.optimize.create_model(
-        expressions=True, overrides=[{"expressions": added}]
+        include_expressions=True, overrides=[{"expressions": added}]
     )
     expr = m.expressions["Generator_Link_p_nom"]
     assert expr.coord_dims == ("Generator", "Link", "scenario")
@@ -371,7 +373,7 @@ def test_an_expression_over_period_and_snapshot_keeps_its_periods(ac_dc_two_peri
     added = {"Generator_p_by_period": {"dims": dims, "expression": body}}
     m = ac_dc_two_periods.optimize.create_model(
         multi_investment_periods=True,
-        expressions=True,
+        include_expressions=True,
         overrides=[{"expressions": added}],
     )
     period = m.expressions["Generator_p_by_period"].coords["period"]

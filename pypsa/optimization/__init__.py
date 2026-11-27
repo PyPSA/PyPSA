@@ -6,9 +6,11 @@
 
 from pypsa.optimization import abstract, optimize
 from pypsa.optimization.optimize import OptimizationAccessor
+from pypsa.optimization.spec import Override
 
 __all__ = [
     "abstract",
     "optimize",
     "OptimizationAccessor",
+    "Override",
 ]

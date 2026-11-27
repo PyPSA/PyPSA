@@ -224,7 +224,7 @@ class NetworkTransformMixin(_NetworkABC):
             if overwrite:
                 msg = "A composite takes no `overwrite`; remove its instances first."
                 raise ValueError(msg)
-            names = self.composites[class_name].add(name, suffix, **kwargs)
+            names = self.composites[class_name]._add(name, suffix, **kwargs)
             return names if return_names else None
 
         c = as_components(self, class_name)
@@ -526,7 +526,7 @@ class NetworkTransformMixin(_NetworkABC):
 
         """
         if isinstance(class_name, str) and class_name in self.composites:
-            self.composites[class_name].remove(name, suffix)
+            self.composites[class_name]._remove(name, suffix)
             return
 
         c = as_components(self, class_name)

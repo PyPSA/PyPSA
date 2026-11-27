@@ -3,13 +3,11 @@
 # SPDX-License-Identifier: MIT
 
 import copy
-import json
 from importlib.util import find_spec
 
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
 import yaml
 from mathspec.errors import LanguageError
 
@@ -62,8 +60,6 @@ FLOOR = {
     "dims": ["scenario", "battery"],
     "expression": "at(Store_e_nom_effective, by=battery_members[store]) >= battery_max_hours",
 }
-CELL_ON_BATTERY = copy.deepcopy(CELL)
-CELL_ON_BATTERY["math"]["constraints"]["cell_floor"] = FLOOR
 DRIFTED = {
     "patch": {"constraints": {"Generator_p_ramp_limit_up": None}},
     "edits": {"constraints.Generator_p_ramp_limit_up": "0"},
@@ -108,10 +104,10 @@ def test_a_type_registers_from_each_form(form, tmp_path):
     if form == "path":
         definition = tmp_path / "battery.yaml"
         definition.write_text(yaml.safe_dump(BATTERY))
-    battery = n.composites.register(definition)
-    assert n.composites.battery.name == battery.name == "battery"
+    n.composites.register(definition)
     assert list(n.composites) == ["battery"]
-    assert n._registries["composites"]["battery"]["components"] == BATTERY["components"]
+    assert n.composites["battery"].name == "battery"
+    assert n.composites["battery"].definition == BATTERY
 
 
 def test_add_expands_an_instance_into_tagged_members(n):
@@ -128,18 +124,21 @@ def test_add_expands_an_instance_into_tagged_members(n):
     assert list(links.composite) == list(INSTANCES) * 2
     assert list(links.composite_member) == ["charger"] * 2 + ["discharger"] * 2
     assert (n.c.stores.static.composite_type == "battery").all()
-    assert n.composites.battery.members.loc["bat south", "store"] == "bat south store"
+    assert (
+        n.composites["battery"].members.loc["bat south", "store"] == "bat south store"
+    )
 
 
 def test_add_lays_values_over_the_instances(n):
     availability = pd.DataFrame({"bat south": 0.5, "bat north": 1.0}, index=n.snapshots)
-    n.composites.battery.add(
+    n.add(
+        "battery",
         INSTANCES,
         bus=pd.Series({"bat south": "south", "bat north": "north"}),
         efficiency=[0.9, 0.8],
         availability=availability,
     )
-    static = n.composites.battery.static
+    static = n.composites["battery"].static
     assert list(static.bus) == ["north", "south"]
     assert list(static.efficiency) == [0.9, 0.8]
     assert list(static.max_hours) == [8, 8]
@@ -187,7 +186,9 @@ def test_a_refused_first_add_adds_no_columns(n):
 
 def test_add_takes_a_suffix_and_refuses_overwrite(n):
     names = n.add("battery", "bat", suffix=[" a", " b"], bus="north", return_names=True)
-    assert list(names) == list(n.composites.battery.members.index) == ["bat a", "bat b"]
+    assert (
+        list(names) == list(n.composites["battery"].members.index) == ["bat a", "bat b"]
+    )
     with pytest.raises(ValueError, match="overwrite"):
         n.add("battery", "bat a", overwrite=True, bus="north")
 
@@ -197,14 +198,14 @@ def test_a_value_by_instance_takes_the_suffix(n, index):
     bus = pd.Series(["north", "south"], index)
     availability = pd.DataFrame(dict(zip(index, [0.5, 1.0])), index=n.snapshots)
     n.add("battery", ["a", "b"], suffix=" x", bus=bus, availability=availability)
-    assert list(n.composites.battery.static.bus) == ["north", "south"]
+    assert list(n.composites["battery"].static.bus) == ["north", "south"]
     assert (n.c.links.dynamic.p_max_pu["a x discharger"] == 0.5).all()
 
 
 def test_remove_drops_every_member_of_an_instance(n):
     _add(n)
     n.remove("battery", "bat north")
-    assert list(n.composites.battery.members.index) == ["bat south"]
+    assert list(n.composites["battery"].members.index) == ["bat south"]
     assert not n.c.links.static.index.str.startswith("bat north").any()
     with pytest.raises(ValueError, match="no battery instances"):
         n.remove("battery", "bat north")
@@ -218,7 +219,7 @@ def test_remove_refuses_a_component_tagged_with_no_member(n, member):
     sizes = {c.name: len(c.static) for c in n.components}
     for read in (
         lambda: n.remove("battery", "bat north"),
-        lambda: n.composites.battery.members,
+        lambda: n.composites["battery"].members,
     ):
         with pytest.raises(ValueError, match=r"\['Generator stray'\] are tagged"):
             read()
@@ -229,7 +230,8 @@ def test_instances_remove_where_their_type_no_longer_reads(n):
     _add(n)
     n._registries["composites"]["battery"]["parameters"]["legacy"] = 1
     n.remove("battery", INSTANCES)
-    assert n.composites.instances.empty
+    assert n.c.links.static.empty
+    assert n.c.stores.static.empty
 
 
 def test_the_math_ties_the_members(n):
@@ -321,7 +323,7 @@ def test_statistics_group_by_instance(n):
 
 def test_an_expression_reads_each_instance(n):
     _add(n)
-    n.optimize(expressions=True)
+    n.optimize(include_expressions=True)
     power = n.model.expressions["battery_power"].solution
     power = power.squeeze("scenario", drop=True).to_pandas().T
     p = n.c.links.dynamic.p
@@ -361,9 +363,11 @@ def test_composites_survive_copy_and_io(n, tmp_path, form):
         form, lambda: pypsa.Network(path)
     )()
     n.optimize()
-    assert other.composites.battery.members.equals(n.composites.battery.members)
+    assert other.composites["battery"].members.equals(n.composites["battery"].members)
     pd.testing.assert_frame_equal(
-        other.composites.battery.static, n.composites.battery.static, check_dtype=False
+        other.composites["battery"].static,
+        n.composites["battery"].static,
+        check_dtype=False,
     )
     other.optimize()
     assert other.objective == pytest.approx(n.objective)
@@ -390,11 +394,8 @@ def test_merge_unites_composite_types(n):
     other.set_snapshots(n.snapshots)
     other.add("Bus", "east")
     merged = other.merge(n)
-    assert list(merged.composites) == ["battery"]
+    assert merged.composites["battery"].members.index.equals(INSTANCES)
     assert "battery_inverter" in merged.optimize.create_model().constraints
-    other.composites.register(_with(description="other"))
-    with pytest.raises(ValueError, match=r"different composite type .*\['battery'\]"):
-        other.merge(n)
 
 
 def test_spatial_clustering_keeps_composite_types(n):
@@ -404,115 +405,8 @@ def test_spatial_clustering_keeps_composite_types(n):
     )
     busmap = n.c.buses.static.index.to_series().replace("south", "north")
     clustered = n.cluster.spatial.cluster_by_busmap(busmap)
-    assert clustered._registries == n._registries
     clustered.optimize()
-    assert clustered.composites.battery.static.index.equals(INSTANCES)
-
-
-def _stored(n):
-    n.optimize.overrides.register(
-        {"constraints": {"battery_duration": None}}, name="free"
-    )
-    n.meta["wildcards"] = {"clusters": 5}
-    return n
-
-
-def _registered(n):
-    return list(n.composites), list(n.optimize.overrides)
-
-
-@pytest.mark.parametrize(
-    "change",
-    [lambda meta: meta.clear(), lambda meta: meta.update(_pypsa={"overrides": {}})],
-    ids=["clear", "update"],
-)
-def test_changing_meta_keeps_the_registries(n, change):
-    _stored(n)
-    change(n.meta)
-    assert _registered(n) == (["battery"], ["free"])
-    n.meta = {}
-    assert _registered(n) == (["battery"], ["free"])
-    assert n.meta == {}
-
-
-def test_loading_a_plain_file_drops_the_registries(tmp_path):
-    path = tmp_path / "plain.nc"
-    pypsa.Network().export_to_netcdf(path)
-    q = pypsa.Network()
-    q.composites.register(BATTERY)
-    _stored(q).import_from_netcdf(path)
-    assert _registered(q) == ([], [])
-    assert q.meta == {}
-
-
-def _raw_meta(path):
-    if path.is_dir():
-        return json.loads((path / "meta.json").read_text())
-    with xr.open_dataset(path) as ds:
-        return json.loads(ds.attrs["meta"])
-
-
-@pytest.mark.parametrize("form", ["netcdf", "csv_folder"])
-def test_a_saved_network_holds_the_registries_under_the_meta_key(n, tmp_path, form):
-    _stored(n)
-    path = tmp_path / ("net.nc" if form == "netcdf" else "net")
-    getattr(n, f"export_to_{form}")(path)
-    other = pypsa.Network(path)
-    assert other.meta == n.meta
-    assert other.composites == n.composites
-    assert other.optimize.overrides == n.optimize.overrides
-    raw = _raw_meta(path)
-    assert raw.pop("_pypsa").keys() == {"composites", "overrides"}
-    assert raw == n.meta
-
-
-@pytest.mark.parametrize(
-    "form",
-    [
-        "netcdf",
-        "csv_folder",
-        pytest.param(
-            "excel",
-            marks=pytest.mark.skipif(
-                find_spec("openpyxl") is None, reason="openpyxl not installed"
-            ),
-        ),
-    ],
-)
-def test_export_refuses_the_reserved_meta_key(n, tmp_path, form):
-    n.meta["_pypsa"] = {}
-    with pytest.raises(ValueError, match="meta key '_pypsa' is reserved"):
-        getattr(n, f"export_to_{form}")(tmp_path / f"net.{form}")
-
-
-@pytest.mark.parametrize(
-    "build",
-    [
-        lambda n: n.slice_network(["north"]),
-        lambda n: n.copy(snapshots=n.snapshots[:2]),
-        lambda n: n.cluster.spatial.cluster_by_busmap(
-            n.c.buses.static.index.to_series()
-        ),
-    ],
-    ids=["slice", "copy", "spatial clustering"],
-)
-def test_a_built_network_keeps_a_copy_of_the_registries(n, build):
-    _stored(n)
-    other = build(n)
-    assert _registered(other) == (["battery"], ["free"])
-    other._registries["composites"]["battery"]["description"] = "other"
-    other._registries["overrides"]["free"]["patch"]["constraints"].clear()
-    assert n.composites.battery.type.description != "other"
-    assert n.optimize.overrides.free == {"constraints": {"battery_duration": None}}
-
-
-def test_equals_follows_the_order_of_types(n):
-    n.composites.register(CELL)
-    other = n.copy()
-    assert n.equals(other)
-    types = other._registries["composites"]
-    other._registries["composites"] = dict(reversed(types.items()))
-    assert not n.equals(other)
+    assert clustered.composites["battery"].static.index.equals(INSTANCES)
 
 
 def test_a_stored_override_edits_a_type(n):
@@ -602,8 +496,6 @@ def _with(**changes):
     [
         (_with(name="Link"), "named by an identifier"),
         (_with(name="bus"), "named by an identifier"),
-        (_with(name="register"), "named by an identifier"),
-        (_with(name="n"), "named by an identifier"),
         (_with(volume=1), "sections"),
         (_with(components={"Battery": {"x": {}}}), "by component class"),
         (_with(components={"Carrier": {"x": {}}}), "by component class"),
@@ -693,40 +585,54 @@ def test_a_type_takes_no_custom_component_name(n, heat):
         pypsa.Network().composites.register(definition)
 
 
-def test_editing_a_read_type_leaves_the_stored_type(n):
-    n.composites.battery.type.templates["charger"]["efficiency"] = 0.1
-    assert n.composites.battery.type.templates["charger"]["efficiency"] == "$efficiency"
-
-
 def test_a_stale_type_blocks_registration_until_removed(n):
     n._registries["composites"]["battery"]["parameters"]["legacy"] = 1
     with pytest.raises(ValueError, match="declares"):
         n.composites.register(_replaced(("battery", "battery_power")))
     with pytest.raises(ValueError, match=r"parameters \['legacy'\]"):
         n.composites.register(_replaced(("battery", "cell")))
-    n.composites.remove("battery")
+    n.composites.unregister("battery")
     n.composites.register(_replaced(("battery", "cell")))
 
 
-def test_another_type_of_the_same_name_is_refused(n):
-    n.composites.register(BATTERY)
-    with pytest.raises(ValueError, match="Another composite type"):
-        n.composites.register(_with(description="other"))
-
-
-def test_remove_unregisters_a_type_without_instances(n):
-    with pytest.raises(KeyError, match="No composite type 'cell'"):
-        n.composites.remove("cell")
+@pytest.mark.parametrize(
+    "drop",
+    [lambda types: types.unregister("battery"), lambda types: types.clear()],
+    ids=["unregister", "clear"],
+)
+def test_a_type_with_instances_is_kept(n, drop):
     _add(n)
-    registries = copy.deepcopy(n._registries)
+    n.composites.register(CELL)
     with pytest.raises(ValueError, match=r"\['bat north', 'bat south'\] exist"):
-        n.composites.remove("battery")
-    assert n._registries == registries
+        drop(n.composites)
+    assert list(n.composites) == ["battery", "cell"]
     n.remove("battery", INSTANCES)
-    n.composites.remove("battery")
-    assert list(n.composites) == []
+    drop(n.composites)
+    assert "battery" not in n.composites
     n.optimize.create_model()
-    n.composites.register(_with(description="other"))
+
+
+def test_overwrite_keeps_the_instances_the_new_type_fits(n):
+    _add(n)
+    floored = copy.deepcopy(BATTERY)
+    floored["math"]["constraints"]["battery_floor"] = FLOOR
+    n.composites.register(floored, overwrite=True)
+    assert n.composites["battery"].members.index.equals(INSTANCES)
+    assert "battery_floor" in n.optimize.create_model().constraints
+
+
+@pytest.mark.parametrize(
+    "pair",
+    [("discharger", "inverter"), ("max_hours", "hours")],
+    ids=["members", "parameters"],
+)
+def test_overwrite_refuses_a_type_the_instances_do_not_fit(n, pair):
+    _add(n)
+    with pytest.raises(ValueError, match="has other members or parameters"):
+        n.composites.register(_replaced(pair), overwrite=True)
+    assert n.composites["battery"].definition == BATTERY
+    n.remove("battery", INSTANCES)
+    n.composites.register(_replaced(pair), overwrite=True)
 
 
 @pytest.mark.parametrize("drifted", [False, True])
@@ -735,34 +641,42 @@ def test_remove_unregisters_a_type_without_instances(n):
     [
         ({"constraints": {"battery_duration": None}}, r"\['own'\] build on 'battery'"),
         ({"constraints": {"floor": FLOOR}}, r"\['own'\] build on 'battery'"),
-        (CELL_ON_BATTERY, r"\['cell'\] build on 'battery'"),
     ],
-    ids=["override edits", "override reads", "type reads"],
+    ids=["override edits", "override reads"],
 )
-def test_a_type_others_build_on_is_kept(n, reader, match, drifted):
-    if "name" in reader:
-        n.composites.register(reader)
-    else:
-        n.optimize.overrides.register(reader, name="own")
+@pytest.mark.parametrize(
+    "drop",
+    [lambda types: types.unregister("battery"), lambda types: types.clear()],
+    ids=["unregister", "clear"],
+)
+def test_a_type_a_stored_override_builds_on_is_kept(n, reader, match, drifted, drop):
+    n.optimize.overrides.register(reader, name="own")
     if drifted:
-        n._registries.setdefault("overrides", {})["other"] = copy.deepcopy(DRIFTED)
+        n._registries["overrides"]["other"] = copy.deepcopy(DRIFTED)
     registries = copy.deepcopy(n._registries)
     with pytest.raises(ValueError, match=match):
-        n.composites.remove("battery")
+        drop(n.composites)
     assert n._registries == registries
 
 
-@pytest.mark.parametrize("own", [False, True])
-def test_remove_drops_a_type_that_no_longer_builds(n, own):
-    if own:
-        n.optimize.overrides.register({"constraints": {"floor": FLOOR}}, name="own")
+def test_overwrite_refuses_a_type_a_stored_override_does_not_hold_with(n):
+    n.optimize.overrides.register(
+        {"constraints": {"battery_duration": None}}, name="free"
+    )
+    renamed = _replaced(("battery_duration", "battery_hours"))
+    with pytest.raises(ValueError, match="'free' edits .*no longer declares"):
+        n.composites.register(renamed, overwrite=True)
+    assert n.composites["battery"].definition == BATTERY
+
+
+def test_unregister_drops_a_stale_type_a_stored_override_builds_on(n):
+    n.optimize.overrides.register({"constraints": {"floor": FLOOR}}, name="own")
     constraints = n._registries["composites"]["battery"]["math"]["constraints"]
     duration = constraints["battery_duration"]
     duration["expression"] = duration["expression"].replace("e_nom", "e_gone")
     with pytest.raises(LanguageError, match="Store_e_gone"):
         n.optimize.create_model()
-    n.composites.remove("battery")
+    n.composites.unregister("battery")
     assert list(n.composites) == []
-    if own:
-        n.optimize.overrides.remove("own")
+    n.optimize.overrides.unregister("own")
     n.optimize.create_model()

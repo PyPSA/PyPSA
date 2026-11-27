@@ -45,12 +45,14 @@ from pypsa.optimization.global_constraints import (
 from pypsa.optimization.overrides import Overrides
 from pypsa.optimization.piecewise import PiecewiseOptions
 from pypsa.optimization.spec import build_model
+from pypsa.optimization.spec.layers import _effective
 from pypsa.optimization.window import SnapshotWindow
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from linopy import Model
+    from mathspec.spec import Spec
 
     from pypsa import Network, SubNetwork
     from pypsa.components import Links, Processes
@@ -115,6 +117,18 @@ def _resolve_include_objective_constant(value: bool | None) -> bool:
     if value is None:
         return not future_flag("exclude_objective_constant")
     return value
+
+
+def _piecewise_options(
+    piecewise_options: list[PiecewiseOptions | dict] | None,
+) -> list[PiecewiseOptions]:
+    """Return the piecewise options as `PiecewiseOptions`, each once."""
+    return list(
+        {
+            PiecewiseOptions(**opt) if isinstance(opt, dict) else opt
+            for opt in (piecewise_options or [])
+        }
+    )
 
 
 def normalize_transmission_losses(
@@ -282,11 +296,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
-        overrides: Sequence[Override] | None = None,
         cycle_basis_method: str = "bfs-refined",
         objective_scaling: float = 1.0,
         consistency_check: bool = True,
-        expressions: bool = False,
+        *,
+        overrides: Sequence[Override] | None = None,
+        include_expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Optimize the pypsa network using linopy.
@@ -361,15 +376,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Each operator is interpreted as ``y operator f(x)``. One option
             per component and attribute applies to all its units; the
             ``name`` filter and ``method='sos2'`` are not supported.
-        overrides : list[str | Path | dict], optional
-            Changes to the optimisation problem, each a YAML file, YAML text or
-            mapping written as a `mathspec.override` patch over the spec of
-            `pypsa.optimization.spec.spec()`. They apply in turn, after the
-            composites and the stored overrides of `n.optimize.overrides`, so a
-            later one wins. A patch edits, removes (``null``) or adds entries
-            under their spec keys; an entry it adds keeps its key as name. They
-            apply to this call only. A `Path`, or a `str` that names an existing
-            file, is read as a file; any other `str` is read as YAML text.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
@@ -381,7 +387,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             `GlobalConstraint.scaling`.
         consistency_check : bool, default True
             Whether to run the consistency check before building the model.
-        expressions : bool, default False
+        overrides : list[Override], optional
+            Changes to the optimisation problem, each a YAML file, YAML text or
+            mapping written as a `mathspec.override` patch over the spec of
+            `pypsa.optimization.spec.spec()`. They apply in turn, after the
+            composites and the stored overrides of `n.optimize.overrides`, so a
+            later one wins. A patch edits, removes (``null``) or adds entries
+            under their spec keys; an entry it adds keeps its key as name. They
+            apply to this call only. A `Path`, or a `str` that names an existing
+            file, is read as a file; any other `str` is read as YAML text.
+            `n.optimize.spec()` returns the specification they give.
+        include_expressions : bool, default False
             Whether to add the named expressions of the specification that
             hold a variable term and read no dual to `n.model.expressions`,
             with the dims of the variables they read. Read one after the
@@ -433,7 +449,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             overrides=overrides,
             cycle_basis_method=cycle_basis_method,
             objective_scaling=objective_scaling,
-            expressions=expressions,
+            include_expressions=include_expressions,
             **model_kwargs,
         )
         if extra_functionality:
@@ -471,11 +487,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         committable_big_m: float | None = None,
         meshed_thresholds: Sequence[int] | None = None,
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
-        overrides: Sequence[Override] | None = None,
         cycle_basis_method: str = "bfs-refined",
         objective_scaling: float = 1.0,
         branch_outages: pd.MultiIndex | None = None,
-        expressions: bool = False,
+        *,
+        overrides: Sequence[Override] | None = None,
+        include_expressions: bool = False,
         **kwargs: Any,
     ) -> Model:
         """Create a linopy.Model instance from a pypsa network.
@@ -523,15 +540,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Each operator is interpreted as ``y operator f(x)``. One option
             per component and attribute applies to all its units; the
             ``name`` filter and ``method='sos2'`` are not supported.
-        overrides : list[str | Path | dict], optional
-            Changes to the optimisation problem, each a YAML file, YAML text or
-            mapping written as a `mathspec.override` patch over the spec of
-            `pypsa.optimization.spec.spec()`. They apply in turn, after the
-            composites and the stored overrides of `n.optimize.overrides`, so a
-            later one wins. A patch edits, removes (``null``) or adds entries
-            under their spec keys; an entry it adds keeps its key as name. They
-            apply to this call only. A `Path`, or a `str` that names an existing
-            file, is read as a file; any other `str` is read as YAML text.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
@@ -544,7 +552,17 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         branch_outages : pandas.MultiIndex, optional
             Passive branches, as (component, name), whose outage the flows must
             survive. Set by `optimize_security_constrained`.
-        expressions : bool, default False
+        overrides : list[Override], optional
+            Changes to the optimisation problem, each a YAML file, YAML text or
+            mapping written as a `mathspec.override` patch over the spec of
+            `pypsa.optimization.spec.spec()`. They apply in turn, after the
+            composites and the stored overrides of `n.optimize.overrides`, so a
+            later one wins. A patch edits, removes (``null``) or adds entries
+            under their spec keys; an entry it adds keeps its key as name. They
+            apply to this call only. A `Path`, or a `str` that names an existing
+            file, is read as a file; any other `str` is read as YAML text.
+            `n.optimize.spec()` returns the specification they give.
+        include_expressions : bool, default False
             Whether to add the named expressions of the specification that
             hold a variable term and read no dual to `n.model.expressions`,
             with the dims of the variables they read. Read one after the
@@ -563,12 +581,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         sns = as_index(n, snapshots, "snapshots")
         n._multi_invest = int(multi_investment_periods)
         n._committable_big_m = committable_big_m
-        piecewise_opts: list[PiecewiseOptions] = list(
-            {
-                PiecewiseOptions(**opt) if isinstance(opt, dict) else opt
-                for opt in (piecewise_options or [])
-            }
-        )
+        piecewise_opts = _piecewise_options(piecewise_options)
         if linearized_unit_commitment:
             check_no_modular_committables(n)
 
@@ -628,13 +641,78 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             piecewise_options=piecewise_opts,
             overrides=overrides or (),
             objective_scaling=objective_scaling,
-            expressions=expressions,
+            include_expressions=include_expressions,
         )
         define_nominal_constraints_per_bus_carrier(n, sns)
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
         set_objective_constant(n, include_objective_constant)
 
         return n.model
+
+    def spec(
+        self,
+        *,
+        overrides: Sequence[Override] | None = None,
+        linearized_unit_commitment: bool = False,
+        piecewise_options: list[PiecewiseOptions | dict] | None = None,
+    ) -> Spec:
+        """Return the specification that `n.optimize()` builds the model from.
+
+        It is the default specification with the layers a build lays over it:
+        the piecewise options, the composite types, the stored overrides of
+        `n.optimize.overrides` and then *overrides*. The arguments mean what
+        they mean in `n.optimize()`, and their defaults are the same.
+
+        Parameters
+        ----------
+        overrides : list[Override], optional
+            Changes to the optimisation problem, see `n.optimize.create_model`.
+        linearized_unit_commitment : bool, default False
+            Whether to patch the specification for linearised unit commitment.
+        piecewise_options : list[PiecewiseOptions | dict], optional
+            Options of the piecewise constraint formulation, see
+            `n.optimize.create_model`. None, the default, lays no options
+            over the specification, as in `n.optimize()`.
+
+        Returns
+        -------
+        mathspec.spec.Spec
+            The specification. Each kind of entry, as `constraints`,
+            `variables` or `expressions`, maps keys to entries;
+            `to_dict()` and `to_yaml()` write it out.
+
+        Raises
+        ------
+        mathspec.errors.LanguageError
+            A layer does not hold.
+
+        Examples
+        --------
+        List the keys of one kind:
+
+        >>> list(n.optimize.spec().constraints)  # doctest: +ELLIPSIS
+        ['Bus_nodal_balance', ...]
+
+        Show one entry as the build reads it:
+
+        >>> n.optimize.spec().constraints["Bus_nodal_balance"]  # doctest: +ELLIPSIS
+        ConstraintSpec(dims=('bus', 'scenario', 'snapshot'), ...)
+
+        An override that removes an entry:
+
+        >>> s = n.optimize.spec(
+        ...     overrides=[{"constraints": {"Generator_fix_p_upper": None}}]
+        ... )
+        >>> "Generator_fix_p_upper" in s.constraints
+        False
+
+        """
+        return _effective(
+            self._n,
+            linearized_unit_commitment,
+            _piecewise_options(piecewise_options),
+            overrides or (),
+        )[0]
 
     def solve_model(
         self,

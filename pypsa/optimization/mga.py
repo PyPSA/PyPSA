@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import signal
 import tempfile
+from functools import partial
 from multiprocessing import get_context
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -321,8 +322,9 @@ class OptimizationAbstractMGAMixin:
         slack: float = 0.05,
         model_kwargs: dict | None = None,
         objective_scaling: float = 1.0,
+        *,
         overrides: Sequence[Override] | None = None,
-        expressions: bool = False,
+        include_expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Run modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
@@ -353,9 +355,9 @@ class OptimizationAbstractMGAMixin:
         objective_scaling : float, default 1.0
             Factor applied to all objective coefficients in the solver, see
             `n.optimize.create_model`.
-        overrides : list[str | Path | dict], optional
+        overrides : list[Override], optional
             Changes to the optimisation problem, see `n.optimize.create_model`.
-        expressions : bool, default False
+        include_expressions : bool, default False
             Whether to build the named expressions, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
@@ -396,7 +398,7 @@ class OptimizationAbstractMGAMixin:
             multi_investment_periods=multi_investment_periods,
             objective_scaling=objective_scaling,
             overrides=overrides,
-            expressions=expressions,
+            include_expressions=include_expressions,
             **model_kwargs,
         )
 
@@ -487,8 +489,9 @@ class OptimizationAbstractMGAMixin:
         slack: float = 0.05,
         model_kwargs: dict | None = None,
         objective_scaling: float = 1.0,
+        *,
         overrides: Sequence[Override] | None = None,
-        expressions: bool = False,
+        include_expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str, pd.Series | None]:
         """Run MGA in a given direction in a low-dimension projection.
@@ -520,9 +523,9 @@ class OptimizationAbstractMGAMixin:
         objective_scaling : float, default 1.0
             Factor applied to all objective coefficients in the solver, see
             `n.optimize.create_model`.
-        overrides : list[str | Path | dict], optional
+        overrides : list[Override], optional
             Changes to the optimisation problem, see `n.optimize.create_model`.
-        expressions : bool, default False
+        include_expressions : bool, default False
             Whether to build the named expressions, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
@@ -571,7 +574,7 @@ class OptimizationAbstractMGAMixin:
             multi_investment_periods=multi_investment_periods,
             objective_scaling=objective_scaling,
             overrides=overrides,
-            expressions=expressions,
+            include_expressions=include_expressions,
             **model_kwargs,
         )
 
@@ -614,9 +617,10 @@ class OptimizationAbstractMGAMixin:
         slack: float,
         model_kwargs: dict,
         objective_scaling: float,
-        overrides: Sequence[Override] | None,
-        expressions: bool,
         kwargs: dict,
+        *,
+        overrides: Sequence[Override] | None,
+        include_expressions: bool,
     ) -> tuple[dict, pd.Series | None]:
         """Solve a single direction for parallel execution (helper method).
 
@@ -637,7 +641,7 @@ class OptimizationAbstractMGAMixin:
                 model_kwargs=model_kwargs,
                 objective_scaling=objective_scaling,
                 overrides=overrides,
-                expressions=expressions,
+                include_expressions=include_expressions,
                 **kwargs,
             )
         except KeyboardInterrupt:
@@ -664,8 +668,9 @@ class OptimizationAbstractMGAMixin:
         model_kwargs: dict | None = None,
         max_parallel: int = 4,
         objective_scaling: float = 1.0,
+        *,
         overrides: Sequence[Override] | None = None,
-        expressions: bool = False,
+        include_expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Run MGA optimization in multiple directions in parallel.
@@ -711,9 +716,9 @@ class OptimizationAbstractMGAMixin:
         objective_scaling : float, default 1.0
             Factor applied to all objective coefficients in the solver, see
             `n.optimize.create_model`.
-        overrides : list[str | Path | dict], optional
+        overrides : list[Override], optional
             Changes to the optimisation problem, see `n.optimize.create_model`.
-        expressions : bool, default False
+        include_expressions : bool, default False
             Whether to build the named expressions, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
@@ -779,8 +784,13 @@ class OptimizationAbstractMGAMixin:
                 ) as pool
             ):
                 try:
-                    results = pool.starmap(
+                    solve = partial(
                         OptimizationAbstractMGAMixin._solve_single_direction,
+                        overrides=overrides,
+                        include_expressions=include_expressions,
+                    )
+                    results = pool.starmap(
+                        solve,
                         [
                             (
                                 fn,
@@ -791,8 +801,6 @@ class OptimizationAbstractMGAMixin:
                                 slack,
                                 model_kwargs,
                                 objective_scaling,
-                                overrides,
-                                expressions,
                                 kwargs,
                             )
                             for direction in directions

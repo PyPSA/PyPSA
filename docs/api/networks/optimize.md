@@ -16,6 +16,10 @@ SPDX-License-Identifier: CC-BY-4.0
     options:
         heading_level: 2
 
+::: pypsa.optimization.Override
+    options:
+        heading_level: 2
+
 ::: pypsa.optimization.mga
     options:
         heading_level: 2

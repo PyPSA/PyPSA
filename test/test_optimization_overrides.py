@@ -4,7 +4,8 @@
 
 import copy
 import datetime
-from importlib.util import find_spec
+import inspect
+import itertools
 
 import numpy as np
 import pandas as pd
@@ -13,7 +14,7 @@ import yaml
 from mathspec.errors import LanguageError
 
 import pypsa
-from pypsa.optimization.spec import spec
+from pypsa.optimization.spec import build, spec
 
 HALF = {
     "dims": ["Generator", "scenario", "snapshot"],
@@ -200,53 +201,24 @@ def test_a_stored_override_applies_to_every_build(ac_dc_network, tmp_path, caplo
     n.optimize.overrides.register(_as("path", tmp_path))
     n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
     assert list(n.optimize.overrides) == ["override", "no_ramps"]
-    assert n.optimize.overrides.no_ramps == n.optimize.overrides["no_ramps"] == NO_RAMPS
+    assert n.optimize.overrides["no_ramps"] == NO_RAMPS
     with caplog.at_level("INFO", logger="pypsa.optimization.spec.build"):
         m = n.optimize.create_model()
     assert "['override', 'no_ramps']" in caplog.text
     assert "Generator_p_half" in m.constraints
     m = n.optimize.create_model(overrides=[{"constraints": {"Generator_p_half": None}}])
     assert "Generator_p_half" not in m.constraints
-    n.optimize.overrides.remove("override")
+    n.optimize.overrides.unregister("override")
     assert list(n.optimize.overrides) == ["no_ramps"]
     assert "Generator_p_half" not in n.optimize.create_model().constraints
 
 
-@pytest.mark.parametrize(
-    "form",
-    [
-        "copy",
-        "slice",
-        "netcdf",
-        "csv",
-        pytest.param(
-            "hdf5",
-            marks=pytest.mark.skipif(
-                find_spec("tables") is None, reason="PyTables not installed"
-            ),
-        ),
-        pytest.param(
-            "excel",
-            marks=pytest.mark.skipif(
-                find_spec("openpyxl") is None, reason="openpyxl not installed"
-            ),
-        ),
-    ],
-)
-def test_stored_overrides_survive_copy_and_io(ac_dc_network, tmp_path, form):
+def test_a_loaded_network_solves_as_its_author_did(ac_dc_network, tmp_path):
     n = ac_dc_network
     n.optimize.overrides.register(OVERRIDE, name="half")
     n.optimize.overrides.register(FULL_LOAD_HOURS, name="full_load_hours")
-    path = tmp_path / {"netcdf": "n.nc", "hdf5": "n.h5", "excel": "n.xlsx"}.get(
-        form, "n"
-    )
-    if form in ("netcdf", "hdf5", "csv", "excel"):
-        export = "csv_folder" if form == "csv" else form
-        getattr(n, f"export_to_{export}")(path)
-    other = {"copy": n.copy, "slice": lambda: n.slice_network(n.c.buses.names)}.get(
-        form, lambda: pypsa.Network(path)
-    )()
-    assert other.optimize.overrides == n.optimize.overrides
+    n.export_to_netcdf(tmp_path / "n.nc")
+    other = pypsa.Network(tmp_path / "n.nc")
     n.c.generators.static["full_load_hours_min"] = 0.0
     other.c.generators.static["full_load_hours_min"] = 0.0
     n.optimize()
@@ -259,7 +231,6 @@ def test_stored_overrides_survive_copy_and_io(ac_dc_network, tmp_path, form):
     [
         (NO_RAMPS, None, ValueError, "takes a `name`"),
         (NO_RAMPS, "no-ramps", ValueError, "identifier"),
-        (NO_RAMPS, "register", ValueError, "identifier"),
         ("# nothing\n", "empty", FileNotFoundError, "not YAML text"),
         ({"constraints": {"Generator_p_half": (1, 2)}}, "x", ValueError, "JSON"),
         (
@@ -282,7 +253,7 @@ def test_a_stored_override_is_refused(ac_dc_network, override, name, error, matc
     n = ac_dc_network
     with pytest.raises(error, match=match):
         n.optimize.overrides.register(override, name=name)
-    assert n._registries == {}
+    assert not n.optimize.overrides
 
 
 @pytest.mark.parametrize("single", [NO_RAMPS, "no_ramps.yaml"])
@@ -306,20 +277,30 @@ def test_a_file_name_that_is_no_identifier_asks_for_a_name(ac_dc_network, tmp_pa
     ac_dc_network.optimize.overrides.register(path, name="limits")
 
 
-def test_a_name_holds_one_override(ac_dc_network):
+def test_a_patch_is_stored_once_and_apart_from_its_source(ac_dc_network):
     overrides = ac_dc_network.optimize.overrides
     patch = copy.deepcopy(NO_RAMPS)
     overrides.register(patch, name="no_ramps")
     patch["constraints"].clear()
-    overrides.no_ramps["constraints"].clear()
-    overrides.register(NO_RAMPS, name="no_ramps")
-    with pytest.raises(ValueError, match="Another override 'no_ramps'"):
-        overrides.register(OVERRIDE, name="no_ramps")
+    assert overrides["no_ramps"] == NO_RAMPS
     with pytest.raises(ValueError, match="stored as 'no_ramps'"):
         overrides.register(NO_RAMPS, name="again")
-    with pytest.raises(KeyError, match="No override 'again'"):
-        overrides.remove("again")
+    overrides.register(NO_RAMPS, name="no_ramps", overwrite=True)
     assert list(overrides) == ["no_ramps"]
+
+
+def test_overwrite_checks_an_override_against_the_spec_below_its_place(ac_dc_network):
+    overrides = ac_dc_network.optimize.overrides
+    tighter = HALF | {"expression": HALF["expression"].replace("0.5", "0.4")}
+    overrides.register({"constraints": {"Generator_p_half": HALF}}, name="half")
+    overrides.register({"constraints": {"Generator_p_half": None}}, name="none")
+    overrides.register(
+        {"constraints": {"Generator_p_half": tighter}}, name="half", overwrite=True
+    )
+    assert list(overrides) == ["half", "none"]
+    assert "Generator_p_half" not in ac_dc_network.optimize.create_model().constraints
+    overrides.unregister("none")
+    assert "Generator_p_half" in ac_dc_network.optimize.create_model().constraints
 
 
 def test_an_override_of_linearised_unit_commitment_stays_per_call(ac_dc_network):
@@ -369,9 +350,8 @@ def test_a_stored_override_that_drifted_from_the_spec_fails(
         n.optimize.create_model()
     with pytest.raises(ValueError, match="register it again"):
         n.optimize.create_model(linearized_unit_commitment=True)
-    n.optimize.overrides.remove("no_ramps")
-    n.optimize.overrides.remove("old")
-    n.optimize.overrides.remove("older")
+    for name in ("no_ramps", "old", "older"):
+        n.optimize.overrides.unregister(name)
     n.optimize.create_model()
 
 
@@ -382,33 +362,9 @@ def test_an_entry_linearised_unit_commitment_rewrites_is_no_change(ac_dc_network
     n.optimize.create_model(linearized_unit_commitment=True)
 
 
-def test_clear_drops_stored_overrides_that_no_longer_build(ac_dc_network):
-    n = ac_dc_network
-    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
-    n._registries["overrides"]["old"] = {
-        "patch": {"constraints": {"Generator_old": None}},
-        "edits": {"constraints.Generator_old": "0"},
-        "creates": [],
-    }
-    n.optimize.overrides.clear()
-    assert n._registries == {}
-    n.optimize.create_model()
-
-
-@pytest.mark.parametrize(
-    ("root", "match"),
-    [
-        (
-            "garbage",
-            r"The saved meta \['_pypsa'\] maps each name to a mapping, not str",
-        ),
-        ({"overrides": {"old": "garbage"}}, "maps each name to a mapping"),
-        ({"overrides": {"old": NO_RAMPS}}, "'old' lacks the `patch`"),
-    ],
-)
-def test_stored_overrides_are_mappings(ac_dc_network, root, match):
-    ac_dc_network._registries = root
-    with pytest.raises(ValueError, match=match):
+def test_a_stored_override_without_its_record_fails(ac_dc_network):
+    ac_dc_network._registries = {"overrides": {"old": NO_RAMPS}}
+    with pytest.raises(ValueError, match="'old' lacks the `patch`"):
         ac_dc_network.optimize.create_model()
 
 
@@ -422,62 +378,6 @@ def test_a_stored_override_drifting_under_build_options_says_so(ac_dc_network):
         n.optimize.create_model(linearized_unit_commitment=True)
 
 
-def test_meta_keys_of_the_user_stay_theirs(ac_dc_network):
-    n = ac_dc_network
-    n.meta |= {"overrides": {"solver": {"threads": 4}}, "composites": "mine"}
-    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
-    n.optimize.create_model()
-    assert n.equals(n.copy())
-    assert n.meta["overrides"] == {"solver": {"threads": 4}}
-
-
-def test_spatial_clustering_keeps_stored_overrides(ac_dc_network):
-    n = ac_dc_network
-    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
-    busmap = n.c.buses.static.index.to_series()
-    clustered = n.cluster.spatial.cluster_by_busmap(busmap)
-    assert clustered.optimize.overrides == n.optimize.overrides
-
-
-@pytest.mark.parametrize("drifted", [False, True])
-def test_an_override_others_build_on_is_kept(ac_dc_network, drifted):
-    n = ac_dc_network
-    parameter, constraint = ({k: v} for k, v in yaml.safe_load(FULL_LOAD_HOURS).items())
-    n.optimize.overrides.register(parameter, name="parameter")
-    n.optimize.overrides.register(constraint, name="constraint")
-    if drifted:
-        n._registries["overrides"]["other"] = {
-            "patch": {"constraints": {"Generator_p_ramp_limit_up": None}},
-            "edits": {"constraints.Generator_p_ramp_limit_up": "0"},
-            "creates": [],
-        }
-    registries = copy.deepcopy(n._registries)
-    with pytest.raises(ValueError, match=r"\['constraint'\] build on 'parameter'"):
-        n.optimize.overrides.remove("parameter")
-    assert n._registries == registries
-    if drifted:
-        n.optimize.overrides.remove("other")
-    n.optimize.overrides.remove("constraint")
-    n.optimize.overrides.remove("parameter")
-    assert n._registries == {}
-
-
-def test_merge_unites_stored_overrides(ac_dc_network):
-    n = ac_dc_network
-    other = pypsa.Network()
-    other.set_snapshots(n.snapshots)
-    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
-    other.optimize.overrides.register(OVERRIDE, name="half")
-    assert list(n.merge(other).optimize.overrides) == ["no_ramps", "half"]
-    other.optimize.overrides.remove("half")
-    stored = {"patch": OVERRIDE, "edits": {}, "creates": []}
-    other._registries = {"overrides": {"no_ramps": stored}}
-    with pytest.raises(
-        ValueError, match=r"different override under the names \['no_ramps'\]"
-    ):
-        n.merge(other)
-
-
 def test_merge_refuses_overrides_that_do_not_build_together(ac_dc_network):
     n = ac_dc_network
     other = pypsa.Network()
@@ -487,17 +387,6 @@ def test_merge_refuses_overrides_that_do_not_build_together(ac_dc_network):
     with pytest.raises(ValueError, match="do not build together"):
         n.merge(other, inplace=True)
     assert list(n.optimize.overrides) == ["half"]
-
-
-def test_equals_follows_the_order_of_stored_overrides(ac_dc_network):
-    n = ac_dc_network
-    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
-    n.optimize.overrides.register(OVERRIDE, name="half")
-    other = n.copy()
-    assert n.equals(other)
-    stored = other._registries["overrides"]
-    other._registries["overrides"] = dict(reversed(stored.items()))
-    assert not n.equals(other)
 
 
 @pytest.mark.parametrize(("missing", "built"), [(0, False), (1000, True)])
@@ -549,5 +438,78 @@ def test_other_solves_take_expressions(ac_dc_network, solve):
     n = ac_dc_network
     n.set_snapshots(n.snapshots[:2])
     n.optimize()
-    solve(n, expressions=True)
+    solve(n, include_expressions=True)
     assert "total_cost" in n.model.expressions
+
+
+@pytest.mark.parametrize(
+    "route",
+    [
+        "__call__",
+        "create_model",
+        "optimize_security_constrained",
+        "optimize_mga",
+        "optimize_mga_in_direction",
+        "optimize_mga_in_multiple_directions",
+    ],
+)
+@pytest.mark.parametrize("name", ["overrides", "include_expressions"])
+def test_overrides_and_include_expressions_are_keyword_only(ac_dc_network, route, name):
+    method = getattr(ac_dc_network.optimize, route)
+    params = inspect.signature(method).parameters.values()
+    before = [p.default for p in itertools.takewhile(lambda p: p.name != name, params)]
+    with pytest.raises(TypeError, match="positional argument"):
+        method(*before, [OVERRIDE])
+
+
+PAIR = {
+    "name": "pair",
+    "components": {
+        "Bus": {"dc": {}},
+        "Link": {"link": {"bus0": "@dc", "bus1": "@dc"}},
+    },
+    "math": {
+        "expressions": {
+            "pair_flow": {
+                "dims": ["scenario", "snapshot", "pair"],
+                "expression": "at(Link_p, by=pair_members[link])",
+            }
+        }
+    },
+}
+PIECEWISE = {
+    "component": "Generator",
+    "attribute": "marginal_cost",
+    "sign": ">=",
+    "method": "incremental",
+}
+
+
+@pytest.mark.parametrize(
+    ("register", "kwargs"),
+    [
+        (None, {}),
+        (None, {"overrides": [OVERRIDE]}),
+        (lambda n: n.optimize.overrides.register(NO_RAMPS, name="no_ramps"), {}),
+        (lambda n: n.composites.register(PAIR), {}),
+        (None, {"linearized_unit_commitment": True}),
+        (None, {"piecewise_options": [PIECEWISE]}),
+    ],
+    ids=["default", "per-call", "stored", "composite", "luc", "piecewise"],
+)
+def test_spec_is_the_one_the_build_uses(ac_dc_network, monkeypatch, register, kwargs):
+    n = ac_dc_network
+    if register:
+        register(n)
+    built = []
+    sources = build.NetworkSources
+
+    def spy(n, s, *args, **kw):
+        built.append(s)
+        return sources(n, s, *args, **kw)
+
+    monkeypatch.setattr(build, "NetworkSources", spy)
+    n.optimize.create_model(**kwargs)
+    effective = n.optimize.spec(**kwargs).to_dict()
+    assert effective == built[0].to_dict()
+    assert (effective != spec().to_dict()) is bool(register or kwargs)

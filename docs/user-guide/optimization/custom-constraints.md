@@ -358,8 +358,9 @@ To find a key:
   lists the names that each component gives them. The entries for
   `linearized_unit_commitment` are in `linearized_uc/` and on no page.
 * Take a name from `n.model` and apply rule 3.
-* List the keys of one kind, as
-  `list(pypsa.optimization.spec.spec().constraints)`.
+* List the keys of one kind that your network builds, as
+  `list(n.optimize.spec().constraints)`; see
+  [Inspecting the effective specification](#inspecting-the-effective-specification).
 
 ### Storing overrides on the network
 
@@ -375,14 +376,16 @@ n.optimize.overrides.register(
     {"constraints": {"Generator_p_ramp_limit_up": None}}, name="no_ramp"
 )
 n.optimize.overrides             # Overrides ['full_load_hours', 'no_ramp']
-n.optimize.overrides.no_ramp     # the stored patch, also n.optimize.overrides["no_ramp"]
-n.optimize.overrides.remove("no_ramp")
-n.optimize.overrides.clear()     # removes all
+n.optimize.overrides["no_ramp"]  # the stored patch
+n.optimize.overrides.unregister("no_ramp")
+n.optimize.overrides.clear()     # unregisters all
 n.optimize()
 ```
 
-A file is stored under its stem; text and a dictionary take a `name`, an
-identifier. The network keeps the patch by its content, and a saved network
+`n.optimize.overrides` reads as a mapping of each name to its patch. A file is
+stored under its stem; text and a dictionary take a `name`, an identifier.
+`register` refuses a name that is stored; with `overwrite=True` it replaces
+the override in its place. The network keeps the patch by its content, and a saved network
 holds it under the meta key `"_pypsa"`, so the patch holds JSON values only: no
 NumPy numbers, dates, tuples or keys that are not text. A build lays the layers over the specification in this order, and a later
 layer wins:
@@ -397,9 +400,9 @@ A stored override may edit, remove and add entries, as a per-call one may.
 `register` checks it laid over the default specification, the composite types
 and the stored overrides, without linearised unit commitment and piecewise
 options. An override that holds only with these options stays per-call.
-`remove` refuses an override that later ones build on, and names them.
-`remove` and `clear` also drop overrides that no longer build, as after a PyPSA
-upgrade. A
+`unregister` refuses an override that later ones build on, and names them.
+`unregister` and `clear` also drop overrides that no longer build, as after a
+PyPSA upgrade. A
 composite type cannot declare an entry that a stored override adds.
 
 A loaded network reproduces the stored math, but not the options of the call:
@@ -409,16 +412,32 @@ records which entries it edits, with a fingerprint of their content, and which
 it adds. If a later PyPSA release removes or changes an entry it edits, or adds
 one it adds, the build fails instead of changing the problem silently; the
 same holds where the options of a build remove or add such entries. After a
-release, check the override, remove it and register it again; for the options
+release, check the override and register it again with `overwrite=True`; for the options
 of a build, pass it per call. The check does not cover entries an override
 only reads, such as a variable its own constraint uses.
 
-`pypsa.optimization.spec.spec()` returns the specification of a network
-without composites and stored overrides. It is not the specification a given
-network builds from.
-
 To add a group of components with the math that ties them as often as needed,
 define a [composite](../optimization/composites.md).
+
+### Inspecting the effective specification
+
+[`n.optimize.spec()`][pypsa.optimization.OptimizationAccessor.spec] returns
+the specification that `n.optimize()` builds the model from: the default
+specification with all layers above laid over it. It takes the arguments of
+`n.optimize()` that change the specification: `overrides`,
+`linearized_unit_commitment` and `piecewise_options`. Use it to check an
+override before you solve:
+
+``` py
+s = n.optimize.spec(overrides=["full_load_hours.yaml"])
+list(s.constraints)                         # the keys of one kind
+s.constraints["Generator_full_load_hours"]  # one entry, as the build reads it
+print(s.to_yaml())                          # the whole specification
+```
+
+Each kind, as `variables`, `parameters`, `constraints` or `expressions`, maps
+keys to entries. `pypsa.optimization.spec.spec()` returns the default
+specification, without the composite types and stored overrides of a network.
 
 ## Reading expressions
 
@@ -427,11 +446,11 @@ and objective read, as `total_cost` or `Generator_p_nom_effective`.
 [Formulation (generated)](formulation/index.md) lists them. Only the keys
 `total_cost` and `<Component>_<nom>_effective` are stable; the other keys can
 change in any release (see [How keys are named](#how-keys-are-named)). With
-`expressions=True`, `n.optimize()` adds each one to `n.model.expressions`, and
-`.solution` gives its value after the solve:
+`include_expressions=True`, `n.optimize()` adds each one to
+`n.model.expressions`, and `.solution` gives its value after the solve:
 
 ``` py
-n.optimize(expressions=True)
+n.optimize(include_expressions=True)
 n.model.expressions["total_cost"].solution
 n.model.expressions["Generator_p_nom_effective"].solution
 ```
