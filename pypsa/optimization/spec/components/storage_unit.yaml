@@ -30,7 +30,7 @@ variables:
     name: StorageUnit-p_dispatch
     description: power delivered to the bus
     dims: [scenario, snapshot, StorageUnit]
-    where: StorageUnit_active
+    where: StorageUnit_activity_mask
 
 expressions:
   StorageUnit_injection:
@@ -104,7 +104,7 @@ constraints:
       the state of charge is the energy carried in, plus what is stored, less
       what is dispatched, plus inflow less spill
     dims: [scenario, snapshot, StorageUnit]
-    where: StorageUnit_active
+    where: StorageUnit_activity_mask
     expression: >-
       StorageUnit_level_carried_in
       + StorageUnit_efficiency_store * StorageUnit_p_store * snapshot_weighting_stores
@@ -115,17 +115,17 @@ constraints:
     name: StorageUnit-p_set
     description: dispatch less storing follows the given schedule
     dims: [scenario, snapshot, StorageUnit]
-    where: StorageUnit_p_set AND StorageUnit_active
+    where: StorageUnit_p_set AND StorageUnit_activity_mask
     expression: StorageUnit_p_dispatch - StorageUnit_p_store == StorageUnit_p_set
   StorageUnit_p_dispatch_set:
     name: StorageUnit-p_dispatch_set
     description: dispatch follows the given schedule
     dims: [scenario, snapshot, StorageUnit]
-    where: StorageUnit_p_dispatch_set AND StorageUnit_active
+    where: StorageUnit_p_dispatch_set AND StorageUnit_activity_mask
     expression: StorageUnit_p_dispatch == StorageUnit_p_dispatch_set
   StorageUnit_p_store_set:
     name: StorageUnit-p_store_set
     description: storing follows the given schedule
     dims: [scenario, snapshot, StorageUnit]
-    where: StorageUnit_p_store_set AND StorageUnit_active
+    where: StorageUnit_p_store_set AND StorageUnit_activity_mask
     expression: StorageUnit_p_store == StorageUnit_p_store_set

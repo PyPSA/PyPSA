@@ -10,11 +10,11 @@ constraints:
     name: Line-v_ang-lower
     description: an AC line carries at least the flow of the most negative angle difference
     dims: [scenario, snapshot, Line]
-    where: Line_v_ang_max AND Line_carrier == 'AC' AND Line_active
+    where: Line_v_ang_max AND Line_carrier == 'AC' AND Line_activity_mask
     expression: Line_s >= -Line_v_ang_max * deg2rad / Line_x_pu_eff
   Line_v_ang_upper:
     name: Line-v_ang-upper
     description: an AC line carries at most the flow of the largest angle difference
     dims: [scenario, snapshot, Line]
-    where: Line_v_ang_max AND Line_carrier == 'AC' AND Line_active
+    where: Line_v_ang_max AND Line_carrier == 'AC' AND Line_activity_mask
     expression: Line_s <= Line_v_ang_max * deg2rad / Line_x_pu_eff

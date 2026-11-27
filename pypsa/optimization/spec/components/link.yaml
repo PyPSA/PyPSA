@@ -18,7 +18,7 @@ piecewise:
       filled in order; the status gates the curve of a committable link
     along: breakpoint
     dims: [scenario, snapshot, Link, port]
-    where: Link_efficiency_curve AND at(Link_active, by=Link_port_Link[owner]) AND Link_efficiency_curve_p
+    where: Link_efficiency_curve AND at(Link_activity_mask, by=Link_port_Link[owner]) AND Link_efficiency_curve_p
     method: incremental
     activity: at(Link_status, by=Link_port_Link[owner])
     links:

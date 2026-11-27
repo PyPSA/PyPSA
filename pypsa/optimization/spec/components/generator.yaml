@@ -28,7 +28,7 @@ variables:
     name: Generator-p_primary_piecewise
     description: the primary energy drawn by a generator with an `efficiency` curve
     dims: [scenario, snapshot, Generator]
-    where: Generator_efficiency_curve AND Generator_active
+    where: Generator_efficiency_curve AND Generator_activity_mask
 
 expressions:
   Generator_primary_input:
@@ -54,7 +54,7 @@ conditions:
   Generator_efficiency_curve:
     description: an active asset with a piecewise `efficiency` curve, in a run with a `primary_energy` row
     condition: >-
-      count(Generator_efficiency_curve_p, over=breakpoint) > 0 AND Generator_active_asset
+      count(Generator_efficiency_curve_p, over=breakpoint) > 0 AND Generator_active
       AND count(GlobalConstraint_type == 'primary_energy', over=global_constraint) > 0
 
 piecewise:
@@ -65,7 +65,7 @@ piecewise:
       segments filled in order; the status gates the curve of a committable unit
     along: breakpoint
     dims: [scenario, snapshot, Generator]
-    where: Generator_efficiency_curve AND Generator_active AND Generator_efficiency_curve_p
+    where: Generator_efficiency_curve AND Generator_activity_mask AND Generator_efficiency_curve_p
     method: incremental
     activity: Generator_status
     links:

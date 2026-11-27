@@ -7,7 +7,7 @@ given:
     COMPONENT_NOM: {dims: [scenario, UNIT]}
     COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
     COMPONENT_NOM_mod: {dims: [UNIT]}
-    COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
+    COMPONENT_activity_mask: {dims: [snapshot, UNIT], dtype: bool}
     COMPONENT_maintenance_pu: {dims: [scenario, UNIT]}
     COMPONENT_p_max_pu: {dims: [scenario, snapshot, UNIT]}
     COMPONENT_p_min_pu: {dims: [scenario, snapshot, UNIT]}
@@ -144,7 +144,7 @@ expressions:
     dims: [scenario, snapshot, UNIT]
     cases:
       opening_late:
-        when: position(snapshot) > 0 AND NOT shift(COMPONENT_active, along=snapshot, offset=1)
+        when: position(snapshot) > 0 AND NOT shift(COMPONENT_activity_mask, along=snapshot, offset=1)
         expression: 0
     otherwise: COMPONENT_status_carried_over
   COMPONENT_status_carried_over:
@@ -195,7 +195,7 @@ expressions:
 conditions:
   COMPONENT_committed:
     description: a committable unit, in a snapshot it is active in
-    condition: COMPONENT_committable AND COMPONENT_active
+    condition: COMPONENT_committable AND COMPONENT_activity_mask
   COMPONENT_com_ext:
     description: >-
       a committed unit with an extendable build that is not modular. Its status
@@ -217,7 +217,7 @@ piecewise:
     along: breakpoint
     dims: [scenario, snapshot, UNIT]
     where: >-
-      COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active
+      COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_activity_mask
       AND COMPONENT_marginal_cost_curve_p
     method: lp
     links:
@@ -231,7 +231,7 @@ piecewise:
     along: breakpoint
     dims: [scenario, snapshot, UNIT]
     where: >-
-      NOT COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active
+      NOT COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_activity_mask
       AND COMPONENT_marginal_cost_curve_p
     method: incremental
     activity: COMPONENT_status

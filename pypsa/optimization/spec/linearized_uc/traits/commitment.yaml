@@ -90,5 +90,5 @@ assumptions:
     description: a unit with a `marginal_cost` curve is not committable, as a status gate needs integers
   COMPONENT_committable_is_not_modular:
     holds: NOT COMPONENT_modular
-    where: COMPONENT_committable AND count(COMPONENT_active, over=snapshot) > 0
+    where: COMPONENT_committable AND count(COMPONENT_activity_mask, over=snapshot) > 0
     description: a committable unit is not modular, as the relaxation cannot share out modules

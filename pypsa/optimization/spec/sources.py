@@ -53,7 +53,7 @@ _SOURCES: dict[str, Callable[..., Any]] = {}
 def source[F: Callable[..., Any]](*keys: str) -> Callable[[F], F]:
     """Register `f` as the one derivation of each key, called as `f(s, name)`.
 
-    A key with the placeholders of a trait, as `COMPONENT_active`, stands for that
+    A key with the placeholders of a trait, as `COMPONENT_activity_mask`, stands for that
     source of every component with a formulation; `f` takes the component as
     `c` then.
 
@@ -767,13 +767,13 @@ def _port_field(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
 # -- activity -------------------------------------------------------------
 
 
-@source("COMPONENT_active")
-def _active(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
+@source("COMPONENT_activity_mask")
+def _activity_mask(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return s.active(c)
 
 
-@source("COMPONENT_active_asset")
-def _active_asset(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
+@source("COMPONENT_active")
+def _active(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     return s.column(c, "active", bool)
 
 

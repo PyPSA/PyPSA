@@ -167,7 +167,7 @@ def _carrier_factors(
         name = renamer(c)
         built = (
             sources[name("COMPONENT_NOM_extendable")]
-            & sources[name("COMPONENT_active_asset")]
+            & sources[name("COMPONENT_active")]
             & (sources[name("COMPONENT_first_active")] != 0).any("period")
         )
         others = [d for d in built.dims if d != c._unit_dim]

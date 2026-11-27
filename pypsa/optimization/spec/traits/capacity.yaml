@@ -17,14 +17,14 @@ dimensions:
 
 parameters:
   COMPONENT_active:
-    description: whether the asset is active in the snapshot's period, by build year and lifetime
-    dims: [snapshot, UNIT]
-    dtype: bool
-  COMPONENT_active_asset:
-    description: >-
-      whether the asset is active by its `active` flag alone, whatever its build
-      year and lifetime
+    description: the attribute `active`, whatever the asset's build year and lifetime
     dims: [UNIT]
+    dtype: bool
+  COMPONENT_activity_mask:
+    description: >-
+      whether the asset is active in the snapshot: `active`, and the
+      snapshot's period within its build year and lifetime
+    dims: [snapshot, UNIT]
     dtype: bool
   COMPONENT_NOM:
     description: nominal capacity
@@ -97,12 +97,12 @@ variables:
     name: COMPONENT-NOM
     description: the nominal capacity of an extendable asset
     dims: [UNIT]
-    where: COMPONENT_NOM_extendable AND COMPONENT_active_asset
+    where: COMPONENT_NOM_extendable AND COMPONENT_active
   COMPONENT_n_mod:
     name: COMPONENT-n_mod
     description: the number of modules of an extendable modular asset
     dims: [UNIT]
-    where: COMPONENT_NOM_extendable AND COMPONENT_modular AND COMPONENT_active_asset
+    where: COMPONENT_NOM_extendable AND COMPONENT_modular AND COMPONENT_active
     domain: integer
     bounds:
       lower: 0
@@ -144,15 +144,15 @@ conditions:
     condition: COMPONENT_NOM_mod > 0
   COMPONENT_fix:
     description: an asset with a fixed build, in a snapshot it is active in
-    condition: NOT COMPONENT_NOM_extendable AND COMPONENT_active
+    condition: NOT COMPONENT_NOM_extendable AND COMPONENT_activity_mask
   COMPONENT_ext:
     description: an asset with an extendable build, in a snapshot it is active in
-    condition: COMPONENT_NOM_extendable AND COMPONENT_active
+    condition: COMPONENT_NOM_extendable AND COMPONENT_activity_mask
   COMPONENT_capital_cost_curve:
     description: an extendable active asset with a piecewise `capital_cost` curve
     condition: >-
       count(COMPONENT_capital_cost_curve_nom, over=breakpoint) > 0 AND
-      COMPONENT_NOM_extendable AND COMPONENT_active_asset
+      COMPONENT_NOM_extendable AND COMPONENT_active
   COMPONENT_capital_cost_curve_bends_down:
     description: a breakpoint where the `capital_cost` curve gets less steep
     condition: >-
@@ -202,25 +202,25 @@ constraints:
     name: COMPONENT-ext-NOM-lower
     description: the chosen build is at least the floor
     dims: [UNIT]
-    where: COMPONENT_NOM_extendable AND COMPONENT_active_asset
+    where: COMPONENT_NOM_extendable AND COMPONENT_active
     expression: COMPONENT_NOM_ext >= COMPONENT_NOM_min
   COMPONENT_ext_NOM_upper:
     name: COMPONENT-ext-NOM-upper
     description: the chosen build is at most the cap; an infinite cap means no row
     dims: [UNIT]
-    where: COMPONENT_NOM_extendable AND COMPONENT_active_asset AND COMPONENT_NOM_max
+    where: COMPONENT_NOM_extendable AND COMPONENT_active AND COMPONENT_NOM_max
     expression: COMPONENT_NOM_ext <= COMPONENT_NOM_max
   COMPONENT_NOM_set:
     name: COMPONENT-NOM_set
     description: the chosen build equals the given one
     dims: [UNIT]
-    where: COMPONENT_NOM_extendable AND COMPONENT_active_asset AND COMPONENT_NOM_set
+    where: COMPONENT_NOM_extendable AND COMPONENT_active AND COMPONENT_NOM_set
     expression: COMPONENT_NOM_ext == COMPONENT_NOM_set
   COMPONENT_NOM_modularity:
     name: COMPONENT-NOM_modularity
     description: the chosen build is a whole number of modules
     dims: [UNIT]
-    where: COMPONENT_NOM_extendable AND COMPONENT_modular AND COMPONENT_active_asset
+    where: COMPONENT_NOM_extendable AND COMPONENT_modular AND COMPONENT_active
     expression: COMPONENT_NOM_ext == COMPONENT_NOM_mod * COMPONENT_n_mod
 
 assumptions:

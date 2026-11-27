@@ -7,8 +7,8 @@ given:
     CVaR_omega: {dims: []}
     COMPONENT_NOM: {dims: [scenario, UNIT]}
     COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
-    COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
-    COMPONENT_active_asset: {dims: [UNIT], dtype: bool}
+    COMPONENT_active: {dims: [UNIT], dtype: bool}
+    COMPONENT_activity_mask: {dims: [snapshot, UNIT], dtype: bool}
     COMPONENT_marginal_cost_curve_cost: {dims: [UNIT, breakpoint]}
     COMPONENT_marginal_cost_curve_p: {dims: [UNIT, breakpoint]}
     period_weighting_objective: {dims: [period]}
@@ -47,7 +47,7 @@ variables:
     name: COMPONENT-marginal_cost_piecewise
     description: the running cost of a unit with a `marginal_cost` curve
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_marginal_cost_curve AND COMPONENT_active
+    where: COMPONENT_marginal_cost_curve AND COMPONENT_activity_mask
 
 expressions:
   COMPONENT_running_cost:
@@ -66,7 +66,7 @@ expressions:
 conditions:
   COMPONENT_marginal_cost_curve:
     description: an active asset with a piecewise `marginal_cost` curve
-    condition: count(COMPONENT_marginal_cost_curve_p, over=breakpoint) > 0 AND COMPONENT_active_asset
+    condition: count(COMPONENT_marginal_cost_curve_p, over=breakpoint) > 0 AND COMPONENT_active
   COMPONENT_marginal_cost_curve_bends_down:
     description: a breakpoint where the `marginal_cost` curve gets less steep
     condition: >-

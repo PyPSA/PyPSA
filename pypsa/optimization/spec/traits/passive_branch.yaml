@@ -5,7 +5,7 @@
 given:
   parameters:
     COMPONENT_NOM: {dims: [scenario, UNIT]}
-    COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
+    COMPONENT_activity_mask: {dims: [snapshot, UNIT], dtype: bool}
     transmission_losses: {dims: [], dtype: bool}
   variables:
     COMPONENT_NOM_ext: {dims: [UNIT]}
@@ -83,7 +83,7 @@ variables:
     description: >-
       the flow at `bus0`: positive from `bus0` to `bus1`, before losses
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_active
+    where: COMPONENT_activity_mask
   COMPONENT_loss:
     name: COMPONENT-loss
     description: the power the branch dissipates. Absent, and zero in the balance, in a lossless run
@@ -99,7 +99,7 @@ expressions:
     dims: [scenario, snapshot, UNIT]
     cases:
       active:
-        when: COMPONENT_active
+        when: COMPONENT_activity_mask
         expression: COMPONENT_s
     otherwise: 0
   COMPONENT_injection:
@@ -113,7 +113,7 @@ expressions:
 conditions:
   COMPONENT_lossy:
     description: an active branch in a run with transmission losses
-    condition: transmission_losses AND COMPONENT_active
+    condition: transmission_losses AND COMPONENT_activity_mask
 
 constraints:
   COMPONENT_fix_s_lower:
@@ -144,7 +144,7 @@ constraints:
     name: COMPONENT-s_set
     description: the flow follows the given schedule
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_s_set AND COMPONENT_active
+    where: COMPONENT_s_set AND COMPONENT_activity_mask
     expression: COMPONENT_s == COMPONENT_s_set
   COMPONENT_loss_upper:
     name: COMPONENT-loss_upper

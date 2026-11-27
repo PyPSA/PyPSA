@@ -8,7 +8,7 @@ given:
     COMPONENT_NOM_max: {dims: [UNIT]}
     COMPONENT_NOM_min: {dims: [UNIT]}
     COMPONENT_NOM_mod: {dims: [UNIT]}
-    COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
+    COMPONENT_activity_mask: {dims: [snapshot, UNIT], dtype: bool}
     COMPONENT_committable: {dims: [UNIT], dtype: bool}
     COMPONENT_modules_installed: {dims: [scenario, UNIT]}
     snapshot_weighting_generators: {dims: [snapshot]}
@@ -109,7 +109,7 @@ expressions:
 conditions:
   COMPONENT_maint:
     description: a maintainable unit, in a snapshot it is active in
-    condition: COMPONENT_maintainable AND COMPONENT_active
+    condition: COMPONENT_maintainable AND COMPONENT_activity_mask
   COMPONENT_maint_com:
     description: a maintainable committable unit, in a snapshot it is active in
     condition: COMPONENT_maintainable AND COMPONENT_committed

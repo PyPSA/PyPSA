@@ -138,7 +138,7 @@ constraints:
       efficiency, plus the charge after its own, plus inflow less spill. `p` is
       the discharge less `p_store`
     dims: [scenario, snapshot, Store]
-    where: Store_active
+    where: Store_activity_mask
     expression: >-
       Store_level_carried_in
       - Store_p * snapshot_weighting_stores / Store_efficiency_dispatch
@@ -149,7 +149,7 @@ constraints:
     name: Store-cycles_max
     description: the discharge over the horizon is at most `cycles_max` times the build
     dims: [scenario, Store]
-    where: Store_cycles_max AND Store_active_asset
+    where: Store_cycles_max AND Store_active
     expression: >-
       sum((Store_p + Store_p_store) * snapshot_weighting_stores, over=snapshot) <=
       Store_cycles_max * Store_e_nom_effective

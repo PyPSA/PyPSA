@@ -17,7 +17,7 @@ from pypsa.optimization.spec import spec
 
 HALF = {
     "dims": ["Generator", "scenario", "snapshot"],
-    "where": "Generator_p_nom_extendable AND not Generator_committable AND Generator_active",
+    "where": "Generator_p_nom_extendable AND not Generator_committable AND Generator_activity_mask",
     "expression": "Generator_p <= 0.5 * Generator_p_max_pu * Generator_p_nom_ext",
 }
 OVERRIDE = {"constraints": {"Generator_ext_p_upper": None, "Generator_p_half": HALF}}

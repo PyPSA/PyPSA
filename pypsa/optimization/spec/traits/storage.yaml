@@ -5,7 +5,7 @@
 given:
   parameters:
     GlobalConstraint_counts_snapshot: {dims: [scenario, snapshot, global_constraint], dtype: bool}
-    COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
+    COMPONENT_activity_mask: {dims: [snapshot, UNIT], dtype: bool}
     COMPONENT_operational_limit_weight: {dims: [scenario, UNIT, global_constraint]}
     period_weighting_objective: {dims: [period]}
     period_weighting_years: {dims: [period]}
@@ -113,17 +113,17 @@ variables:
     name: COMPONENT-LEVEL
     description: energy stored at the end of a snapshot
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_active
+    where: COMPONENT_activity_mask
   COMPONENT_p_store:
     name: COMPONENT-p_store
     description: power taken from the bus to store
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_active
+    where: COMPONENT_activity_mask
   COMPONENT_spill:
     name: COMPONENT-spill
     description: inflow spilled; zero where there is no inflow
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_inflow > 0 AND COMPONENT_active
+    where: COMPONENT_inflow > 0 AND COMPONENT_activity_mask
     missing: 0
     bounds:
       lower: 0
@@ -169,7 +169,7 @@ expressions:
     dims: [scenario, global_constraint, snapshot, UNIT]
     cases:
       counted:
-        when: GlobalConstraint_counts_snapshot AND COMPONENT_active
+        when: GlobalConstraint_counts_snapshot AND COMPONENT_activity_mask
         expression: at(period_weighting_years, by=snapshot_period[period])
     otherwise: 0
   COMPONENT_opening_weight:
@@ -235,7 +235,7 @@ piecewise:
     along: breakpoint
     dims: [scenario, snapshot, UNIT]
     where: >-
-      COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active
+      COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_activity_mask
       AND COMPONENT_marginal_cost_curve_p
     method: lp
     links:
@@ -249,7 +249,7 @@ piecewise:
     along: breakpoint
     dims: [scenario, snapshot, UNIT]
     where: >-
-      NOT COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_active
+      NOT COMPONENT_marginal_cost_as_lp AND COMPONENT_marginal_cost_curve AND COMPONENT_activity_mask
       AND COMPONENT_marginal_cost_curve_p
     method: incremental
     links:
@@ -273,25 +273,25 @@ constraints:
     name: COMPONENT-LEVEL_set
     description: the energy stored follows the given schedule
     dims: [scenario, snapshot, UNIT]
-    where: COMPONENT_LEVEL_set AND COMPONENT_active
+    where: COMPONENT_LEVEL_set AND COMPONENT_activity_mask
     expression: COMPONENT_LEVEL == COMPONENT_LEVEL_set
 
 assumptions:
   COMPONENT_active_in_one_run:
     holds: >-
-      count(COMPONENT_active AND NOT shift(COMPONENT_active, along=snapshot, offset=1),
+      count(COMPONENT_activity_mask AND NOT shift(COMPONENT_activity_mask, along=snapshot, offset=1),
       over=snapshot) <= 1
     description: the snapshots an asset is active in are one unbroken run
   COMPONENT_opens_late_only_where_it_opens:
     holds: >-
-      COMPONENT_active AND NOT shift(COMPONENT_active, along=snapshot, offset=1) AND
+      COMPONENT_activity_mask AND NOT shift(COMPONENT_activity_mask, along=snapshot, offset=1) AND
       position(snapshot) > 0
     where: COMPONENT_opens_late
     description: "`opens_late` marks only the first active snapshot after the first of the horizon"
   COMPONENT_opens_late_where_it_opens:
     holds: COMPONENT_opens_late
     where: >-
-      COMPONENT_active AND NOT shift(COMPONENT_active, along=snapshot, offset=1) AND
+      COMPONENT_activity_mask AND NOT shift(COMPONENT_activity_mask, along=snapshot, offset=1) AND
       position(snapshot) > 0
     description: "`opens_late` marks every first active snapshot after the first of the horizon"
   COMPONENT_primary_energy_carried_over_has_unit_years:
@@ -299,14 +299,14 @@ assumptions:
     where: >-
       COMPONENT_primary_energy_weight AND GlobalConstraint_counts_snapshot
       AND NOT COMPONENT_LEVEL_initial_per_period AND NOT COMPONENT_CYCLIC AND NOT COMPONENT_CYCLIC_per_period
-      AND count(GlobalConstraint_counts_snapshot AND COMPONENT_active, over=snapshot) > 0
+      AND count(GlobalConstraint_counts_snapshot AND COMPONENT_activity_mask, over=snapshot) > 0
     description: a `primary_energy` row counts a level carried over between periods only in periods that weigh one year
   COMPONENT_operational_limit_carried_over_has_unit_years:
     holds: at(period_weighting_years == 1, by=snapshot_period[period])
     where: >-
       COMPONENT_operational_limit_weight AND GlobalConstraint_counts_snapshot
       AND NOT COMPONENT_LEVEL_initial_per_period AND NOT COMPONENT_CYCLIC AND NOT COMPONENT_CYCLIC_per_period
-      AND count(GlobalConstraint_counts_snapshot AND COMPONENT_active, over=snapshot) > 0
+      AND count(GlobalConstraint_counts_snapshot AND COMPONENT_activity_mask, over=snapshot) > 0
     description: >-
       an `operational_limit` row counts a level carried over between periods
       only in periods that weigh one year

@@ -270,8 +270,8 @@ its kind: `Generator_p_set` is a parameter and also a constraint.
    `Link_marginal_cost` or `Store_e_nom`. PyPSA prepares some of these values
    first. `Generator_capital_cost` is the cost per period, also from
    `overnight_cost`. `Generator_p_nom_max` is the tightest bound of the
-   scenarios. `Generator_active` also applies the build year and the lifetime;
-   the attribute `active` itself is `Generator_active_asset`. Other parameters
+   scenarios. The derived `Generator_activity_mask` also applies the build year
+   and the lifetime to `active`, per snapshot. Other parameters
    have no attribute, and PyPSA derives them, as `Generator_big_m`, `Line_BODF`
    or `snapshot_weighting_generators`.
 3. **Variables and constraints.** Take the name in `n.model` and replace each

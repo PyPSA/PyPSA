@@ -4,7 +4,7 @@
 
 given:
   parameters:
-    COMPONENT_active: {dims: [snapshot, UNIT], dtype: bool}
+    COMPONENT_activity_mask: {dims: [snapshot, UNIT], dtype: bool}
     COMPONENT_big_m: {dims: [scenario, UNIT]}
     COMPONENT_committable: {dims: [UNIT], dtype: bool}
     COMPONENT_status_initial: {dims: [scenario, UNIT]}
@@ -67,7 +67,7 @@ expressions:
     dims: [scenario, snapshot, UNIT]
     cases:
       opening_late:
-        when: position(snapshot) > 0 AND NOT shift(COMPONENT_active, along=snapshot, offset=1)
+        when: position(snapshot) > 0 AND NOT shift(COMPONENT_activity_mask, along=snapshot, offset=1)
         expression: 0
     otherwise: COMPONENT_p_carried_over
   COMPONENT_p_carried_over:
@@ -158,7 +158,7 @@ constraints:
       (COMPONENT_ramp_limit_up OR COMPONENT_ramp_limit_start_up)
       AND NOT COMPONENT_com_ext
       AND COMPONENT_ramps_from_previous
-      AND COMPONENT_active
+      AND COMPONENT_activity_mask
     expression: COMPONENT_p - COMPONENT_previous_p <= COMPONENT_ramp_up_allowance
   COMPONENT_p_ramp_limit_down:
     name: COMPONENT-p-ramp_limit_down
@@ -170,7 +170,7 @@ constraints:
       (COMPONENT_ramp_limit_down OR COMPONENT_ramp_limit_shut_down)
       AND NOT COMPONENT_com_ext
       AND COMPONENT_ramps_from_previous
-      AND COMPONENT_active
+      AND COMPONENT_activity_mask
     expression: COMPONENT_previous_p - COMPONENT_p <= COMPONENT_ramp_down_allowance
   COMPONENT_p_ramp_limit_up_run_bigM:
     name: COMPONENT-p-ramp_limit_up-run-bigM
