@@ -42,6 +42,7 @@ from pypsa.optimization.flow_based import (
 from pypsa.optimization.global_constraints import (
     define_nominal_constraints_per_bus_carrier,
 )
+from pypsa.optimization.overrides import Overrides
 from pypsa.optimization.piecewise import PiecewiseOptions
 from pypsa.optimization.spec import build_model
 from pypsa.optimization.window import SnapshotWindow
@@ -246,6 +247,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """Initialize the optimization accessor."""
         self._n = n
         self.expressions = StatisticExpressionsAccessor(self._n)
+        self.overrides = Overrides(self._n)
+        """
+        Network [stored overrides][pypsa.optimization.overrides.Overrides], which every build lays over the formulation.
+        """
 
     @property
     def _window(self) -> SnapshotWindow:
@@ -359,9 +364,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         overrides : list[str | Path | dict], optional
             Changes to the optimisation problem, each a YAML file, YAML text or
             mapping written as a `mathspec.override` patch over the spec of
-            `pypsa.optimization.spec.spec()`. They apply in turn, so a later one
-            wins. A patch edits, removes (``null``) or adds entries under their
-            spec keys; an entry it adds keeps its key as name.
+            `pypsa.optimization.spec.spec()`. They apply in turn, after the
+            composites and the stored overrides of `n.optimize.overrides`, so a
+            later one wins. A patch edits, removes (``null``) or adds entries
+            under their spec keys; an entry it adds keeps its key as name. They
+            apply to this call only.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The
@@ -520,9 +527,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         overrides : list[str | Path | dict], optional
             Changes to the optimisation problem, each a YAML file, YAML text or
             mapping written as a `mathspec.override` patch over the spec of
-            `pypsa.optimization.spec.spec()`. They apply in turn, so a later one
-            wins. A patch edits, removes (``null``) or adds entries under their
-            spec keys; an entry it adds keeps its key as name.
+            `pypsa.optimization.spec.spec()`. They apply in turn, after the
+            composites and the stored overrides of `n.optimize.overrides`, so a
+            later one wins. A patch edits, removes (``null``) or adds entries
+            under their spec keys; an entry it adds keeps its key as name. They
+            apply to this call only.
         cycle_basis_method : str, default "bfs-refined"
             Method used to construct the cycle basis for the Kirchhoff voltage
             law constraints, either ``"bfs-refined"`` or ``"paton"``. The

@@ -118,6 +118,8 @@ class NetworkSources(Mapping[str, Any]):
         The cycle basis method of the KVL rows.
     branch_outages : pandas.Index | None
         The outages of a security-constrained run.
+    providers : Mapping | None
+        Further derivations of this build, called as `f(sources, name)`.
 
     """
 
@@ -133,6 +135,7 @@ class NetworkSources(Mapping[str, Any]):
         committable_big_m: float | None = None,
         cycle_basis_method: str = "bfs-refined",
         branch_outages: Any = None,
+        providers: Mapping[str, Callable[..., Any]] | None = None,
     ) -> None:
         """Initialise the sources of one build."""
         self.n = n
@@ -146,6 +149,11 @@ class NetworkSources(Mapping[str, Any]):
         self.branch_outages = branch_outages
         self.units = {c._unit_dim: c for c in formulated(n)}
         self._providers = _providers(self.units.values())
+        providers = dict(providers or {})
+        if clash := self._providers.keys() & providers.keys():
+            msg = f"{sorted(clash)} have two derivations."
+            raise ValueError(msg)
+        self._providers |= providers
         self._keys = dict.fromkeys(
             [*spec.dimensions, *spec.relations, *spec.parameters]
         )
@@ -183,7 +191,8 @@ class NetworkSources(Mapping[str, Any]):
     def derivation(self, name: str) -> Callable[[], Any]:
         """Return the derivation of `name`: its provider, else the PyPSA data it names.
 
-        A parameter `<Component>_<attr>` reads the attribute, a relation
+        A parameter `<Component>_<attr>` reads the attribute, or takes its
+        `missing:` value where the component lacks it, a relation
         `<Component>_<column>` reads the static column, and a dimension takes
         the labels the relations map into it.
 
@@ -195,6 +204,12 @@ class NetworkSources(Mapping[str, Any]):
             return functools.partial(self._providers[name], self, name)
         c = self.component(name)
         if name in self.spec.parameters and c is not None:
+            missing = self.spec.parameters[name].missing
+            attr = name.removeprefix(f"{c.name}_")
+            absent = attr not in c.static and attr not in c.dynamic
+            if absent and missing != "refused":
+                value = np.nan if missing == "absent" else missing
+                return functools.partial(self.filled, name, value)
             self.attr(c, name)
             return functools.partial(self.attribute, c, name)
         if name in self.spec.relations and c is not None:
@@ -348,11 +363,11 @@ class NetworkSources(Mapping[str, Any]):
         return {"bool": bool, "int": int, "str": object}.get(declared, float)
 
     def filled(self, name: str, value: Any) -> xr.DataArray:
-        """Return a grid over the declared dims of `name`, every cell `value`."""
+        """Return a grid over the declared dims of `name`, every cell `value`; NaN makes an int or bool grid float."""
         dims = self.declared(name)
         coords = {d: self.coords(d) for d in dims}
         dtype = self.dtype(name)
-        if dtype is int and isinstance(value, float) and np.isnan(value):
+        if dtype in (int, bool) and isinstance(value, float) and np.isnan(value):
             dtype = float
         shape = [len(c) for c in coords.values()]
         return xr.DataArray(np.full(shape, value, dtype=dtype), coords, dims, name)

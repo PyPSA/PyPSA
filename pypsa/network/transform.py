@@ -15,13 +15,14 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pandas as pd
 from rapidfuzz.distance.Levenshtein import distance
 
 from pypsa._options import options
+from pypsa._registry import ROOT, united
 from pypsa.components.common import as_components
 from pypsa.components.types import all_standard_attrs_set
 from pypsa.descriptors import nominal_attrs
@@ -146,7 +147,9 @@ class NetworkTransformMixin(_NetworkABC):
         ----------
         class_name : str
             Component class name in ("Bus", "Generator", "Load", "StorageUnit",
-            "Store", "ShuntImpedance", "Line", "Transformer", "Link", "Process").
+            "Store", "ShuntImpedance", "Line", "Transformer", "Link", "Process"),
+            or a registered composite type, which adds its instances. See
+            [composites](../../user-guide/optimization/composites.md).
         name : str or int or list of str or list of int
             Component name(s)
         suffix : str or list of str, default ""
@@ -216,6 +219,13 @@ class NetworkTransformMixin(_NetworkABC):
         # Handle default parameters from options
         if return_names is None:
             return_names = options.params.add.return_names
+
+        if isinstance(class_name, str) and class_name in self.composites:
+            if overwrite:
+                msg = "A composite takes no `overwrite`; remove its instances first."
+                raise ValueError(msg)
+            names = self.composites[class_name].add(name, suffix, **kwargs)
+            return names if return_names else None
 
         c = as_components(self, class_name)
         if c.name == "StorageUnit":
@@ -466,7 +476,8 @@ class NetworkTransformMixin(_NetworkABC):
         Parameters
         ----------
         class_name : str
-            Component class name
+            Component class name, or a registered composite type, which
+            removes every member of its instances.
         name : str, int, list-like or pandas.Index
             Component name(s)
         suffix : str or list of str, default ""
@@ -514,6 +525,10 @@ class NetworkTransformMixin(_NetworkABC):
         Index: []
 
         """
+        if isinstance(class_name, str) and class_name in self.composites:
+            self.composites[class_name].remove(name, suffix)
+            return
+
         c = as_components(self, class_name)
 
         # Process name/names to pandas.Index of strings and add suffix
@@ -545,6 +560,10 @@ class NetworkTransformMixin(_NetworkABC):
 
         Requires disjunct sets of component indices and, if time-dependent data is
         merged, identical snapshots and snapshot weightings.
+
+        The composite types and stored overrides of both are kept, those of
+        `other` after those of `n`. A name registered with different content
+        in both, or entries that do not build together, raise a `ValueError`.
 
         If a component in `ther` does not have values for attributes present in
         `n`, default values are set.
@@ -604,7 +623,10 @@ class NetworkTransformMixin(_NetworkABC):
                 else:
                     msg = "Snapshot weightings do not agree, cannot merge networks."
                     raise ValueError(msg)
+        root = united(cast("Network", self), other)
         new = self if inplace else self.copy()
+        if root:
+            new.meta[ROOT] = root
         if other.srid != new.srid:
             logger.warning(
                 "Spatial Reference System Indentifier of networks do not agree: "

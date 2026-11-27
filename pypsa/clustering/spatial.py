@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from dataclasses import dataclass
 from importlib.util import find_spec
@@ -18,6 +19,7 @@ import scipy.sparse as sp
 from packaging.version import Version, parse
 from pandas import Series
 
+from pypsa._registry import ROOT
 from pypsa.common import _scenarios_not_implemented
 from pypsa.geo import haversine_pts
 
@@ -963,6 +965,8 @@ class SpatialClusteringMixin:
         )
 
         clustered = n.__class__()
+        if ROOT in n.meta:
+            clustered.meta[ROOT] = copy.deepcopy(n.meta[ROOT])
 
         clustered.add("Bus", buses.index, **buses)
         clustered.add("Line", lines.index, **lines)

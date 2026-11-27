@@ -551,6 +551,14 @@ class TestExcelIO:
         reloaded = pypsa.Network(fn)
         assert reloaded.meta == scipy_network.meta
 
+    def test_excel_io_refuses_meta_beyond_a_cell(self, scipy_network, tmpdir):
+        fn = tmpdir / "excel_export.xlsx"
+        scipy_network.export_to_excel(fn)
+        scipy_network.meta = {"long": {"text": "x" * 32767}}
+        with pytest.raises(ValueError, match=r"`n.meta\['long'\]` takes 32779"):
+            scipy_network.export_to_excel(fn)
+        assert not pypsa.Network(fn).c.buses.static.empty
+
     def test_excel_io_Path(self, scipy_network, tmpdir):
         fn = tmpdir / "excel_export.xlsx"
         scipy_network.export_to_excel(fn)
@@ -776,6 +784,43 @@ def test_reexport_drops_removed_components(ac_dc_network, tmp_path, fmt):
     export()
 
     assert pypsa.Network(fn).generators.empty
+
+
+@pytest.mark.parametrize(
+    ("values", "dtype"),
+    [([True, False], bool), ([True, False], object), ([True, None], object)],
+)
+@pytest.mark.parametrize(
+    ("fmt", "suffix"),
+    [
+        ("netcdf", ".nc"),
+        pytest.param(
+            "hdf5",
+            ".h5",
+            marks=pytest.mark.skipif(
+                not tables_installed, reason="PyTables not installed"
+            ),
+        ),
+        ("csv_folder", ""),
+        pytest.param("excel", ".xlsx", marks=requires_excel),
+    ],
+)
+def test_a_custom_bool_column_survives_io(
+    request, tmp_path, fmt, suffix, values, dtype
+):
+    if fmt == "csv_folder" and None in values:
+        request.applymarker(
+            pytest.mark.xfail(
+                reason="CSV reads a gap in a text column as ''", strict=True
+            )
+        )
+    n = pypsa.Network()
+    n.add("Bus", ["a", "b"])
+    n.c.buses.static["flag"] = pd.Series(values, n.c.buses.static.index, dtype=dtype)
+    path = tmp_path / f"network{suffix}"
+    getattr(n, f"export_to_{fmt}")(path)
+    flag = pypsa.Network(path).c.buses.static.flag
+    assert flag.astype(object).where(flag.notna(), None).tolist() == values
 
 
 @pytest.mark.parametrize(

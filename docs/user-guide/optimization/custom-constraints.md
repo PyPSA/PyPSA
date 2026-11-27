@@ -158,7 +158,8 @@ built model, as `Generator-ext-p-upper`. An added entry keeps its key as its
 name in `n.model`. Added entries read their data from the network:
 
 * a parameter `<Component>_<attr>` reads the column `<attr>` of the
-  component's static data;
+  component's static data. Where the column is absent, it takes the value
+  its `missing:` declares;
 * a relation `<Component>_<column>` maps each unit to the label in the column
   `<column>`. The column must be the same in every scenario. Where a cell is
   blank, the unit maps to none; declare such a relation `missing: absent`;
@@ -247,6 +248,66 @@ Committable extendable generators state their ramp limits in the
 
 PyPSA checks the specification with its overrides once per process, so a
 repeated build with the same overrides skips the check.
+
+### Storing overrides on the network
+
+The argument `overrides` applies to one call. To make an override part of the
+network, store it with
+[`n.optimize.overrides`][pypsa.optimization.overrides.Overrides]. Every later
+build applies it, and copies, slices, merges, spatial clustering and saved
+files keep it, so a loaded network builds the model its author built:
+
+``` py
+n.optimize.overrides.register("full_load_hours.yaml")  # stored as "full_load_hours"
+n.optimize.overrides.register(
+    {"constraints": {"Generator_p_ramp_limit_up": None}}, name="no_ramp"
+)
+n.optimize.overrides             # Overrides ['full_load_hours', 'no_ramp']
+n.optimize.overrides.no_ramp     # the stored patch, also n.optimize.overrides["no_ramp"]
+n.optimize.overrides.remove("no_ramp")
+n.optimize.overrides.clear()     # removes all
+n.optimize()
+```
+
+A file is stored under its stem; text and a dictionary take a `name`, an
+identifier. The patch is stored by its content in
+`n.meta["_pypsa"]["overrides"]`, a key PyPSA reserves and keeps when `n.meta`
+is set to a new dictionary, so it holds JSON values only: no NumPy numbers, dates, tuples or keys that are not
+text. A build lays the layers over the specification in this order, and a later
+layer wins:
+
+1. the specification, patched for `linearized_unit_commitment`;
+2. the `piecewise_options`;
+3. the [composite types](../optimization/composites.md);
+4. the stored overrides, in the order they were registered;
+5. the `overrides` of the call.
+
+A stored override may edit, remove and add entries, as a per-call one may.
+`register` checks it laid over the default specification, the composite types
+and the stored overrides, without linearised unit commitment and piecewise
+options. An override that holds only with these options stays per-call.
+`remove` refuses an override that later ones build on, and names them.
+`remove` and `clear` also drop overrides that no longer build, as after a PyPSA
+upgrade. A
+composite type cannot declare an entry that a stored override adds.
+
+A loaded network reproduces the stored math, but not the options of the call:
+pass `linearized_unit_commitment` and `piecewise_options` again (see
+[#2146](https://github.com/PyPSA/PyPSA/issues/2146)). Each stored override
+records which entries it edits, with a fingerprint of their content, and which
+it adds. If a later PyPSA release removes or changes an entry it edits, or adds
+one it adds, the build fails instead of changing the problem silently; the
+same holds where the options of a build remove or add such entries. After a
+release, check the override, remove it and register it again; for the options
+of a build, pass it per call. The check does not cover entries an override
+only reads, such as a variable its own constraint uses.
+
+`pypsa.optimization.spec.spec()` returns the specification of a network
+without composites and stored overrides. It is not the specification a given
+network builds from.
+
+To add a group of components with the math that ties them as often as needed,
+define a [composite](../optimization/composites.md).
 
 ## Reading expressions
 
