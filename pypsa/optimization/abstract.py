@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pypsa import Components, Network
+    from pypsa.optimization.spec.build import Override
 logger = logging.getLogger(__name__)
 
 ENERGY_WEIGHTING = "generators"
@@ -489,6 +490,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         multi_investment_periods: bool = False,
         model_kwargs: dict | None = None,
         objective_scaling: float = 1.0,
+        overrides: Sequence[Override] | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Compute Security-Constrained Linear Optimal Power Flow (SCLOPF).
@@ -520,6 +522,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         objective_scaling : float, default 1.0
             Factor applied to all objective coefficients in the solver, see
             `n.optimize.create_model`.
+        overrides : list[str | Path | dict], optional
+            Changes to the optimisation problem, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -553,6 +557,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 multi_investment_periods=multi_investment_periods,
                 model_kwargs=model_kwargs,
                 objective_scaling=objective_scaling,
+                overrides=overrides,
                 **kwargs,
             )
 
@@ -572,6 +577,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             multi_investment_periods=multi_investment_periods,
             objective_scaling=objective_scaling,
             branch_outages=outages,
+            overrides=overrides,
             **model_kwargs,
         )
 

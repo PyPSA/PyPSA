@@ -70,6 +70,7 @@ nav:
       - Global Constraints: user-guide/optimization/global-constraints.md
       - Piecewise Constraints: user-guide/optimization/piecewise.md
       - Custom Constraints: user-guide/optimization/custom-constraints.md
+      - Composites: user-guide/optimization/composites.md
       - Numerical Scaling: user-guide/optimization/numerical-scaling.md
       - Pathway Planning: user-guide/optimization/pathway-planning.md
       - Stochastic Optimization: user-guide/optimization/stochastic.md
@@ -163,6 +164,7 @@ nav:
       - Optimize: api/networks/optimize.md
       - Constraints: api/networks/constraints.md
       - Cluster: api/networks/cluster.md
+      - Composites: api/networks/composites.md
       - Statistics: api/networks/statistics.md
       - Plotting: api/networks/plot.md
     - SubNetwork: api/networks/subnetwork.md

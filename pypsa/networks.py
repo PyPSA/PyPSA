@@ -33,12 +33,14 @@ import pyproj
 import validators
 from pyproj import CRS, Transformer
 
+from pypsa._registry import ROOT
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import (
     as_index,
 )
 from pypsa.components.components import SubNetworkComponents
 from pypsa.components.store import ComponentsStore
+from pypsa.composites import Composites
 from pypsa.consistency import NetworkConsistencyMixin
 from pypsa.definitions.structures import Dict
 from pypsa.network.components import NetworkComponentsMixin
@@ -181,6 +183,10 @@ class Network(
         self.plot: PlotAccessor = PlotAccessor(self)
         """
         Network [plotting functionality][pypsa.plot.PlotAccessor] accessor.
+        """
+        self.composites: Composites = Composites(self)
+        """
+        Network [composite types][pypsa.composites.Composites] accessor.
         """
 
         NetworkComponentsMixin.__init__(self)
@@ -539,6 +545,8 @@ class Network(
 
         Sub-networks are not compared, since they are derived from the other
         components. The `sub_network` columns of buses and branches are compared.
+        The composite types and stored overrides are compared in order, since a
+        later one wins.
 
         Parameters
         ----------
@@ -599,6 +607,10 @@ class Network(
                     not_equal = True
                     if not log_mode:
                         break
+            overrides = self.optimize.overrides, other.optimize.overrides
+            if not equals(*overrides, log_mode=log_mode, path="n.optimize.overrides"):
+                logger.warning("Mismatch in attribute: %s", "optimize.overrides")
+                not_equal = True
         else:
             logger.warning(
                 "Can only compare two pypsa.Network objects with each other. Got %s.",
@@ -670,7 +682,9 @@ class Network(
         <!-- md:badge-version v0.20.0 -->
 
         Any additional meta data can be added to the network by setting the `meta`
-        attribute. Meta data will be saved on export.
+        attribute. Meta data will be saved on export. Setting it keeps the
+        composite types and stored overrides in `meta["_pypsa"]` unless the new
+        dictionary holds that key.
 
         Examples
         --------
@@ -689,6 +703,8 @@ class Network(
         if not isinstance(new, (dict | Dict)):
             msg = f"Meta must be a dictionary, received a {type(new)}"
             raise TypeError(msg)
+        if ROOT in self._meta and ROOT not in new:
+            new = {**new, ROOT: self._meta[ROOT]}
         self._meta = new
 
     @property
