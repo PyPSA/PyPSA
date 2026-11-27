@@ -270,6 +270,19 @@ def test_a_stored_override_is_refused(ac_dc_network, override, name, error, matc
     assert "_pypsa" not in n.meta
 
 
+@pytest.mark.parametrize("single", [NO_RAMPS, "no_ramps.yaml"])
+def test_a_single_override_takes_a_list(ac_dc_network, single):
+    with pytest.raises(TypeError, match="takes a list"):
+        ac_dc_network.optimize.create_model(overrides=single)
+
+
+def test_a_per_call_removal_a_stored_override_repeats_names_it(ac_dc_network):
+    n = ac_dc_network
+    n.optimize.overrides.register(NO_RAMPS, name="no_ramps")
+    with pytest.raises(LanguageError, match="stored override 'no_ramps' removes"):
+        n.optimize.create_model(overrides=[NO_RAMPS])
+
+
 def test_a_file_name_that_is_no_identifier_asks_for_a_name(ac_dc_network, tmp_path):
     path = tmp_path / "2030-limits.yaml"
     path.write_text(yaml.safe_dump(NO_RAMPS))

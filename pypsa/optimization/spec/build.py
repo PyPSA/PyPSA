@@ -166,7 +166,15 @@ def _piecewise_layers(
 
 
 def _per_call(overrides: Sequence[Override]) -> list[Layer]:
-    """Return the layer of each per-call override, a path named by itself."""
+    """Return the layer of each per-call override, a path named by itself.
+
+    Raises:
+        TypeError: `overrides` is a single override, not a list of them.
+
+    """
+    if isinstance(overrides, str | Path | Mapping):
+        msg = "`overrides` takes a list of overrides; put a single one in a list."
+        raise TypeError(msg)
     return [(_per_call_label(k, o), _layer(o)) for k, o in enumerate(overrides, 1)]
 
 
@@ -649,6 +657,22 @@ def _scale(
     _scale_rows(m, n, sources, rules, objective)
 
 
+def _repeated(n: Network, per_call: Sequence[Layer]) -> list[str]:
+    """Return where a per-call override removes an entry a stored override removes already."""
+    stored = {k: _removals(p) for k, p in n.optimize.overrides.items()}
+    return [
+        f"{label} removes {both}, which the stored override {k!r} removes already"
+        for label, patch in per_call
+        for k, removed in stored.items()
+        if (both := sorted(_removals(patch) & removed))
+    ]
+
+
+def _removals(patch: Mapping[str, Any]) -> set[str]:
+    """Return the keys a patch removes."""
+    return {k for k, entry in written(patch).items() if entry is None}
+
+
 def build_model(
     n: Network,
     network_index: pd.Index,
@@ -662,7 +686,16 @@ def build_model(
     expressions: bool = False,
     **options: Any,
 ) -> Model:
-    """Build the model of `n` over the build's snapshots from the spec, with its composites, its stored overrides and then *overrides* laid over it."""
+    """Build the model of `n` over the build's snapshots from the spec, with its composites, its stored overrides and then *overrides* laid over it.
+
+    Raises:
+        mathspec.errors.LanguageError: A layer does not hold, as where an
+            override in *overrides* removes an entry a stored override
+            removes already.
+
+    """
+    from mathspec.errors import LanguageError  # noqa: PLC0415
+
     check(
         n,
         network_index,
@@ -673,8 +706,15 @@ def build_model(
     model_kwargs = model_kwargs or {}
     n.calculate_dependent_values()
     stack, _ = _stack(n, linearized_unit_commitment, piecewise_options)
-    layers = [*stack, *_per_call(overrides)]
-    s, expanded = _formulation(linearized_unit_commitment, layers)
+    per_call = _per_call(overrides)
+    try:
+        s, expanded = _formulation(linearized_unit_commitment, [*stack, *per_call])
+    except LanguageError as e:
+        if repeated := _repeated(n, per_call):
+            text = "; ".join(repeated)
+            msg = f"{text[:1].upper()}{text[1:]}. Drop the removal from `overrides`."
+            raise LanguageError(msg) from e
+        raise
     if stored := list(n.optimize.overrides):
         logger.info("The build applies the stored overrides %s.", stored)
     sources = NetworkSources(
