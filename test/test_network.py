@@ -805,7 +805,7 @@ def test_1319():
     n.model.solver_model = None
     n_copy = n.copy()  # Should not raise an error
     assert n_copy is not n
-    assert len(n_copy.buses) == len(n.c.buses.static)
+    assert len(n_copy.c.buses.static) == len(n.c.buses.static)
 
 
 def test_1420(tmp_path):
@@ -896,6 +896,30 @@ def test_single_add_network_with_time(ac_dc_network, n_5bus):
     assert new_buses.issuperset(n_5bus.c.buses.static.index)
 
 
+def test_merge_keeps_empty_dynamic_output():
+    """Merging keeps empty dynamic outputs empty (#1606)."""
+    snapshots = pd.date_range("2024-01-01", periods=3, freq="h")
+
+    n = pypsa.Network()
+    n.set_snapshots(snapshots)
+    n.add("Bus", ["bus1", "bus2"])
+    n.add("Link", "link1", bus0="bus1", bus1="bus2")
+
+    other = pypsa.Network()
+    other.set_snapshots(snapshots)
+    other.add("Bus", ["bus3", "bus4"])
+    other.add("Link", "link2", bus0="bus3", bus1="bus4")
+    other.add("Load", "load1", bus="bus3", p_set=[1.0, 2.0, 3.0])
+
+    assert n.c.links.dynamic["p0"].empty
+    assert other.c.links.dynamic["p0"].empty
+
+    merged = n.merge(other, with_time=True)
+
+    assert merged.c.links.dynamic["p0"].empty
+    assert merged.c.loads.dynamic["p_set"]["load1"].tolist() == [1.0, 2.0, 3.0]
+
+
 def test_shape_reprojection(ac_dc_shapes):
     n = ac_dc_shapes
 
@@ -913,7 +937,7 @@ def test_shape_reprojection(ac_dc_shapes):
 
 
 def test_components_referencing(ac_dc_network):
-    with pypsa.option_context("api.new_components_api", False):
+    with pypsa.option_context("future.components_api", False):
         ac_dc_network = pypsa.examples.ac_dc_meshed()
         assert id(ac_dc_network.buses) == id(ac_dc_network.components.buses.static)
         assert id(ac_dc_network.c.buses.dynamic) == id(
@@ -1013,7 +1037,7 @@ def test_api_components_legacy(new_components_api):
     """
     Test the API of the components module.
     """
-    with pypsa.option_context("api.new_components_api", new_components_api):
+    with pypsa.option_context("future.components_api", new_components_api):
         n = pypsa.examples.ac_dc_meshed()
 
         if not new_components_api:
@@ -1051,7 +1075,7 @@ def test_api_new_components_api(component_name, new_components_api):
         message=".*is deprecated as of 1.0 and will be .*",
         category=DeprecationWarning,
     )
-    with pypsa.option_context("api.new_components_api", new_components_api):
+    with pypsa.option_context("future.components_api", new_components_api):
         n = pypsa.examples.ac_dc_meshed()
         if not new_components_api:
             with pytest.warns(
@@ -1163,3 +1187,40 @@ def test_sanitize_no_changes_needed():
     n2.sanitize()
     assert ("s1", "missing_bus") in n2.c.buses.static.index
     assert ("s1", "missing_carrier") in n2.c.carriers.static.index
+
+
+@pytest.mark.parametrize("value", [True, False])
+@pytest.mark.parametrize("key", ["future.components_api", "api.new_components_api"])
+def test_components_api_flag_and_old_key(key, value):
+    """The old key and the new flag give the same accessor types."""
+    n = pypsa.examples.ac_dc_meshed()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        with pypsa.option_context(key, value):
+            assert pypsa.options.future.components_api is value
+            assert pypsa.options.api.new_components_api is value
+            expected = type(n.c.buses) if value else pd.DataFrame
+            assert isinstance(n.buses, expected)
+
+
+@pytest.mark.parametrize("flag", [None, False])
+def test_components_api_legacy_accessors_silent(flag):
+    """Legacy getters and setters don't warn while the new API is off."""
+    n = pypsa.examples.ac_dc_meshed()
+    with (
+        pypsa.option_context("future.components_api", flag),
+        warnings.catch_warnings(),
+    ):
+        warnings.simplefilter("error", pypsa.PyPSA2Warning)
+        n.buses = n.c.buses.static
+        assert isinstance(n.lines, pd.DataFrame)
+
+
+@pytest.mark.parametrize("end", ["bus0", "bus1"])
+def test_determine_network_topology_missing_bus(end):
+    n = pypsa.Network()
+    n.add("Bus", ["a", "b"])
+    n.add("Line", "l", bus0="a", bus1="b", x=0.1)
+    n.c.lines.static.loc["l", end] = "x"
+    with pytest.raises(ValueError, match="l at x"):
+        n.determine_network_topology()

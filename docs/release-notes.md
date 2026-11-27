@@ -28,24 +28,38 @@ SPDX-License-Identifier: CC-BY-4.0
     - **Behavior change**: With `keep_files=True`, the rolling horizon no longer keeps a problem file unless `io_api` or `problem_fn` is passed, and the solver log follows the direct API.
     - **Behavior change**: The voltage angles `v_ang` after the optimization are now zero at the slack bus of each sub-network, as in [`n.lpf()`][pypsa.Network.lpf]. Before, they were shifted to zero mean per sub-network. Angle differences across lines are unchanged.
 - Add the argument `consistency_check` to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] to skip the consistency check before building the model.
+- Add [`get_segment_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.get_segment_map], [`get_resample_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.get_resample_map] and [`get_downsample_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.get_downsample_map] to `n.cluster.temporal`. Each returns the snapshot map without building the clustered network. [`segment()`][pypsa.clustering.temporal.TemporalClusteringMixin.segment], [`resample()`][pypsa.clustering.temporal.TemporalClusteringMixin.resample] and [`downsample()`][pypsa.clustering.temporal.TemporalClusteringMixin.downsample] now apply their map with [`from_snapshot_map()`][pypsa.clustering.temporal.TemporalClusteringMixin.from_snapshot_map]. `segment()` also supports investment periods and takes `drop_duplicates=True`, which counts identical time series once. On 3030 series with 330 distinct ones, this cut the tsam run time from 94 s to 10 s.
+
+### Deprecations
+
+- Deprecate `get_segment_result()`, `get_resample_result()`, `get_downsample_result()` and `get_from_snapshot_map_result()` of `n.cluster.temporal`, and the argument `solver` of `segment()`. They will be removed in PyPSA 2.0. Call a `get_*_map()` method and `from_snapshot_map()` instead.
+    - **Behavior change**: `segment()` requires tsam 3 or later, and the optional dependency is pinned to `tsam>=3`.
 
 ### Enhancements
 
+- Move the topology algorithms of the passive network (sub-networks, cycle basis, incidence, PTDF, BODF) into private functions that need no network, which the `Network` and `SubNetwork` methods call. Results are unchanged. (<!-- md:pr 2200 -->)
+    - **Behavior change**: A passive branch at a missing bus makes [`n.determine_network_topology()`][pypsa.Network.determine_network_topology] raise a `ValueError` that names the branch and the bus. Before, the error read "graph should be a square array".
 - Deprecation: [`n.plot.iplot()`][pypsa.plot.accessor.PlotAccessor.iplot] is deprecated and will be removed in PyPSA 2.0. Use [`n.plot.explore()`][pypsa.plot.accessor.PlotAccessor.explore] instead. The interactive statistics plots `n.statistics.*.iplot()` are not affected. (<!-- md:pr 2158 -->)
 - Deprecation: `pypsa.network.power_flow.aggregate_multi_graph` is deprecated and will be removed in PyPSA 2.0 without replacement. (<!-- md:pr 2158 -->)
 - Deprecation: `c.n_save` and `c.attached` of [`Components`][pypsa.Components] are deprecated and will be removed in PyPSA 2.0. Components are attached to a network, use `c.n`. (<!-- md:pr 2106 -->)
+- Deprecation: `api.legacy_string_dtype`, `api.new_components_api` and `params.optimize.include_objective_constant` are renamed to `future.string_dtype`, `future.components_api` and `future.exclude_objective_constant` (first and last inverted), joined by the new `future.inds_order`. Unset flags emit a `PyPSA2Warning` where the 2.0 behaviour applies, except `future.components_api`, which stays silent. `PYPSA_FUTURE=true` opts in to all 2.0 behaviour at once. See <!-- md:guide options.md -->. (<!-- md:pr 2163 -->)
 
 ### Documentation
 
 - Add a new example on [forecast errors and the value of foresight](./examples/forecast-errors.ipynb), which operates a price-taker battery against price forecasts that are reissued every day and settles the committed schedule at realised prices. (<!-- md:pr 1928 -->)
 - Added an [example notebook](./examples/data-centre-investment.ipynb) on data centre investment with a willingness to pay, modelled as an extendable generator with negative sign and quadratic marginal costs.
 - Extend the [unit commitment example](./examples/unit-commitment.ipynb) with committable demand: load shedding in blocks and flexible demand with start-up cost. (<!-- md:pr 2147 -->)
+- Moved the AI-based contribution guidelines to their own page, [AI-based Contributions](contributing/ai.md), reachable at docs.pypsa.org/ai. (<!-- md:pr 2194 -->)
 
 ### Bug Fixes
 
+- Fix [`n.merge`][pypsa.Network.merge] filling dynamic output data such as the links' `p0` with default values, even when the data was absent from both input networks. Empty time series are now skipped during the merge.
+- Fix modelling-to-generate-alternatives (MGA) objectives that combine weights across component types with different names under linopy v1 semantics.
+- Fix building multi-period models with [`n.optimize(multi_investment_periods=True)`][pypsa.optimization.OptimizationAccessor.__call__] when a link is inactive in some investment periods, which raised a `ValueError` about NaN constants with the stricter arithmetic of upcoming linopy releases. (<!-- md:pr 2180 -->)
 - Fix the line rating `s_nom` of [`n.import_from_pandapower_net()`][pypsa.Network.import_from_pandapower_net] with `extra_line_data=True`. It is now the three-phase rating `sqrt(3) * u * max_i_ka * df * parallel` that pandapower's `loading_percent` refers to. Before, the factor `sqrt(3)` was missing and `df` and `parallel` were not applied, so imported lines came in at a fraction of their rating. (<!-- md:pr 2179 -->)
 - Re-exporting a network to an existing CSV folder now removes the files of components that no longer exist. Before, the stale files were kept and the removed components reappeared on import. (<!-- md:pr 2158 -->)
 - Fix importing networks from Excel files given as a URL, which raised a `FileNotFoundError`. (<!-- md:pr 2158 -->)
+- Fix the warning about zero series impedances in [`sub_network.calculate_B_H()`][pypsa.SubNetwork.calculate_B_H], which never fired. (<!-- md:pr 2200 -->)
 - Fix ramp limits raising an error with linopy versions after 0.9.1 when optimizing only part of the snapshots of a network with investment periods, e.g. in [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon]. (<!-- md:pr 2079 -->)
 - Re-adding an existing component with piecewise data via `n.add()` without `overwrite=True` no longer appends a second curve to it. (<!-- md:pr 2153 -->)
 - Fix [`n.pf(distribute_slack=True)`][pypsa.Network.pf] on single-bus sub-networks with `slack_weights` `"p_nom"`, `"p_nom_opt"` or custom weights. (<!-- md:pr 2152 -->)
@@ -56,6 +70,9 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix [`n.add()`][pypsa.Network.add] leaving `NaN` in attributes that a later call introduces, such as `efficiency2` on links added before the first link with a third bus. Existing components now get the attribute default, so the consistency check no longer warns about missing values for ports they do not have. (<!-- md:pr 2105 -->)
 - **Behavior change**: The `{Component}-{attr}_set` constraints (e.g. `Generator-p_nom_set`) use the dimension `name` instead of `{Component}-{attr}_set_i`, like all other constraints. Custom constraints in `extra_functionality` that select on the old dimension need updating. (<!-- md:pr 2052 -->)
 - Fix maintenance of modular committable components that are not extendable returning status `('ok', 'unknown')` without a solution. (<!-- md:pr 2100 -->)
+- Fix the snapshot weightings and labels of temporal clustering. `segment()` and `downsample()` now sum the weightings of each block, so the total modelled hours stay the same. `segment()` now treats each snapshot as one time step, keeps the labels of non-datetime snapshots and applies `aggregation_rules`.
+    - **Behavior change**: The clustered network changes for uneven weightings, non-hourly or non-datetime snapshots, `e_max_pu` and `e_min_pu`, and missing values, which `segment()` no longer counts as zero.
+    - **Behavior change**: The snapshot map of `resample()` changes with `drop_leap_day=True` and for offsets labelled at the bin end, such as `"W"`. With `drop_leap_day=True` and no snapshot on March 1, `resample()` raises a `ValueError`. Bins whose objective weighting is zero are kept.
 - Fix [`n.statistics.prices()`][pypsa.statistics.StatisticsAccessor.prices] with `groupby` dropping the `scenario` level of stochastic networks and the `network` level of network collections, averaging their prices together. Grouped prices now keep these levels like the ungrouped prices. (<!-- md:pr 2103 -->)
 - Fix stochastic networks silently using the first scenario's branch impedances in all scenarios. The consistency check now raises if `v_nom`, `x_pu_eff` or `r_pu_eff` vary across scenarios. (<!-- md:pr 2104 -->)
 - Fix `KeyError` in `primary_energy` global constraints with `investment_period` and per-period initial storage levels on networks without scenarios. Only the stated period's storage change is counted. (<!-- md:pr 2099 -->)
@@ -67,6 +84,7 @@ SPDX-License-Identifier: CC-BY-4.0
 - Fix the `"bfs-refined"` cycle basis depending on `PYTHONHASHSEED`. Start, direction and refinement order of each cycle now follow the bus order, so two runs write the same KVL constraints and LP files. The basis can differ from v1.4.0, the optimum does not. (<!-- md:pr 2023 -->)
 - Fix [`n.lpf_contingency()`][pypsa.Network.lpf_contingency] returning `NaN` for branches in AC sub-networks unaffected by the outage. Those branches now keep their base-case flows. (<!-- md:pr 2068 -->)
 - Fix [`n.optimize.optimize_with_rolling_horizon()`][pypsa.optimization.OptimizationAccessor.optimize_with_rolling_horizon] leaving `n.buses_t.v_ang` with only the last window's snapshots when a sub-network has a single bus. The voltage angles now cover all snapshots, like the other time-varying outputs. (<!-- md:pr 2064 -->)
+- Fix capacity statistics of [Link](./user-guide/components/links.md) and [Process](./user-guide/components/processes.md) ports with a time-varying efficiency using a stale static value. They now use the mean of the series, weighted by the generator snapshot weightings. (<!-- md:pr 2193 -->)
 - Fix [`n.add()`][pypsa.Network.add] silently dropping custom time-varying attributes of all but the first call. Later calls now add their columns to the existing frame, and `overwrite=True` replaces them. (<!-- md:pr 2063 -->)
 - Fix [`n.statistics.prices(weighting="load")`][pypsa.statistics.StatisticsAccessor.prices] on stochastic networks and network collections. Before, the load weights were dropped and the prices silently fell back to time weighting. Each scenario and each collection member is now weighted by its own withdrawal. (<!-- md:pr 2054 -->)
 - Fix `KeyError` in [`rename_component_names`][pypsa.Components.rename_component_names] when renaming non-bus components (such as links, lines, and carriers) in an attached network ([#2057](https://github.com/PyPSA/PyPSA/issues/2057)).
