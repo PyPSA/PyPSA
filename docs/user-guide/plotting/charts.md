@@ -309,6 +309,72 @@ All the logic for static plots, using `n.statistics.<metric>.plot.<plot_type>()`
     </figure>
 
 
+## Sankey Diagrams
+
+[`n.statistics.sankey()`][pypsa.statistics.StatisticsAccessor.sankey] draws the [energy balance][pypsa.statistics.StatisticsAccessor.energy_balance] over all snapshots as an interactive Plotly Sankey diagram. Bus carriers are hubs, generators and loads are sources and sinks, and links and processes are technologies between hubs. What a technology withdraws but does not supply goes to a losses node; what it supplies beyond its withdrawal, as for a heat pump, comes from a gains node. The function raises an error if a hub or technology is not balanced.
+
+#### Energy flows
+
+Select the hubs with `bus_carrier`, here all bus carriers except those for carbon dioxide. `merge` joins the electricity buses and hides the battery internals, and `collapse=True` replaces all technologies by direct flows between hubs. Hover over a flow to see its technology.
+
+``` py
+>>> co2 = ["co2", "co2 stored", "co2 sequestered", "process emissions"]
+>>> electricity = ["AC", "low voltage", "battery", "home battery", "Li ion"]
+>>> n.statistics.sankey(  # doctest: +SKIP
+...     bus_carrier=list(n.carriers.index.intersection(n.buses.carrier).difference(co2)),
+...     merge=dict.fromkeys(electricity, "electricity") | {"water tanks": "heat"},
+...     collapse=True,
+...     scale=1e-6,
+...     unit="TWh",
+... )
+```
+
+<div style="width: 100%; height: 600px;">
+    <iframe src="../../../assets/interactive/carbon_management-sankey-energy.html"
+            width="100%" height="100%" frameborder="0" style="border: 0px solid #ccc;">
+    </iframe>
+</div>
+
+#### Carbon dioxide flows
+
+Carbon dioxide has a different unit, so it gets its own diagram. `split` shows the atmosphere (`co2`) as a supplying and a receiving node, because carbon dioxide is both emitted to it and captured from it. Carbon that leaves the selected bus carriers inside synthetic fuels ends in the losses node, which is renamed here.
+
+``` py
+>>> n.statistics.sankey(  # doctest: +SKIP
+...     bus_carrier=co2,
+...     split=["co2"],
+...     losses="carbon in fuels",
+...     scale=1e-6,
+...     unit="Mt",
+... )
+```
+
+<div style="width: 100%; height: 500px;">
+    <iframe src="../../../assets/interactive/carbon_management-sankey-co2.html"
+            width="100%" height="100%" frameborder="0" style="border: 0px solid #ccc;">
+    </iframe>
+</div>
+
+#### Options
+
+The figure shows the main arguments on a small network. Further arguments convert bus carriers to a common unit (`weights`, for example the carbon dioxide content of fuels in t/MWh) and select an investment period or scenario (`period`, `scenario`).
+
+<figure markdown="span">
+![Options of the Sankey diagram](../../assets/images/sankey-options.png){ width="900" }
+</figure>
+
+!!! tip "Adjusting the figure"
+
+    The function returns a Plotly figure, which can be changed afterwards:
+
+    ``` py
+    >>> fig = n.statistics.sankey(bus_carrier="AC")  # doctest: +SKIP
+    >>> fig.update_traces(node_pad=20, node_thickness=15)  # doctest: +SKIP
+    >>> fig.update_layout(width=1000, height=600, font_size=12)  # doctest: +SKIP
+    >>> fig.write_image("sankey.pdf")  # doctest: +SKIP
+    ```
+
+
 <!-- ## Plotting based on network data
 
 Any plotting functionality is optional and only extend the existing statistics module to simplify the creation of plots. All data in PyPSA is  -->

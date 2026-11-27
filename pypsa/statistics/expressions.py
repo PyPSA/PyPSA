@@ -23,11 +23,13 @@ from pypsa.common import (
 )
 from pypsa.descriptors import nominal_attrs
 from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
+from pypsa.plot.statistics.sankey import get_flows, plot_sankey
 from pypsa.statistics.abstract import AbstractStatisticsAccessor, resolve_at_port
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
+    import plotly.graph_objects as go
     import xarray as xr
 
     from pypsa import Network, NetworkCollection
@@ -2357,6 +2359,144 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["name"] = "Energy Balance"
         df.attrs["unit"] = n.bus_carrier_unit(bus_carrier)
         return df
+
+    def sankey(
+        self,
+        bus_carrier: str | Sequence[str] | None = None,
+        weights: dict[str, float] | None = None,
+        merge: dict[str, str] | None = None,
+        collapse: bool | Sequence[str] = False,
+        split: bool | Sequence[str] = True,
+        threshold: float = 0.01,
+        period: int | None = None,
+        scenario: str | None = None,
+        losses: str = "losses",
+        gains: str = "gains",
+        scale: float = 1.0,
+        unit: str | None = None,
+        annotate: bool = True,
+        nice_names: bool | None = None,
+    ) -> go.Figure:
+        """Plot the **energy balance** of the network as a Sankey diagram.
+
+        The diagram shows the net flows over all snapshots. Each bus carrier is a
+        hub. Carriers that only supply or only withdraw are sources or sinks of
+        a hub, for example generators and loads. Links and processes with inputs
+        and outputs are technologies between hubs. A technology that withdraws
+        more than it supplies sends the difference to a losses node. A technology
+        that supplies more than it withdraws, for example a heat pump, receives
+        the difference from a gains node. The net withdrawal of lines and other
+        branches within one hub also goes to the losses node. All hubs and
+        technologies are checked to be balanced.
+
+        Parameters
+        ----------
+        bus_carrier : str | Sequence[str] | None, default=None
+            Bus carriers to include as hubs. Select bus carriers with the same unit,
+            for example to separate energy from carbon dioxide flows. Technologies
+            only show the flows at these bus carriers. Defaults to all bus carriers.
+        weights : dict[str, float] | None, default=None
+            Factors to multiply the flows of bus carriers with, to convert them
+            to a common unit. For example, the carbon dioxide intensity of fuels
+            in t/MWh shows the carbon in fuels next to carbon dioxide flows.
+        merge : dict[str, str] | None, default=None
+            Bus carriers to merge, as mapping from the bus carrier to the name of
+            the merged hub. Flows between merged bus carriers net out and their
+            losses go to the losses node. Use it to hide internals, for example
+            `{"battery": "AC", "low voltage": "AC"}`.
+        collapse : bool | Sequence[str], default=False
+            Technologies to replace by direct flows between hubs. With `True`, all
+            technologies are replaced, so that only flows between bus carriers
+            remain. Each input of a technology is shared among its outputs in
+            proportion to their size.
+        split : bool | Sequence[str], default=True
+            Bus carriers to show as two nodes: one that only supplies and one that
+            only receives, for example the atmosphere in carbon dioxide flows.
+            Remaining cycles are cut by splitting their smallest bus carrier
+            until the diagram has no cycles. With `True`, only cycles are cut.
+            With `False`, cycles are drawn as loops.
+        threshold : float, default=0.01
+            Share of the largest bus carrier below which carriers and bus carriers
+            are aggregated to "other".
+        period : int | None, default=None
+            Investment period to show. Defaults to the sum of all investment
+            periods.
+        scenario : str | None, default=None
+            Scenario of a stochastic network to show. Defaults to the expected
+            value over all scenarios.
+        losses : str, default="losses"
+            Name of the node that collects the losses.
+        gains : str, default="gains"
+            Name of the node that supplies the gains.
+        scale : float, default=1.0
+            Factor to multiply the values with, for example `1e-6` to convert MWh
+            to TWh.
+        unit : str | None, default=None
+            Unit of the values. Defaults to the unit of the bus carriers if it is
+            unique and the values are neither scaled nor weighted.
+        annotate : bool, default=True
+            Whether to add the value to the label of each node.
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names defined in n.carriers.nice_name. Bus
+            carriers or technologies with the same nice name are merged. The other
+            arguments accept carrier names and nice names. Defaults to module wide
+            option (default: True).
+            See `https://go.pypsa.org/options-params` for more information.
+
+        Returns
+        -------
+        plotly.graph_objects.Figure
+            Sankey diagram. Colors are taken from `n.carriers.color`.
+
+        Raises
+        ------
+        ValueError
+            If the inflow and outflow of a hub or technology differ.
+
+        Examples
+        --------
+        >>> fig = n.statistics.sankey(bus_carrier="AC")  # doctest: +SKIP
+
+        """
+        n = cast("Network", self._n)
+        if nice_names is None:
+            nice_names = options.params.statistics.nice_names
+        if unit is None:
+            known = scale == 1 and not weights
+            unit = n.bus_carrier_unit(bus_carrier) if known else ""
+            unit = unit.replace("carrier dependent", "")
+
+        groupby = ["carrier", "bus_carrier"]
+        balance = self.energy_balance(groupby=groupby, nice_names=False, round=10)
+        if isinstance(balance, pd.DataFrame):
+            balance = balance.sum(axis=1) if period is None else balance[period]
+        if scenario is not None:
+            balance = balance.xs(scenario, level="scenario")
+        elif "scenario" in balance.index.names:
+            balance = balance.mul(n.scenario_weightings.weight, level="scenario")
+            balance = balance.groupby(level=["component", *groupby]).sum()
+
+        flows = get_flows(
+            n,
+            balance,
+            bus_carrier=bus_carrier,
+            weights=weights,
+            merge=merge,
+            collapse=collapse,
+            split=split,
+            threshold=threshold,
+            nice_names=nice_names,
+        )
+        return plot_sankey(
+            n,
+            flows,
+            losses=losses,
+            gains=gains,
+            scale=scale,
+            unit=unit,
+            annotate=annotate,
+            nice_names=nice_names,
+        )
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     @deprecated_kwargs(
