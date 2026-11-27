@@ -90,13 +90,32 @@ def test_no_placeholder_is_a_mathspec_keyword():
     assert PLACEHOLDERS.isdisjoint({"AND", "OR", "NOT"})
 
 
-def test_a_trait_description_takes_the_names_of_the_component(tmp_path):
-    (tmp_path / "traits").mkdir()
-    (tmp_path / "traits" / "multiport.yaml").write_text(
+@pytest.fixture
+def bare_spec(tmp_path: Path) -> Path:
+    for folder in ("traits", "components"):
+        (tmp_path / folder).mkdir()
+    for c in formulated(pypsa.Network()):
+        stems = [f"traits/{t}" for t in c._formulation]
+        for stem in ["system", f"components/{_snake(c.name)}", *stems]:
+            (tmp_path / f"{stem}.yaml").write_text("{}")
+    return tmp_path
+
+
+@pytest.mark.parametrize(
+    "path", ["system.yaml", "traits/ramping.yaml", "components/load.yaml"]
+)
+def test_a_spec_without_a_file_it_needs_fails(bare_spec, path):
+    (bare_spec / path).unlink()
+    with pytest.raises(FileNotFoundError, match=f"has no {path}"):
+        render(bare_spec)
+
+
+def test_a_trait_description_takes_the_names_of_the_component(bare_spec):
+    (bare_spec / "traits" / "multiport.yaml").write_text(
         "dimensions:\n  UNIT_port: {}\nparameters:\n  COMPONENT_COEF_x:\n"
         "    dims: [UNIT_port]\n    description: the `COEF` of a `UNIT` port\n"
     )
-    spec = render(tmp_path)[0]
+    spec = render(bare_spec)[0]
     assert spec.parameters["Link_efficiency_x"].description == (
         "the `efficiency` of a `Link` port"
     )
@@ -195,7 +214,7 @@ def test_a_source_key_takes_one_derivation(key):
 def test_a_source_name_takes_one_derivation(monkeypatch):
     monkeypatch.setitem(_SOURCES, "Generator_active", lambda s, name: None)
     with pytest.raises(ValueError, match="Generator_active has two derivations"):
-        _providers(formulated(pypsa.Network()))
+        _providers(formulated(pypsa.Network()), {"Generator_active"})
 
 
 def test_a_subclass_extends_the_source_registry(ac_dc_network):
@@ -203,7 +222,9 @@ def test_a_subclass_extends_the_source_registry(ac_dc_network):
         def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
             extra = {"COMPONENT_tag": lambda s, name, c: s.filled(name, 2.0)}
-            self._providers = _providers(self.units.values(), _SOURCES | extra)
+            self._providers = _providers(
+                self.units.values(), self._keys, _SOURCES | extra
+            )
 
     n = ac_dc_network
     s = mathspec.override(

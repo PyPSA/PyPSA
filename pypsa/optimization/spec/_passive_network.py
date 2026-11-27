@@ -18,7 +18,13 @@ import pandas as pd
 import xarray as xr
 
 from pypsa.optimization.flow_based import _build_domain
-from pypsa.optimization.spec.sources import NetworkSources, source
+from pypsa.optimization.spec.sources import (
+    NetworkSources,
+    finite,
+    optional,
+    relation,
+    source,
+)
 
 if TYPE_CHECKING:
     from pypsa.components import Components
@@ -27,6 +33,10 @@ if TYPE_CHECKING:
 DEG2RAD = np.pi / 180
 CYCLE_SCALE = 1e5
 NO_DOMAIN = "flow_based"
+
+source("COMPONENT_bus0", "COMPONENT_bus1")(relation)
+source("COMPONENT_s_set")(optional)
+source("COMPONENT_v_ang_max")(finite)
 
 
 def _investment_period(s: NetworkSources, period: int) -> int | None:

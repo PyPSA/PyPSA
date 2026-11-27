@@ -215,9 +215,9 @@ def render(
     """Return the spec *root* states, its PyPSA names and scaling rules, with the patch in *patch* laid over.
 
     It is `system.yaml`, then for each component every trait file under
-    `traits/` it declares, renamed, and its own file under `components/`,
-    wherever *root* has one. A file under *patch* at one of these paths is
-    part of the patch. An entry of a variable, constraint or piecewise
+    `traits/` it declares, renamed, and its own file under `components/`;
+    *root* holds each. A file under *patch* at one of these paths is part
+    of the patch. An entry of a variable, constraint or piecewise
     curve may state its PyPSA name in `name:`, one per loss mode where
     PyPSA names it by mode; one without keeps its key as name. It may
     also name in `scaling:` one of the rules `SCALINGS` allows in its
@@ -231,6 +231,7 @@ def render(
     read what the traits declare.
 
     Raises:
+        FileNotFoundError: *root* lacks one of these files.
         ValueError: Two files declare one entry.
         mathspec.errors.LanguageError: A trait does not load on its own.
 
@@ -249,14 +250,16 @@ def render(
     names: Names = {section: {} for section in NAMED}
     scalings: Scalings = {}
     for path, rename in paths:
-        if (root / path).is_file():
-            fragment, found, scaled = _load(root / path, rename)
-            if path.startswith("traits/"):
-                renamed = mathspec.rename(fragment, rename).to_dict()
-                fragment = _described(renamed, rename)
-            _merge(spec, fragment, str(root / path))
-            names = {s: names[s] | found[s] for s in NAMED}
-            scalings |= scaled
+        if not (root / path).is_file():
+            msg = f"The spec at {root} has no {path}, which the components with a formulation need."
+            raise FileNotFoundError(msg)
+        fragment, found, scaled = _load(root / path, rename)
+        if path.startswith("traits/"):
+            renamed = mathspec.rename(fragment, rename).to_dict()
+            fragment = _described(renamed, rename)
+        _merge(spec, fragment, str(root / path))
+        names = {s: names[s] | found[s] for s in NAMED}
+        scalings |= scaled
         if patch is not None and (patch / path).is_file():
             fragment, found, scaled = _load(patch / path, rename)
             _merge(patched, _renamed(fragment, rename), str(patch / path))

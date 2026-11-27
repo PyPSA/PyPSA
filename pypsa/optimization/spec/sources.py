@@ -10,7 +10,9 @@ parameter named `<Component>_<attr>` after a PyPSA attribute is read off
 `c.da`, a relation `<Component>_<column>` off a static column, and a
 dimension takes the labels its relations map into it. Every other key is
 derived by the one function registered for it with `source`, as its
-description in the spec states.
+description in the spec states. This module registers the labels and
+weightings; a module beside it, one per trait or topic, as `_commitment`,
+registers the keys of its trait or topic.
 """
 
 from __future__ import annotations
@@ -75,14 +77,15 @@ def source[F: Callable[..., Any]](*keys: str) -> Callable[[F], F]:
 
 def _providers(
     components: Collection[Components],
+    declared: Collection[str],
     sources: Mapping[str, Callable[..., Any]] = _SOURCES,
 ) -> dict[str, Callable[..., Any]]:
-    """Return the derivation in `sources` of each source name, a placeholder key stated per component that has its placeholders."""
+    """Return the derivation in `sources` of each name in `declared`, a placeholder key stated per component that has its placeholders."""
     general = {
         k: f for k, f in sources.items() if PLACEHOLDERS.isdisjoint(WORD.findall(k))
     }
     stated = {k: f for k, f in sources.items() if k not in general}
-    providers = dict(general)
+    providers = {k: f for k, f in general.items() if k in declared}
     for c in components:
         rename = renamer(c)
         known = symbols(c).keys()
@@ -90,6 +93,8 @@ def _providers(
             if not PLACEHOLDERS.intersection(WORD.findall(key)) <= known:
                 continue
             name = rename(key)
+            if name not in declared:
+                continue
             if name in providers:
                 msg = f"{name} has two derivations."
                 raise ValueError(msg)
@@ -148,15 +153,15 @@ class NetworkSources(Mapping[str, Any]):
         self.cycle_basis_method = cycle_basis_method
         self.branch_outages = branch_outages
         self.units = {c._unit_dim: c for c in formulated(n)}
-        self._providers = _providers(self.units.values())
+        self._keys = dict.fromkeys(
+            [*spec.dimensions, *spec.relations, *spec.parameters]
+        )
+        self._providers = _providers(self.units.values(), self._keys)
         providers = dict(providers or {})
         if clash := self._providers.keys() & providers.keys():
             msg = f"{sorted(clash)} have two derivations."
             raise ValueError(msg)
         self._providers |= providers
-        self._keys = dict.fromkeys(
-            [*spec.dimensions, *spec.relations, *spec.parameters]
-        )
         self._cache: dict[str, Any] = {}
 
     def __iter__(self) -> Iterator[str]:
@@ -391,8 +396,17 @@ class NetworkSources(Mapping[str, Any]):
         names = self.names(c)
         return names if index.equals(names) else index.to_numpy(dtype=object)
 
-    def unit_array(self, c: Components, da: xr.DataArray) -> xr.DataArray:
-        """Return a `c.da` array relabelled into the spec's dims."""
+    def unit_array(
+        self,
+        c: Components,
+        da: xr.DataArray,
+        snapshots: pd.Index | np.ndarray | None = None,
+    ) -> xr.DataArray:
+        """Return a `c.da` array relabelled into the spec's dims.
+
+        Its snapshots are the build's, or *snapshots* where given, which
+        labels the snapshots of `da` as they are.
+        """
         dim = c._unit_dim
         if "name" in da.dims:
             names = self.names(c)
@@ -401,14 +415,16 @@ class NetworkSources(Mapping[str, Any]):
             labels = self.labels(c, da.indexes["name"])
             da = da.rename(name=dim).assign_coords({dim: labels})
         if "snapshot" in da.dims:
-            if da.sizes["snapshot"] == len(self.n.snapshots):
-                da = da.isel(snapshot=self.positions)
+            if snapshots is None:
+                snapshots = self.snapshots
+                if da.sizes["snapshot"] == len(self.n.snapshots):
+                    da = da.isel(snapshot=self.positions)
             tied = [
                 k
                 for k in da.coords
                 if k == "snapshot" or (k not in da.dims and "snapshot" in da[k].dims)
             ]
-            da = da.drop_vars(tied).assign_coords(snapshot=self.snapshots)
+            da = da.drop_vars(tied).assign_coords(snapshot=snapshots)
         if "scenario" not in da.dims and self.n.has_scenarios:
             da = da.expand_dims(scenario=self.scenarios)
         elif "scenario" in da.dims and not self.n.has_scenarios:
@@ -737,335 +753,6 @@ def _cvar(s: NetworkSources, name: str) -> float | xr.DataArray:
     return float(preference[name.removeprefix("CVaR_")])
 
 
-# -- relations ------------------------------------------------------------
-
-
-@source("COMPONENT_bus", "COMPONENT_bus0", "COMPONENT_bus1", "COMPONENT_carrier")
-def _relation(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
-    """Map each unit to the label of its column, a bus or a carrier; no unit where the component lacks it."""
-    column = name.removeprefix(f"{c.name}_")
-    static = s.static(c)
-    if column not in static:
-        static = static.iloc[:0].reindex(columns=[column])
-    return pd.DataFrame(
-        {
-            c._unit_dim: static.index.to_numpy(dtype=object),
-            column.rstrip("01"): static[column].to_numpy(dtype=object),
-        }
-    )
-
-
-@source("COMPONENT_port_bus", "COMPONENT_port_UNIT")
-def _port_field(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
-    """Map each port, (unit, number), to its bus, or to its unit."""
-    ports = s.ports(c)
-    if name.endswith("_bus"):
-        return ports.astype(object)
-    return ports.assign(owner=ports[c._unit_dim])[[c._unit_dim, "port", "owner"]]
-
-
-# -- activity -------------------------------------------------------------
-
-
-@source("COMPONENT_activity_mask")
-def _activity_mask(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    return s.active(c)
-
-
-@source("COMPONENT_active")
-def _active(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    return s.column(c, "active", bool)
-
-
-@source("COMPONENT_capital_weight")
-def _capital_weight(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    by_period = s.active_by_period(c)
-    if not s.multi_invest:
-        return by_period.any("period").astype(float)
-    return (by_period * s["period_weighting_objective"]).sum("period")
-
-
-@source("COMPONENT_first_active")
-def _first_active(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    by_period = s.active_by_period(c).astype(int)
-    first = (by_period == 1) & (by_period.cumsum("period") == 1)
-    return first.astype(float)
-
-
-@source("COMPONENT_capital_cost")
-def _capital_cost(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    return s.unit_array(c, c.periodized_cost)
-
-
-@source("COMPONENT_NOM_mod")
-def _nom_mod(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    da = s.attribute(c, name)
-    return da.where(da > 0)
-
-
-@source("COMPONENT_NOM_min", "COMPONENT_NOM_max")
-def _nom_bound(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    """Return the tightest bound of the scenarios on the build they share.
-
-    The cap is absent where no scenario extends the unit.
-    """
-    bound = s.da(c, s.attr(c, name))
-    if name.endswith("_min"):
-        return bound.max("scenario")
-    extendable = s.da(c, c._operational_attrs["nom_extendable"]).astype(bool)
-    return bound.min("scenario").where(extendable.any("scenario"))
-
-
-@source("COMPONENT_NOM_set", "COMPONENT_s_set")
-def _optional(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    """Return the attribute, NaN where the component has none."""
-    attr = name.removeprefix(f"{c.name}_")
-    if attr in c.static or attr in c.dynamic:
-        return s.attribute(c, name)
-    return s.filled(name, np.nan)
-
-
-@source("COMPONENT_p_min_pu_nonneg")
-def _p_min_pu_nonneg(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    pu = s.da(c, "p_min_pu")
-    return (pu >= 0).all([d for d in pu.dims if d != c._unit_dim])
-
-
-@source("COMPONENT_modules_installed")
-def _modules_installed(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    nom = c._operational_attrs["nom"]
-    mod = s.da(c, f"{nom}_mod")
-    modular = (mod > 0) & ~s.da(c, f"{nom}_extendable").astype(bool)
-    return xr.where(modular, s.da(c, nom) / mod.where(mod > 0, 1), 1.0)
-
-
-@source("COMPONENT_min_up_time", "COMPONENT_min_down_time")
-def _min_time(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    """Return the minimum time, at most the horizon: a longer window reads nothing more."""
-    return s.attribute(c, name).clip(max=len(s.snapshots))
-
-
-@source("COMPONENT_v_ang_max", "COMPONENT_cycles_max")
-def _finite(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    """Return the attribute, absent where infinite, so a unit without a limit has no row."""
-    limit = s.attribute(c, name)
-    return limit.where(np.isfinite(limit))
-
-
-# -- ports ----------------------------------------------------------------
-
-
-def _port_attribute(
-    s: NetworkSources, c: _Multiport, name: str, prefix: str, unset: float = np.nan
-) -> xr.DataArray:
-    """Return the attribute `<prefix><port suffix>` over (unit, port), NaN where a unit has no such port.
-
-    A port that has no such attribute, a Link's port 0, takes `unset`.
-    """
-    unit = c._unit_dim
-    parts = []
-    for k, group in s.ports(c).groupby("port", sort=True):
-        attr = f"{prefix}{c._port_suffix(k)}"
-        if attr in c.static or attr in c.dynamic:
-            da = s.da(c, attr)
-        else:
-            names = s.names(c).to_numpy()
-            da = xr.DataArray(np.full(len(names), unset), {unit: names}, unit)
-        has = da.indexes[unit].isin(group[unit])
-        mask = xr.DataArray(has, coords={unit: da.indexes[unit]}, dims=unit)
-        parts.append(da.where(mask).expand_dims(port=[k]))
-    if not parts:
-        return s.filled(name, np.nan)
-    da = xr.concat(parts, dim="port").reindex(port=s.coords("port"))
-    if "scenario" in da.dims and "scenario" not in s.declared(name):
-        da = da.isel(scenario=0, drop=True)
-    return s.frame(name, da)
-
-
-@source("Link_efficiency", "Process_rate")
-def _coefficient(s: NetworkSources, name: str) -> xr.DataArray:
-    c = s.n.components[name.partition("_")[0]]
-    return _port_attribute(s, c, name, c._coefficient_attr, unset=-1).astype(float)
-
-
-@source("COMPONENT_port_delay")
-def _port_delay(s: NetworkSources, name: str, c: _Multiport) -> xr.DataArray:
-    try:
-        delay = _port_attribute(s, c, name, "delay", unset=0)
-    except KeyError:
-        return s.filled(name, 0)
-    return delay.astype(float).fillna(0).astype(int)
-
-
-@source("COMPONENT_port_delay_source")
-def _port_delay_source(s: NetworkSources, name: str, c: _Multiport) -> pd.DataFrame:
-    """Each delayed port's source snapshot, as PyPSA's own indexer picks it."""
-    unit = c._unit_dim
-    static = s.static(c)
-    ports = s.ports(c)[[unit, "port"]]
-    delay = s[f"{c.name}_port_delay"]
-    at = (
-        delay.indexes[unit].get_indexer(ports[unit]),
-        delay.indexes["port"].get_indexer(ports["port"]),
-    )
-    ports = ports.assign(delay=delay.transpose(unit, "port").values[at], cyclic=True)
-    for k, group in ports.groupby("port"):
-        attr = f"cyclic_delay{c._port_suffix(k)}"
-        if attr in static:
-            cyclic = static[attr].reindex(group[unit]).to_numpy()
-            ports.loc[group.index, "cyclic"] = cyclic
-    delayed = ports[ports["delay"] > 0]
-    weightings = s.n.snapshot_weightings["generators"].iloc[s.positions].to_numpy()
-    frames = [pd.DataFrame(columns=[unit, "port", "snapshot", "source"])]
-    for (d, cyc), group in delayed.groupby(["delay", "cyclic"]):
-        src, valid = c.get_delay_source_indexer(
-            s.network_index, weightings, int(d), bool(cyc)
-        )
-        targets = np.flatnonzero(valid)
-        frames.append(
-            pd.DataFrame(
-                {
-                    unit: np.repeat(group[unit].to_numpy(dtype=object), len(targets)),
-                    "port": np.repeat(group["port"].to_numpy(), len(targets)),
-                    "snapshot": np.tile(s.snapshots[targets], len(group)),
-                    "source": np.tile(s.snapshots[src[targets]], len(group)),
-                }
-            )
-        )
-    return pd.concat(frames, ignore_index=True).astype(object)
-
-
-# -- commitment -----------------------------------------------------------
-
-
-def _solved_before(s: NetworkSources, c: Components, attr: str) -> xr.DataArray | None:
-    """`attr` as solved over the snapshots before the build, or None in the first window."""
-    start = int(s.positions[0])
-    if not start or c.dynamic[attr].empty:
-        return None
-    raw = c.da[attr].isel(snapshot=slice(0, start))
-    raw = raw.drop_vars([k for k in raw.coords if k not in raw.dims or k == "snapshot"])
-    raw = raw.assign_coords(snapshot=np.arange(start))
-    dim = c._unit_dim
-    raw = raw.sel(name=raw.indexes["name"].isin(s.names(c)))
-    raw = raw.rename(name=dim).assign_coords(
-        {dim: raw.indexes["name"].to_numpy(dtype=object)}
-    )
-    if "scenario" not in raw.dims:
-        raw = raw.expand_dims(scenario=s.scenarios)
-    return raw
-
-
-def _history(s: NetworkSources, c: Components) -> xr.DataArray:
-    """Return the status of each unit at the `lag` snapshots before the build, newest first.
-
-    Solved snapshots of earlier windows are read as solved, fractions included;
-    the time before the network's first snapshot is rebuilt from
-    `up_time_before` and `down_time_before`, the latter winning. A unit that is
-    not committable is on.
-    """
-    minimum = [s.da(c, f"min_{k}_time") for k in ("up", "down")]
-    length = int(max([1, *(m.max().item() for m in minimum if m.size)])) + 1
-    solved = _solved_before(s, c, "status")
-    count = 0 if solved is None else min(solved.sizes["snapshot"], length)
-    lag = xr.DataArray(np.arange(1, length - count + 1), dims="lag")
-    up = s.da(c, "up_time_before")
-    down = s.da(c, "down_time_before")
-    before = xr.where(down > 0, lag > down, lag <= up).astype(float)
-    parts = [before.assign_coords(lag=lag + count)]
-    if solved is not None and count:
-        recent = solved.isel(snapshot=slice(-count, None))
-        recent = recent.isel(snapshot=slice(None, None, -1)).rename(snapshot="lag")
-        parts.insert(0, recent.assign_coords(lag=np.arange(1, count + 1)))
-    history = xr.concat(parts, dim="lag")
-    return history.where(s.da(c, "committable").astype(bool), 1.0)
-
-
-@source("COMPONENT_up_time_brought_in", "COMPONENT_down_time_brought_in")
-def _brought_in(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    """How much of the start-ups (`up`) or shut-downs (`down`) before the build still bind.
-
-    A switch at lag `l` binds a snapshot at position `p` while `l + p` is
-    below the minimum up or down time.
-    """
-    kind = name.removeprefix(f"{c.name}_").partition("_")[0]
-    history = _history(s, c)
-    switches = history - history.shift(lag=-1)
-    switches = switches.isel(lag=slice(None, -1))
-    past = (switches if kind == "up" else -switches).clip(min=0)
-    minimum = s.da(c, f"min_{kind}_time")
-    position = s.over_snapshots(np.arange(len(s.snapshots)))
-    return (past * (past.lag + position < minimum)).sum("lag")
-
-
-@source("COMPONENT_p_init")
-def _p_init(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    """Return the output carried into the build.
-
-    It is the solved output of an earlier window, else `p_init` where the
-    unit came in running and zero where it came in off.
-    """
-    solved = _solved_before(s, c, "p0" if c.name == "Link" else "p")
-    if solved is None:
-        status = _history(s, c).sel(lag=1, drop=True)
-        return s.da(c, "p_init").where(status > 0, 0.0)
-    last = solved.isel(snapshot=-1, drop=True)
-    return last.reindex({c._unit_dim: s.names(c).to_numpy()})
-
-
-@source("COMPONENT_status_solved")
-def _status_solved(s: NetworkSources, name: str, c: Components) -> bool:
-    return _solved_before(s, c, "status") is not None
-
-
-@source("COMPONENT_status_initial")
-def _status_initial(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    return _history(s, c).sel(lag=1, drop=True)
-
-
-@source("COMPONENT_big_m")
-def _big_m(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    names = c.committables.intersection(c.extendables)
-    if names.empty:
-        return s.filled(name, np.nan)
-    values = c.get_committable_big_m_values(
-        names, committable_big_m=s.committable_big_m
-    )
-    return s.unit_array(c, values).reindex({c._unit_dim: s.names(c).to_numpy()})
-
-
-# -- storage --------------------------------------------------------------
-
-
-@source("COMPONENT_LEVEL_initial_per_period", "COMPONENT_CYCLIC_per_period")
-def _per_period(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    """Return the flag where the build has investment periods, false otherwise."""
-    return s.attribute(c, name) & s.multi_invest
-
-
-@source("COMPONENT_inactive_snapshots")
-def _inactive_snapshots(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    return (~s.active(c)).sum("snapshot").astype(int)
-
-
-@source("COMPONENT_opens_late")
-def _opens_late(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    active = s.active(c)
-    first = (active.cumsum("snapshot") == 1) & active
-    return first & (s.over_snapshots(np.arange(len(s.snapshots))) > 0)
-
-
-@source("COMPONENT_retention")
-def _retention(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
-    return (1 - s.da(c, "standing_loss")) ** s["snapshot_weighting_stores"]
-
-
-@source("Store_split_dispatch")
-def _store_split_dispatch(s: NetworkSources, name: str) -> xr.DataArray:
-    c = s.n.components.stores
-    return s.unit_array(c, xr.DataArray(c.split_dispatch())).astype(bool)
-
-
 @source("Bus_attached")
 def _bus_attached(s: NetworkSources, name: str) -> xr.DataArray:
     """Whether any active unit has a port at each bus, (bus, snapshot)."""
@@ -1080,3 +767,31 @@ def _bus_attached(s: NetworkSources, name: str) -> xr.DataArray:
             np.logical_or.at(attached, at[found], active[found])
     coords = {"bus": buses, "snapshot": s.coords("snapshot")}
     return xr.DataArray(attached, coords, ("bus", "snapshot"))
+
+
+def relation(s: NetworkSources, name: str, c: Components) -> pd.DataFrame:
+    """Map each unit to the label of its column, a bus or a carrier; no unit where the component lacks it."""
+    column = name.removeprefix(f"{c.name}_")
+    static = s.static(c)
+    if column not in static:
+        static = static.iloc[:0].reindex(columns=[column])
+    return pd.DataFrame(
+        {
+            c._unit_dim: static.index.to_numpy(dtype=object),
+            column.rstrip("01"): static[column].to_numpy(dtype=object),
+        }
+    )
+
+
+def optional(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
+    """Return the attribute, NaN where the component has none."""
+    attr = name.removeprefix(f"{c.name}_")
+    if attr in c.static or attr in c.dynamic:
+        return s.attribute(c, name)
+    return s.filled(name, np.nan)
+
+
+def finite(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
+    """Return the attribute, absent where infinite, so a unit without a limit has no row."""
+    limit = s.attribute(c, name)
+    return limit.where(np.isfinite(limit))

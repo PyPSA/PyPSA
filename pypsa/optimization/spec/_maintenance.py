@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Data prep of the spec: unit features."""
+"""Data prep of the spec: maintenance."""
 
 from __future__ import annotations
 

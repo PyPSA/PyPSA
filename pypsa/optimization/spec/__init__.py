@@ -5,10 +5,16 @@
 """PyPSA's optimisation problem, stated as a mathspec file and built by linopy."""
 
 from pypsa.optimization.spec import (  # noqa: F401  registers their sources
+    _capacity,
+    _commitment,
     _global_constraints,
+    _maintenance,
+    _multiport,
+    _oneport,
     _passive_network,
     _piecewise,
-    _unit_features,
+    _ramping,
+    _storage,
 )
 from pypsa.optimization.spec.build import build_model
 from pypsa.optimization.spec.layers import (
