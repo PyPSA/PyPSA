@@ -428,7 +428,7 @@ def test_a_type_refuses_an_entry_a_stored_override_creates():
         {"constraints": {"battery_inverter": inverter}}, name="own"
     )
     with pytest.raises(
-        ValueError, match=r"'own' creates \['constraints.battery_inverter'\]"
+        ValueError, match=r"'own' adds \['constraints.battery_inverter'\]"
     ):
         n.composites.register(BATTERY)
     assert list(n.composites) == []
@@ -483,7 +483,7 @@ def test_an_instance_is_built_in_full_or_not_at_all(n):
     m = n.optimize.create_model()
     assert list(m.constraints["battery_inverter"].indexes["battery"]) == ["bat south"]
     n.c.stores.static.loc["bat north store", "active"] = True
-    with pytest.raises(ValueError, match="outside the build"):
+    with pytest.raises(ValueError, match="only some members active"):
         n.optimize.create_model()
 
 
@@ -494,19 +494,19 @@ def _with(**changes):
 @pytest.mark.parametrize(
     ("definition", "match"),
     [
-        (_with(name="Link"), "named by an identifier"),
-        (_with(name="bus"), "named by an identifier"),
+        (_with(name="Link"), "not a valid composite type name"),
+        (_with(name="bus"), "not a valid composite type name"),
         (_with(volume=1), "sections"),
         (_with(components={"Battery": {"x": {}}}), "by component class"),
         (_with(components={"Carrier": {"x": {}}}), "by component class"),
         (_with(parameters={**BATTERY["parameters"], "name": 1}), "cannot name"),
         (
             _with(parameters={**BATTERY["parameters"], "note": 1}),
-            r"uses the parameters \['note'\]",
+            r"does not use the parameters \['note'\]",
         ),
         (
             _with(parameters={**BATTERY["parameters"], "max_hours": None}),
-            "take a default",
+            "need a default",
         ),
         (_with(components={"Link": {"a": {"bus0": "@b"}}}), r"refers to \['@b'\]"),
         (_with(components={"Link": {"a": {"bus0": "$b"}}}), r"refers to \['\$b'\]"),
@@ -517,14 +517,14 @@ def _with(**changes):
                     "Store": {"store": {"bus": "@dc", "e_nom": "$max_hours"}},
                 }
             ),
-            r"sets \['max_hours'\]",
+            r"sets the parameters \['max_hours'\]",
         ),
         (_replaced(("battery", "v"), ("max_hours", "nom")), r"columns \['v_nom'\]"),
         (
             _replaced(("battery", "composite"), ("max_hours", "type")),
             r"columns \['composite_type'\]",
         ),
-        (_with(math={"objective": {}}), "has the sections"),
+        (_with(math={"objective": {}}), "may only have the sections"),
         (_with(math={"constraints": {"inverter": {}}}), "cannot add 'inverter'"),
         (
             _with(math={"constraints": {"Generator_ext_p_upper": None}}),
@@ -575,13 +575,14 @@ def test_a_type_takes_no_custom_component_name(n, heat):
     definition = _replaced(("battery", "Heat"))
     n.composites.register(definition)
     heat()
+    assert "Heat" in n.composites
     for call in (
         lambda: n.add("Heat", "h", bus="north"),
         lambda: n.remove("Heat", "h"),
     ):
         with pytest.raises(ValueError, match="Rename the component type"):
             call()
-    with pytest.raises(ValueError, match="named by an identifier"):
+    with pytest.raises(ValueError, match="not a valid composite type name"):
         pypsa.Network().composites.register(definition)
 
 
@@ -639,8 +640,8 @@ def test_overwrite_refuses_a_type_the_instances_do_not_fit(n, pair):
 @pytest.mark.parametrize(
     ("reader", "match"),
     [
-        ({"constraints": {"battery_duration": None}}, r"\['own'\] build on 'battery'"),
-        ({"constraints": {"floor": FLOOR}}, r"\['own'\] build on 'battery'"),
+        ({"constraints": {"battery_duration": None}}, r"\['own'\] depend on 'battery'"),
+        ({"constraints": {"floor": FLOOR}}, r"\['own'\] depend on 'battery'"),
     ],
     ids=["override edits", "override reads"],
 )
@@ -664,7 +665,7 @@ def test_overwrite_refuses_a_type_a_stored_override_does_not_hold_with(n):
         {"constraints": {"battery_duration": None}}, name="free"
     )
     renamed = _replaced(("battery_duration", "battery_hours"))
-    with pytest.raises(ValueError, match="'free' edits .*no longer declares"):
+    with pytest.raises(ValueError, match="'free' changes .*no longer exist"):
         n.composites.register(renamed, overwrite=True)
     assert n.composites["battery"].definition == BATTERY
 

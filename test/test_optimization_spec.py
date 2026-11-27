@@ -16,12 +16,12 @@ from pypsa.optimization.spec._docs import marker, pages
 from pypsa.optimization.spec._render import (
     PLACEHOLDERS,
     WORD,
-    _load,
     _merge,
-    _snake,
     formulated,
+    load,
     renamer,
     render,
+    snake,
 )
 from pypsa.optimization.spec.layers import SPEC, spec
 from pypsa.optimization.spec.sources import (
@@ -44,7 +44,7 @@ def test_every_trait_serves_more_than_one_component():
 
 
 def _generic(c: pypsa.components.Components) -> dict[tuple[str, str], str]:
-    data = _load(SPEC / "components" / f"{_snake(c.name)}.yaml", lambda n: n)[0]
+    data = load(SPEC / "components" / f"{snake(c.name)}.yaml", lambda n: n)[0]
     return {
         (section, k.replace(c.name, "COMPONENT")): yaml.safe_dump(
             {f: v for f, v in entry.items() if f != "description"}
@@ -96,7 +96,7 @@ def bare_spec(tmp_path: Path) -> Path:
         (tmp_path / folder).mkdir()
     for c in formulated(pypsa.Network()):
         stems = [f"traits/{t}" for t in c._formulation]
-        for stem in ["system", f"components/{_snake(c.name)}", *stems]:
+        for stem in ["system", f"components/{snake(c.name)}", *stems]:
             (tmp_path / f"{stem}.yaml").write_text("{}")
     return tmp_path
 
@@ -131,7 +131,7 @@ def test_a_trait_description_takes_the_names_of_the_component(bare_spec):
 def test_a_trait_is_a_spec_of_its_own(trait, component):
     c = pypsa.Network().components[component]
     rename = renamer(c)
-    spec = mathspec.rename(_load(SPEC / "traits" / f"{trait}.yaml", rename)[0], rename)
+    spec = mathspec.rename(load(SPEC / "traits" / f"{trait}.yaml", rename)[0], rename)
     assert c._unit_dim in spec.dimensions
 
 
@@ -167,9 +167,9 @@ def test_an_entry_states_its_scaling_rule_apart_from_the_spec(
     rename = renamer(pypsa.Network().components["Generator"])
     if error:
         with pytest.raises(ValueError, match=error):
-            _load(path, rename)
+            load(path, rename)
         return
-    data, _, scalings = _load(path, rename)
+    data, _, scalings = load(path, rename)
     assert scalings == {(section, "Generator_x"): rule}
     assert data[section]["COMPONENT_x"] == {"dims": []}
 
@@ -238,7 +238,11 @@ def test_a_subclass_extends_the_source_registry(ac_dc_network):
 @pytest.mark.parametrize(
     ("name", "error", "match"),
     [
-        ("Store_e_nom_maxx", NotImplementedError, "Store has no attribute e_nom_maxx"),
+        (
+            "Store_e_nom_maxx",
+            NotImplementedError,
+            "Store has no attribute 'e_nom_maxx'",
+        ),
         ("Store_marginal_cost_storage", ValueError, "varies by snapshot"),
     ],
 )
@@ -416,7 +420,7 @@ def test_an_expression_over_period_and_snapshot_keeps_its_periods(ac_dc_two_peri
             f"traits/{path.name.removesuffix('.yaml')}.md"
             for path in (SPEC / "traits").iterdir()
         ),
-        *(f"components/{_snake(c.name)}.md" for c in formulated(pypsa.Network())),
+        *(f"components/{snake(c.name)}.md" for c in formulated(pypsa.Network())),
     ],
 )
 def test_every_trait_and_component_gets_a_page_without_placeholders(page):

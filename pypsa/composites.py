@@ -133,15 +133,16 @@ class CompositeType:
     def read(cls, definition: Override) -> CompositeType:
         """Return the type a YAML file, YAML text or mapping defines.
 
-        Raises:
-            ValueError: The definition is malformed or clashes with the
-                formulation.
+        Raises
+        ------
+        ValueError
+            The definition is malformed or clashes with the formulation.
 
         """
         d = copy.deepcopy(read_override(definition))
         unknown = d.keys() - SECTIONS
         if unknown or "name" not in d:
-            msg = f"A composite definition has a name and the sections {sorted(SECTIONS - {'name'})}; it has {sorted(d)}."
+            msg = f"A composite definition needs a `name` and may only have the sections {sorted(SECTIONS - {'name'})}. This one has {sorted(d)}."
             raise ValueError(msg)
         t = cls(
             name=d["name"],
@@ -223,20 +224,20 @@ class CompositeType:
         base = spec()
         taken = _components() | {*base.dimensions, *PLACEHOLDERS}
         if not isinstance(t, str) or not t.isidentifier() or t in taken:
-            msg = f"A composite type is named by an identifier that is no component, dimension or placeholder, not {t!r}; rename the type."
+            msg = f"{t!r} is not a valid composite type name. Use a Python identifier that is not the name of a component, dimension or placeholder."
             raise ValueError(msg)
         unknown = [c for c in self.components if _dim(c) not in base.dimensions]
         if unknown or not self.components:
-            msg = f"The components of {t} are listed by component class, one the formulation models, not {unknown}."
+            msg = f"The composite type {t} must list its members by component class, such as 'Link'. Unknown classes: {unknown}."
             raise ValueError(msg)
         if RESERVED & self.parameters.keys():
-            msg = f"{t} cannot name a parameter {sorted(RESERVED)}."
+            msg = f"The composite type {t} cannot name a parameter {sorted(RESERVED & self.parameters.keys())}. Rename it."
             raise ValueError(msg)
         members = [m for ms in self.components.values() for m in ms]
         if len(set(members)) < len(members) or not all(
             m.isidentifier() for m in members
         ):
-            msg = f"The members of {t} have unique identifiers as names, not {members}."
+            msg = f"The members of {t} need unique names that are Python identifiers, not {members}."
             raise ValueError(msg)
         refs = {
             v
@@ -246,25 +247,23 @@ class CompositeType:
         }
         known = {f"${p}" for p in self.parameters} | {f"@{m}" for m in members}
         if refs - known:
-            msg = f"{t} refers to {sorted(refs - known)}, which it does not define."
+            msg = f"The composite type {t} refers to {sorted(refs - known)}, which it does not define. Add them to `parameters` or `components`."
             raise ValueError(msg)
         if not self.math.keys() <= MATH:
-            msg = f"The math of {t} has the sections {sorted(MATH)}, not {sorted(self.math)}."
+            msg = f"The math of {t} may only have the sections {sorted(MATH)}, not {sorted(self.math)}."
             raise ValueError(msg)
         existing = {k for section in MATH for k in getattr(base, section)}
         for key, entry in ((k, e) for s in self.math.values() for k, e in s.items()):
             if not key.startswith(f"{t}_") or key in existing or entry is None:
-                msg = f"The math of {t} adds entries keyed `{t}_<name>`; it cannot add {key!r}, nor change or remove the formulation."
+                msg = f"The math of {t} cannot add {key!r}. It may only add new entries named `{t}_<name>`. It cannot change or remove entries of the formulation."
                 raise ValueError(msg)
         math = set(self.math_parameters)
         templated = {v[1:] for v in refs if v.startswith("$")}
         if math & templated:
-            msg = f"A template of {t} sets {sorted(math & templated)}, so the math reads it from the member, as `at(Link_efficiency, by={t}_members[charger])`, not as `{t}_<parameter>`."
+            msg = f"A member of {t} sets the parameters {sorted(math & templated)}. Read them in the math from that member, as `at(Link_efficiency, by={t}_members[charger])`, not as `{t}_<parameter>`."
             raise ValueError(msg)
         if unused := sorted(self.parameters.keys() - math - templated):
-            msg = (
-                f"Neither a template nor the math of {t} uses the parameters {unused}."
-            )
+            msg = f"The composite type {t} does not use the parameters {unused}. Use or remove them."
             raise ValueError(msg)
         anchor = self.members[self.anchor]
         used = {*component_type(anchor).defaults.index, *TAGS}
@@ -272,7 +271,7 @@ class CompositeType:
             msg = f"The math parameters of {t} take the columns {clash} of the {anchor} components, which PyPSA uses; rename them."
             raise ValueError(msg)
         if untyped := [p for p in math if self.parameters[p] is None]:
-            msg = f"The math of {t} reads {untyped}, so they take a default, which sets their dtype."
+            msg = f"The math of {t} reads the parameters {untyped}, so they need a default value. The default sets their data type."
             raise ValueError(msg)
 
 
@@ -328,12 +327,45 @@ class Composite:
 
     @property
     def name(self) -> str:
-        """Return the name of the type."""
+        """Return the name of the type.
+
+        Returns
+        -------
+        str
+            The name of the type, as `n.add` takes it.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.composites.register({"name": "pair", "components": {"Generator": {"up": {}, "down": {}}}})
+        >>> n.composites["pair"].name
+        'pair'
+
+        """
         return self._name
 
     @property
     def definition(self) -> dict[str, Any]:
-        """Return the definition of the type as `n.composites.register` takes it, a copy."""
+        """Return the definition of the type as `n.composites.register` takes it.
+
+        Returns
+        -------
+        dict
+            A copy of the definition, with every section filled in.
+
+        Raises
+        ------
+        KeyError
+            The type is no longer registered.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.composites.register({"name": "pair", "components": {"Generator": {"up": {}, "down": {}}}})
+        >>> n.composites["pair"].definition["components"]
+        {'Generator': {'up': {}, 'down': {}}}
+
+        """
         return copy.deepcopy(_registry.entry(self._n, COMPOSITES, self.name))
 
     @cached_property
@@ -368,8 +400,9 @@ class Composite:
 
         Raises
         ------
-            ValueError: A parameter is unknown or missing, or an instance name
-                is empty or taken. Nothing is added then.
+        ValueError
+            A parameter is unknown or missing, or an instance name is empty or
+            taken. Nothing is added then.
 
         """
         names = _build_suffixed_names(name, suffix)
@@ -382,7 +415,7 @@ class Composite:
         taken = names.intersection(instances(self._n))
         bad = [*taken, *names[names.duplicated() | (names == "")]]
         if bad:
-            msg = f"Composite instances have unique, non-empty names; {bad} are taken or empty."
+            msg = f"The {self.name} instance names {bad} are taken or empty. Use unique, non-empty names."
             raise ValueError(msg)
         laid = [
             self._laid(m, c, values, names, suffix)
@@ -415,9 +448,11 @@ class Composite:
     ) -> None:
         """Remove instances: every member of each.
 
-        Raises:
-            ValueError: An instance does not exist, or a component carries a
-                member the type does not have. Nothing is removed then.
+        Raises
+        ------
+        ValueError
+            An instance does not exist, or a component carries a member the
+            type does not have. Nothing is removed then.
 
         """
         names = _build_suffixed_names(name, suffix)
@@ -431,9 +466,11 @@ class Composite:
     def _tagged(self) -> pd.DataFrame:
         """Return the tags of the members of the instances of this type.
 
-        Raises:
-            ValueError: A component is tagged with a member the type does
-                not have, or with a member of another component class.
+        Raises
+        ------
+        ValueError
+            A component is tagged with a member the type does not have, or with
+            a member of another component class.
 
         """
         tags = _tags(self._n)
@@ -457,13 +494,15 @@ class Composite:
     ) -> tuple[str, str, pd.Index, dict[str, Any]]:
         """Return a member of the instances with its names and attributes.
 
-        Raises:
-            ValueError: A member of that name exists.
+        Raises
+        ------
+        ValueError
+            A member of that name exists.
 
         """
         labels = names + f" {member}"
         if len(exist := labels.intersection(self._n.c[class_name].names)):
-            msg = f"The {class_name} components {list(exist)} exist."
+            msg = f"The {class_name} components {list(exist)} exist already. Remove them or use other instance names."
             raise ValueError(msg)
         template = self._type.templates[member]
         attrs = {
@@ -504,9 +543,11 @@ class Composite:
         A Series over the snapshots is a time series for all instances. A
         `suffix` string is added to the instances of a value, as `n.add` does.
 
-        Raises:
-            ValueError: A math parameter is a time series, or a value by
-                instance leaves an instance out.
+        Raises
+        ------
+        ValueError
+            A math parameter is a time series, or a value by instance leaves an
+            instance out.
 
         """
         frame = isinstance(value, pd.DataFrame)
@@ -525,7 +566,7 @@ class Composite:
             )
         index = value.columns if frame else value.index
         if not names.isin(index).all():
-            msg = f"A value by instance covers every instance; it lacks {list(names.difference(index))}."
+            msg = f"A value per instance must cover every instance. It lacks {list(names.difference(index))}."
             raise ValueError(msg)
         if frame:
             return value[names].set_axis(labels, axis=1)
@@ -533,11 +574,30 @@ class Composite:
 
     @property
     def members(self) -> pd.DataFrame:
-        """Return the members of each instance: instances by member, each a component name.
+        """Return the component name of each member of each instance.
 
-        Raises:
-            ValueError: An instance lacks a member, or a component carries a
-                member the type does not have.
+        Returns
+        -------
+        pandas.DataFrame
+            One row per instance and one column per member.
+
+        Raises
+        ------
+        ValueError
+            An instance lacks a member, or a component carries a member the
+            type does not have.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "north")
+        >>> pair = {"name": "pair", "parameters": {"bus": None}, "components": {"Generator": {"up": {"bus": "$bus"}, "down": {"bus": "$bus"}}}}
+        >>> n.composites.register(pair)
+        >>> n.add("pair", "a", bus="north")
+        >>> n.composites["pair"].members
+                up    down
+        pair
+        a     a up  a down
 
         """
         tags = self._tagged()
@@ -558,7 +618,32 @@ class Composite:
         """Return the parameters of each instance, read from the static attributes of its members.
 
         A parameter given as a time series shows its static value, as
-        `n.c.<component>.static` does; the series is in the member's `dynamic`.
+        `n.c.<component>.static` does. The series is in the `dynamic` data of
+        the member.
+
+        Returns
+        -------
+        pandas.DataFrame
+            One row per instance and one column per parameter.
+
+        Raises
+        ------
+        ValueError
+            An instance lacks a member, or a component carries a member the
+            type does not have.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "north")
+        >>> pair = {"name": "pair", "parameters": {"bus": None}, "components": {"Generator": {"up": {"bus": "$bus"}, "down": {"bus": "$bus"}}}}
+        >>> n.composites.register(pair)
+        >>> n.add("pair", "a", bus="north")
+        >>> n.composites["pair"].static
+                bus
+        pair
+        a     north
+
         """
         members = self.members
         read = {}
@@ -581,8 +666,10 @@ class Composite:
     def _built(self, s: NetworkSources) -> pd.DataFrame:
         """Return the members of the instances whose members are all in the build; every bus is.
 
-        Raises:
-            ValueError: Some members of an instance are in the build, some not.
+        Raises
+        ------
+        ValueError
+            Some members of an instance are in the build, some not.
 
         """
 
@@ -598,7 +685,7 @@ class Composite:
             )
             partly = inside.any(axis=1) & ~inside.all(axis=1)
             if partly.any():
-                msg = f"The {self.name} instances {list(members.index[partly])} have members outside the build; activate or deactivate them in full."
+                msg = f"The {self.name} instances {list(members.index[partly])} have only some members active. Activate or deactivate all members of an instance."
                 raise ValueError(msg)
             return members[inside.all(axis=1)]
 
@@ -651,11 +738,24 @@ class Composites(Mapping[str, Composite]):
         self._n = n
 
     def __getitem__(self, name: str) -> Composite:
-        """Return a registered type with its instances.
+        """Return a registered composite type with its instances.
 
-        Raises:
-            KeyError: No type of this name is registered.
-            ValueError: A component type of this name exists.
+        Parameters
+        ----------
+        name : str
+            The name of the type.
+
+        Returns
+        -------
+        Composite
+            The type, bound to the network.
+
+        Raises
+        ------
+        KeyError
+            No type of this name is registered.
+        ValueError
+            A component type of this name exists.
 
         """
         _registry.entry(self._n, COMPOSITES, name)
@@ -663,6 +763,10 @@ class Composites(Mapping[str, Composite]):
             msg = f"{name!r} names both a composite type and a component type, so `n.add` and `n.remove` cannot tell them apart. Rename the component type, or unregister the composite type with `n.composites.unregister({name!r})`."
             raise ValueError(msg)
         return Composite(self._n, name)
+
+    def __contains__(self, name: object) -> bool:
+        """Whether a composite type of this name is registered."""
+        return name in _registry.entries(self._n, COMPOSITES)
 
     def __iter__(self) -> Iterator[str]:
         """Iterate the names of the registered types in order."""
@@ -685,9 +789,9 @@ class Composites(Mapping[str, Composite]):
     def register(self, definition: Override, overwrite: bool = False) -> None:
         """Register a composite type.
 
-        The definition is checked with the formulation, the other composite
-        types and the stored overrides of the network. If it is refused, the
-        network stays as it was.
+        PyPSA checks the definition against the formulation, the other
+        composite types and the stored overrides of the network. If PyPSA
+        refuses it, the network stays unchanged.
 
         Parameters
         ----------
@@ -702,12 +806,13 @@ class Composites(Mapping[str, Composite]):
         Raises
         ------
         ValueError
-            The definition is malformed; a type of this name is registered
-            and `overwrite` is False; the type declares a name another type
+            The definition is malformed; a type of this name is registered and
+            `overwrite` is False; the type declares a name another type
             declares; or instances exist that the new type does not fit.
         mathspec.errors.LanguageError
-            The math does not hold with the formulation, or a stored override
-            does not hold with the type.
+            The math does not fit the formulation, as when it reads an entry
+            that does not exist, or a stored override does not fit with the
+            type.
 
         Examples
         --------
@@ -727,7 +832,7 @@ class Composites(Mapping[str, Composite]):
         old = others.pop(t.name, None)
         taken = {k for other in others.values() for k in other.entries}
         if clash := sorted(t.entries & taken):
-            msg = f"The composite type {t.name!r} declares {clash}, which another registered type declares."
+            msg = f"The composite type {t.name!r} declares {clash}, which another registered type declares already. Rename them."
             raise ValueError(msg)
         fits = old is None or (old.members, old.homes) == (t.members, t.homes)
         if not fits and (found := instances(self._n, t.name)):
@@ -736,7 +841,7 @@ class Composites(Mapping[str, Composite]):
         _registry.register(self._n, COMPOSITES, t.name, content)
 
     def unregister(self, name: str) -> None:
-        """Unregister a composite type, also where its math no longer builds.
+        """Unregister a composite type, also one whose math no longer fits the formulation.
 
         Parameters
         ----------
@@ -749,7 +854,7 @@ class Composites(Mapping[str, Composite]):
             No type of this name is registered.
         ValueError
             Instances of the type exist, or a later type or a stored override
-            builds on it. Nothing is unregistered then.
+            depends on it. Nothing is unregistered then.
 
         Examples
         --------
@@ -764,12 +869,12 @@ class Composites(Mapping[str, Composite]):
         _registry.unregister(self._n, COMPOSITES, name)
 
     def clear(self) -> None:
-        """Unregister all composite types, also where their math no longer builds.
+        """Unregister all composite types, also those whose math no longer fits the formulation.
 
         Raises
         ------
         ValueError
-            Instances of a type exist, or a stored override builds on a type.
+            Instances of a type exist, or a stored override depends on a type.
             Nothing is unregistered then.
 
         Examples
@@ -793,9 +898,10 @@ def patches(n: Network) -> dict[str, dict[str, Any]]:
 def providers(n: Network) -> dict[str, Callable[[NetworkSources, str], Any]]:
     """Return the data of every registered type for a build.
 
-    Raises:
-        ValueError: Components are tagged with a type that is not
-            registered.
+    Raises
+    ------
+    ValueError
+        Components are tagged with a type that is not registered.
 
     """
     unknown = set(_tags(n).composite_type) - set(n.composites)

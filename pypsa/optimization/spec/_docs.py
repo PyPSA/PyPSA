@@ -30,14 +30,14 @@ from mathspec.program import ExpressionReference, Relation
 
 import pypsa
 from pypsa.optimization.spec._render import (
-    _load,
-    _renamed,
-    _snake,
     formulated,
+    load,
+    renamed,
     renamer,
+    snake,
     symbols,
 )
-from pypsa.optimization.spec.layers import SPEC, _patch, spec
+from pypsa.optimization.spec.layers import SPEC, patch_folder, spec
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator
@@ -119,23 +119,23 @@ def _entries(path: Traversable, rename: Callable[[str], str], page: str) -> list
     """Return the entries of the source file at *path* in `SECTIONS`, renamed by *rename*."""
     if not path.is_file():
         return []
-    data, names, scalings = _load(path, rename)
+    data, names, scalings = load(path, rename)
     entries = []
     for section in SECTIONS:
         for key, body in data.get(section, {}).items():
-            renamed = rename(key)
-            source = _renamed(body, rename)
+            name = rename(key)
+            source = renamed(body, rename)
             if isinstance(source, dict):
                 named = names.get(section, {})
-                source = ({"name": named[renamed]} if renamed in named else {}) | source
-                if (section, renamed) in scalings:
-                    source["scaling"] = scalings[section, renamed]
-            entries.append(Entry(renamed, section, source, page))
+                source = ({"name": named[name]} if name in named else {}) | source
+                if (section, name) in scalings:
+                    source["scaling"] = scalings[section, name]
+            entries.append(Entry(name, section, source, page))
     return entries
 
 
 def _page_of(c: Components) -> str:
-    return f"components/{_snake(c.name)}.md"
+    return f"components/{snake(c.name)}.md"
 
 
 def _read(node: Any) -> Iterator[str]:
@@ -309,8 +309,10 @@ def _by_section(entries: list[Entry]) -> Groups:
 def _index(system: list[Entry], components: list[Components], ctx: _Context) -> str:
     """Return the index page: the system file, the objective and the links to the other pages.
 
-    Raises:
-        ValueError: The spec does not optimize one named expression.
+    Raises
+    ------
+    ValueError
+        The spec does not optimize one named expression.
 
     """
     objective = ctx.spec.program.objective
@@ -340,13 +342,13 @@ def _component(c: Components, groups: Groups, ctx: _Context) -> str:
     page = _page_of(c)
     intro = (
         f"Everything `n.optimize()` states for the `{c.name}` component: the traits "
-        f"it declares, renamed for it, and its own file `components/{_snake(c.name)}.yaml`."
+        f"it declares, renamed for it, and its own file `components/{snake(c.name)}.yaml`."
     )
     linked = [
         (f"Trait [{t}]({_link(page, f'traits/{t}.md')})", group)
         for t, group in groups[:-1]
     ]
-    own = (f"Component file `components/{_snake(c.name)}.yaml`", groups[-1][1])
+    own = (f"Component file `components/{snake(c.name)}.yaml`", groups[-1][1])
     return _render(page, c.name, intro, [*linked, own], ctx)
 
 
@@ -382,7 +384,7 @@ def _files(root: Traversable) -> tuple[list[Entry], dict[str, Groups]]:
             (
                 "",
                 _entries(
-                    root / f"components/{_snake(c.name)}.yaml", renamer(c), _page_of(c)
+                    root / f"components/{snake(c.name)}.yaml", renamer(c), _page_of(c)
                 ),
             ),
         ]
@@ -400,8 +402,10 @@ def _every(root: Traversable) -> list[Entry]:
 def _context(linearized_unit_commitment: bool = False) -> _Context:
     """Return how the spec, patched for linearised unit commitment on request, prints.
 
-    Raises:
-        mathspec.errors.SchemaError: `symbols.yaml` names a dimension or entry the spec lacks.
+    Raises
+    ------
+    mathspec.errors.SchemaError
+        `symbols.yaml` names a dimension or entry the spec lacks.
 
     """
     s = spec(linearized_unit_commitment)
@@ -432,7 +436,7 @@ def _first(entries: list[Entry]) -> dict[str, Entry]:
 def _keyed(linearized_unit_commitment: bool) -> dict[str, Entry]:
     """Return each entry by its key, those of the patch of linearised unit commitment on request."""
     keyed = _first(_every(SPEC))
-    patch = _patch(linearized_unit_commitment)
+    patch = patch_folder(linearized_unit_commitment)
     if patch is not None:
         patched = _first(_every(patch))
         keyed |= {k: dataclasses.replace(e, page="") for k, e in patched.items()}
@@ -442,8 +446,10 @@ def _keyed(linearized_unit_commitment: bool) -> dict[str, Entry]:
 def _lookup(keys: list[str], linearized_unit_commitment: bool) -> list[Entry]:
     """Return the entries of *keys*.
 
-    Raises:
-        ValueError: *keys* is empty or names an entry the spec lacks.
+    Raises
+    ------
+    ValueError
+        *keys* is empty or names an entry the spec lacks.
 
     """
     keyed = _keyed(linearized_unit_commitment)
@@ -467,8 +473,10 @@ def _named(entry: Entry) -> str:
 def _snippet(entries: list[Entry], root: str, ctx: _Context) -> str:
     """Return each of *entries* with its kind, key, description, math and source.
 
-    Raises:
-        ValueError: An entry prints no line.
+    Raises
+    ------
+    ValueError
+        An entry prints no line.
 
     """
     lineless = [e.key for e in entries if e.section not in LINES]
@@ -510,8 +518,10 @@ def marker(kind: str, args: str, page: str) -> str:
     symbols they use or declare, `spec-table` a table of their relations
     and PyPSA names.
 
-    Raises:
-        ValueError: *kind* is no marker, or *args* names no entry or one the spec lacks.
+    Raises
+    ------
+    ValueError
+        *kind* is no marker, or *args* names no entry or one the spec lacks.
 
     """
     if kind not in MARKERS:
@@ -528,8 +538,10 @@ def marker(kind: str, args: str, page: str) -> str:
 def pages() -> dict[str, str]:
     """Return the formulation pages of the docs, keyed by their path relative to the formulation folder.
 
-    Raises:
-        mathspec.errors.SchemaError: `symbols.yaml` names a dimension or entry the spec lacks.
+    Raises
+    ------
+    mathspec.errors.SchemaError
+        `symbols.yaml` names a dimension or entry the spec lacks.
 
     """
     ctx = _context()

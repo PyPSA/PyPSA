@@ -19,7 +19,7 @@ from linopy.constraints import Constraint
 from linopy.expressions import LinearExpression
 from linopy.variables import Variable
 
-from pypsa.optimization.spec.layers import _unit_dims
+from pypsa.optimization.spec.layers import unit_dims
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -39,7 +39,7 @@ def pypsa_name(name: str, named: dict, mode: str | None = None) -> str:
     return found if isinstance(found, str) else found.get(mode, name)
 
 
-def _renamer(s: Spec, named: Names, mode: str | None) -> Callable[[str], str]:
+def pypsa_renamer(s: Spec, named: Names, mode: str | None) -> Callable[[str], str]:
     """Return the PyPSA name of each entry linopy builds from `s`.
 
     An entry a piecewise curve expands into takes the curve's PyPSA name
@@ -68,7 +68,7 @@ def _pypsa_dims(dims: tuple[str, ...], constraint: bool) -> dict[str, str]:
     A constraint over buses or GlobalConstraint labels names them `name` too.
     The breakpoints of a curve take linopy's name, which marks an auxiliary entry.
     """
-    named = {*_unit_dims(), *(("bus", "global_constraint") if constraint else ())}
+    named = {*unit_dims(), *(("bus", "global_constraint") if constraint else ())}
     found = [d for d in dims if d in named]
     renamed = {found[0]: "name"} if len(found) == 1 else {}
     return renamed | ({"breakpoint": BREAKPOINT_DIM} if "breakpoint" in dims else {})
@@ -95,7 +95,7 @@ BY_SENSE = {
 }
 
 
-def _split_by_label(m: Model) -> None:
+def split_by_label(m: Model) -> None:
     """Replace each constraint of `BY_SENSE` with one constraint `GlobalConstraint-{label}` per built row label."""
     for name, sign in BY_SENSE.items():
         if name not in m.constraints:
@@ -116,7 +116,7 @@ def _split_by_label(m: Model) -> None:
             )
 
 
-def _relabel(
+def relabel(
     m: Model,
     *,
     snapshots: pd.Index,

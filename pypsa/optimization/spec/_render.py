@@ -76,7 +76,7 @@ if TYPE_CHECKING:
     from pypsa.components.components import Components
 
 
-def _snake(name: str) -> str:
+def snake(name: str) -> str:
     """Return *name* in snake case, the stem of a component's own spec file, as `storage_unit`."""
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
@@ -107,8 +107,10 @@ def symbols(c: Components) -> dict[str, str]:
 def renamer(c: Components) -> Callable[[str], str]:
     """Return the rule that gives a name over placeholders its name in component *c*.
 
-    Raises:
-        KeyError: The name holds a placeholder *c* has no value for.
+    Raises
+    ------
+    KeyError
+        The name holds a placeholder *c* has no value for.
 
     """
     found = symbols(c)
@@ -119,7 +121,7 @@ def renamer(c: Components) -> Callable[[str], str]:
     return lambda name: WORD.sub(word, name)
 
 
-def _load(
+def load(
     path: Traversable, rename: Callable[[str], str]
 ) -> tuple[dict, Names, Scalings]:
     """Return the spec in *path* without its `name:` and `scaling:` fields, and those fields by section and renamed key.
@@ -127,8 +129,10 @@ def _load(
     The closed mathspec schema refuses both fields, and `mathspec.rename`
     keeps the label of a piecewise link, so all are renamed here.
 
-    Raises:
-        ValueError: A `scaling:` names no rule `SCALINGS` allows in its section.
+    Raises
+    ------
+    ValueError
+        A `scaling:` names no rule `SCALINGS` allows in its section.
 
     """
     import yaml  # noqa: PLC0415
@@ -188,12 +192,12 @@ def _merge(spec: dict[str, Any], fragment: dict[str, Any], origin: str) -> None:
         held |= {k: v for k, v in body.items() if k not in held}
 
 
-def _renamed(patch: Any, rename: Callable[[str], str]) -> Any:
+def renamed(patch: Any, rename: Callable[[str], str]) -> Any:
     """Return *patch* with *rename* applied to each key and text, as `mathspec.rename` takes no patch."""
     if isinstance(patch, dict):
-        return {rename(k): _renamed(v, rename) for k, v in patch.items()}
+        return {rename(k): renamed(v, rename) for k, v in patch.items()}
     if isinstance(patch, list):
-        return [_renamed(v, rename) for v in patch]
+        return [renamed(v, rename) for v in patch]
     return rename(patch) if isinstance(patch, str) else patch
 
 
@@ -230,10 +234,14 @@ def render(
     each file to load on its own: `system.yaml` and the component files
     read what the traits declare.
 
-    Raises:
-        FileNotFoundError: *root* lacks one of these files.
-        ValueError: Two files declare one entry.
-        mathspec.errors.LanguageError: A trait does not load on its own.
+    Raises
+    ------
+    FileNotFoundError
+        *root* lacks one of these files.
+    ValueError
+        Two files declare one entry.
+    mathspec.errors.LanguageError
+        A trait does not load on its own.
 
     """
     import mathspec  # noqa: PLC0415
@@ -244,7 +252,7 @@ def render(
     for c in formulated(pypsa.Network()):
         rename = renamer(c)
         paths += [(f"traits/{t}.yaml", rename) for t in c._formulation]
-        paths.append((f"components/{_snake(c.name)}.yaml", rename))
+        paths.append((f"components/{snake(c.name)}.yaml", rename))
     spec: dict[str, Any] = {}
     patched: dict[str, Any] = {}
     names: Names = {section: {} for section in NAMED}
@@ -253,16 +261,16 @@ def render(
         if not (root / path).is_file():
             msg = f"The spec at {root} has no {path}, which the components with a formulation need."
             raise FileNotFoundError(msg)
-        fragment, found, scaled = _load(root / path, rename)
+        fragment, found, scaled = load(root / path, rename)
         if path.startswith("traits/"):
-            renamed = mathspec.rename(fragment, rename).to_dict()
-            fragment = _described(renamed, rename)
+            fragment = mathspec.rename(fragment, rename).to_dict()
+            fragment = _described(fragment, rename)
         _merge(spec, fragment, str(root / path))
         names = {s: names[s] | found[s] for s in NAMED}
         scalings |= scaled
         if patch is not None and (patch / path).is_file():
-            fragment, found, scaled = _load(patch / path, rename)
-            _merge(patched, _renamed(fragment, rename), str(patch / path))
+            fragment, found, scaled = load(patch / path, rename)
+            _merge(patched, renamed(fragment, rename), str(patch / path))
             names = {s: names[s] | found[s] for s in NAMED}
             scalings |= scaled
     rendered = mathspec.to_spec(spec)

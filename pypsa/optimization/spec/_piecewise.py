@@ -124,7 +124,7 @@ def _link(link: Any, sign: str) -> list[str]:
     return [link.expression, link.values, *([sign] if sign != "==" else [])]
 
 
-def _piecewise_patch(base: Spec, options: Sequence[PiecewiseOptions]) -> dict:
+def piecewise_patch(base: Spec, options: Sequence[PiecewiseOptions]) -> dict:
     """Return the spec patch that states each curve by the method and sign its option names.
 
     The spec states linopy's `method='auto'` for PyPSA's default signs as
@@ -133,11 +133,14 @@ def _piecewise_patch(base: Spec, options: Sequence[PiecewiseOptions]) -> dict:
     goes on the curve's last link, the y-axis. `auto` with an equality
     takes the incremental entry, as linopy does.
 
-    Raises:
-        NotImplementedError: An option names units, two options name one
-            curve, the curve has no entry of the method, or `auto` asks
-            for another inequality than the spec's.
-        ValueError: An option names a curve the spec does not hold.
+    Raises
+    ------
+    NotImplementedError
+        An option names units, two options name one curve, the curve has no
+        entry of the method, or `auto` asks for another inequality than the
+        spec's.
+    ValueError
+        An option names a curve the spec does not hold.
 
     """
     patch: dict[str, Any] = {}

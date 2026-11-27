@@ -33,7 +33,7 @@ import pyproj
 import validators
 from pyproj import CRS, Transformer
 
-from pypsa._registry import carry
+from pypsa._registry import carry, ordered
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import (
     as_index,
@@ -597,8 +597,7 @@ class Network(
                         k: v for k, v in other_value.items() if k != "sub_networks"
                     }
                 if key == "_registries":
-                    value = {k: list(v.items()) for k, v in value.items()}
-                    other_value = {k: list(v.items()) for k, v in other_value.items()}
+                    value, other_value = ordered(value), ordered(other_value)
                 if not equals(
                     value,
                     other_value,

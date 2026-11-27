@@ -22,7 +22,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeGuard
 
-from pypsa.optimization.spec._piecewise import _piecewise_patch
+from pypsa.optimization.spec._piecewise import piecewise_patch
 from pypsa.optimization.spec._render import Names, Scalings, formulated, render
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ SPEC = files("pypsa.optimization.spec")
 
 
 @functools.cache
-def _unit_dims() -> tuple[str, ...]:
+def unit_dims() -> tuple[str, ...]:
     """Return the spec's unit dims, one per component with a formulation, which every entry lists first."""
     import pypsa  # noqa: PLC0415
 
@@ -48,24 +48,23 @@ def _unit_dims() -> tuple[str, ...]:
 @functools.cache
 def _rendered(linearized_unit_commitment: bool) -> tuple[Spec, Names, Scalings]:
     """Return the spec, its PyPSA names and its scaling rules, rendered once per process."""
-    return render(SPEC, _patch(linearized_unit_commitment))
+    return render(SPEC, patch_folder(linearized_unit_commitment))
 
 
 Override = str | Path | Mapping[str, Any]
 """A change to the optimisation problem: a YAML file, YAML text or a mapping, written as a `mathspec.override` patch.
 
-A `Path`, or a `str` that names an existing file, is read as a file; any other
-`str` is read as YAML text. Annotate a helper that returns overrides with it:
+A `Path`, or a `str` that names an existing file, is read as a file. Any other
+`str` is read as YAML text. Use it to annotate a function that returns
+overrides:
 
-```py
-from pypsa.optimization import Override
-
-def no_ramps(component: str) -> Override:
-    keys = [f"{component}_p_ramp_limit_{d}" for d in ("up", "down")]
-    return {"constraints": dict.fromkeys(keys)}
-
-n.optimize(overrides=[no_ramps("Generator")])
-```
+>>> from pypsa.optimization import Override
+>>> def no_ramps(component: str) -> Override:
+...     keys = [f"{component}_p_ramp_limit_{d}" for d in ("up", "down")]
+...     return {"constraints": dict.fromkeys(keys)}
+>>> s = pypsa.Network().optimize.spec(overrides=[no_ramps("Generator")])
+>>> "Generator_p_ramp_limit_up" in s.constraints
+False
 """
 
 
@@ -79,10 +78,12 @@ def is_path(override: Override) -> TypeGuard[str | Path]:
 def read_override(override: Override) -> dict[str, Any]:
     """Return *override* as the mapping it states.
 
-    Raises:
-        FileNotFoundError: A `str` names no file and is no YAML text of a mapping.
-        TypeError: *override* is not a path, YAML text or mapping, or states
-            no mapping.
+    Raises
+    ------
+    FileNotFoundError
+        A `str` names no file and is no YAML text of a mapping.
+    TypeError
+        *override* is not a path, YAML text or mapping, or states no mapping.
 
     """
     import yaml  # noqa: PLC0415
@@ -105,7 +106,7 @@ def read_override(override: Override) -> dict[str, Any]:
         msg = f"An override is a YAML path, YAML text or a mapping, not {type(override).__name__}."
         raise TypeError(msg)
     if not isinstance(stated, Mapping):
-        msg = f"An override states a mapping, not {type(stated).__name__}."
+        msg = f"An override must hold a mapping of spec sections, not a {type(stated).__name__}."
         raise TypeError(msg)
     return dict(stated)
 
@@ -130,8 +131,10 @@ def _formulation(
 ) -> tuple[Spec, Spec]:
     """Return the spec with *layers* laid over it in turn, and its piecewise curves written out, which linopy builds from.
 
-    Raises:
-        mathspec.errors.LanguageError: A layer does not hold; the message names it by its label.
+    Raises
+    ------
+    mathspec.errors.LanguageError
+        A layer does not hold; the message names it by its label.
 
     """
     import mathspec  # noqa: PLC0415
@@ -166,14 +169,16 @@ def _piecewise_layers(
     if not piecewise_options:
         return []
     base = _base(linearized_unit_commitment)[0]
-    return [("the piecewise options", _piecewise_patch(base, piecewise_options))]
+    return [("the piecewise options", piecewise_patch(base, piecewise_options))]
 
 
 def _per_call(overrides: Sequence[Override]) -> list[Layer]:
     """Return the layer of each per-call override, a path named by itself.
 
-    Raises:
-        TypeError: `overrides` is a single override, not a list of them.
+    Raises
+    ------
+    TypeError
+        `overrides` is a single override, not a list of them.
 
     """
     if isinstance(overrides, str | Path | Mapping):
@@ -232,17 +237,17 @@ def _stack(
 
     They are the piecewise options, the composite types and the stored overrides, in turn.
 
-    Raises:
-        ValueError: A stored override no longer edits or creates what it was
-            registered to, or PyPSA changed an entry it edits.
+    Raises
+    ------
+    ValueError
+        A stored override no longer edits or creates what it was registered to,
+        or PyPSA changed an entry it edits.
 
     """
     from pypsa import composites  # noqa: PLC0415
     from pypsa.optimization import overrides  # noqa: PLC0415
 
     plain = not linearized_unit_commitment and not piecewise_options
-    if not plain:
-        _stack(n, linearized_unit_commitment=False)
     layers = _piecewise_layers(linearized_unit_commitment, piecewise_options)
     layers += [
         (f"the composite type {k!r}", p) for k, p in composites.patches(n).items()
@@ -254,7 +259,7 @@ def _stack(
     return layers + stored, keys
 
 
-def _effective(
+def effective(
     n: Network,
     linearized_unit_commitment: bool = False,
     piecewise_options: Sequence[PiecewiseOptions] = (),
@@ -262,14 +267,17 @@ def _effective(
 ) -> tuple[Spec, Spec]:
     """Return the spec a build of `n` builds from, with the stack of `n` and then *overrides* laid over it, and its piecewise curves written out.
 
-    Raises:
-        mathspec.errors.LanguageError: A layer does not hold, as where an
-            override in *overrides* removes an entry a stored override
-            removes already.
+    Raises
+    ------
+    mathspec.errors.LanguageError
+        A layer does not hold, as where an override in *overrides* removes an
+        entry a stored override removes already.
 
     """
     from mathspec.errors import LanguageError  # noqa: PLC0415
 
+    if linearized_unit_commitment or piecewise_options:
+        _stack(n, linearized_unit_commitment=False)
     stack, _ = _stack(n, linearized_unit_commitment, piecewise_options)
     per_call = _per_call(overrides)
     try:
@@ -285,8 +293,10 @@ def _effective(
 def holding(n: Network, layers: Sequence[Layer] = ()) -> set[str]:
     """Return the keys the default spec declares under *layers* laid over the stack of `n`.
 
-    Raises:
-        ValueError: The default formulation does not hold them.
+    Raises
+    ------
+    ValueError
+        The default formulation does not hold them.
 
     """
     stack, keys = _stack(n, linearized_unit_commitment=False)
@@ -305,7 +315,7 @@ def spec(
     return _formulation(linearized_unit_commitment, layers)[0]
 
 
-def _patch(linearized_unit_commitment: bool) -> Traversable | None:
+def patch_folder(linearized_unit_commitment: bool) -> Traversable | None:
     """Return the patch folder of linearised unit commitment, where asked for."""
     return SPEC / "linearized_uc" if linearized_unit_commitment else None
 

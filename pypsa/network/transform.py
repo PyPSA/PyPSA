@@ -22,7 +22,7 @@ import pandas as pd
 from rapidfuzz.distance.Levenshtein import distance
 
 from pypsa._options import options
-from pypsa._registry import united
+from pypsa._registry import unite
 from pypsa.components.common import as_components
 from pypsa.components.types import all_standard_attrs_set
 from pypsa.descriptors import nominal_attrs
@@ -623,9 +623,8 @@ class NetworkTransformMixin(_NetworkABC):
                 else:
                     msg = "Snapshot weightings do not agree, cannot merge networks."
                     raise ValueError(msg)
-        registries = united(cast("Network", self), other)
         new = self if inplace else self.copy()
-        new._registries = registries
+        unite(cast("Network", new), other)
         if other.srid != new.srid:
             logger.warning(
                 "Spatial Reference System Indentifier of networks do not agree: "

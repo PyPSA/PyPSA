@@ -118,6 +118,7 @@ def test_a_registry_reads_as_a_mapping(kind):
     assert len(registry) == len(registry.values()) == 2
     assert "a" in registry
     assert "c" not in registry
+    assert "Generator" not in registry
     assert registry.get("c") is None
     assert dict(_state(kind)) == {"a": kind.content("a"), "b": kind.content("b")}
     assert repr(registry) == f"{type(registry).__name__} ['a', 'b']"
@@ -186,7 +187,7 @@ def test_unregister_and_clear_drop_entries(kind):
             LanguageError,
             "b_floor",
         ),
-        (lambda k: k.registry.unregister("a"), ValueError, r"\['b'\] build on 'a'"),
+        (lambda k: k.registry.unregister("a"), ValueError, r"\['b'\] depend on 'a'"),
     ],
     ids=[
         "register",
@@ -210,7 +211,7 @@ def test_an_entry_others_build_on_is_kept_beside_a_stale_one(kind):
     kind.register("b", on="a")
     kind.register("c")
     kind.stale("c")
-    with pytest.raises(ValueError, match=r"\['b'\] build on 'a'; unregister them"):
+    with pytest.raises(ValueError, match=r"\['b'\] depend on 'a'. Unregister them"):
         kind.registry.unregister("a")
     for name in "cba":
         kind.registry.unregister(name)
@@ -414,5 +415,5 @@ def test_export_refuses_the_reserved_meta_key(n, tmp_path, form):
 )
 def test_malformed_registries_of_a_saved_network_fail(n, root):
     n._registries = root
-    with pytest.raises(ValueError, match="maps each name to a mapping, not"):
+    with pytest.raises(ValueError, match="must map each name to a mapping, not"):
         n.optimize.create_model()

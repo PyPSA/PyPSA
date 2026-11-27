@@ -107,20 +107,20 @@ class Rules(NamedTuple):
     rows: dict[str, str]
 
 
-def _rules(scalings: Scalings, rename: Callable[[str], str]) -> Rules:
+def rules(scalings: Scalings, rename: Callable[[str], str]) -> Rules:
     """Return the scaling rules the spec states by the PyPSA name of what they scale.
 
     The rule of a piecewise curve goes to the rows of `COST_ROWS` it expands into.
     """
-    rules = Rules({}, {})
+    found = Rules({}, {})
     for (section, key), rule in scalings.items():
         if section == "variables":
-            rules.columns[rename(key)] = rule
+            found.columns[rename(key)] = rule
         elif section == "constraints":
-            rules.rows[rename(key)] = rule
+            found.rows[rename(key)] = rule
         else:
-            rules.rows.update({rename(f"{key}_{kind}"): rule for kind in COST_ROWS})
-    return rules
+            found.rows.update({rename(f"{key}_{kind}"): rule for kind in COST_ROWS})
+    return found
 
 
 def _column_rule(name: str, var: Variable, n: Network, rules: Rules) -> str:
@@ -243,7 +243,7 @@ def _unscaled(n: Network, objective: float) -> bool:
     return objective == 1 and bool((buses == 1).all() and (limits == 1).all())
 
 
-def _scale(
+def scale(
     m: Model,
     n: Network,
     sources: NetworkSources,

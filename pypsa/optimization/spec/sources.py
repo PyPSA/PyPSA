@@ -59,8 +59,10 @@ def source[F: Callable[..., Any]](*keys: str) -> Callable[[F], F]:
     source of every component with a formulation; `f` takes the component as
     `c` then.
 
-    Raises:
-        ValueError: A key has a derivation already.
+    Raises
+    ------
+    ValueError
+        A key has a derivation already.
 
     """
 
@@ -201,8 +203,10 @@ class NetworkSources(Mapping[str, Any]):
         `<Component>_<column>` reads the static column, and a dimension takes
         the labels the relations map into it.
 
-        Raises:
-            NotImplementedError: `name` has none of these.
+        Raises
+        ------
+        NotImplementedError
+            `name` has none of these.
 
         """
         if name in self._providers:
@@ -221,27 +225,32 @@ class NetworkSources(Mapping[str, Any]):
             return functools.partial(self.mapping, c, name)
         if name in self.spec.dimensions and self.mapped_into(name):
             return functools.partial(self.mapped, name)
-        msg = f"no data prep for {name}"
+        msg = f"PyPSA has no data for {name!r}."
         if name in self.spec.dimensions:
-            msg += f": no relation maps units into it; declare one, as {{key: Link, values: {name}}}"
+            msg += f" No relation maps components into it. Declare one, such as `{{key: Link, values: {name}}}`."
+        else:
+            msg += " Name a parameter `<Component>_<attribute>` after an attribute of the component."
         raise NotImplementedError(msg)
 
     def mapping(self, c: Components, name: str) -> pd.DataFrame:
         """Map each unit to the label in the static column a relation `<Component>_<column>` names; a blank cell maps it to none.
 
-        Raises:
-            NotImplementedError: The relation is not keyed by the units alone
-                with one column as its values, or `c` has no such column.
-            ValueError: The column differs across scenarios.
+        Raises
+        ------
+        NotImplementedError
+            The relation is not keyed by the units alone with one column as its
+            values, or `c` has no such column.
+        ValueError
+            The column differs across scenarios.
 
         """
         column = name.removeprefix(f"{c.name}_")
         (_, key), *values = self.spec.relations[name].pairs
         if key != c._unit_dim or len(values) != 1:
-            msg = f"no data prep for {name}: it reads the column {column} of {c.name}, so declare it {{key: {c._unit_dim}, values: <dimension>}}"
+            msg = f"PyPSA has no data for the relation {name!r}. It reads the column {column!r} of {c.name}, so declare it as `{{key: {c._unit_dim}, values: <dimension>}}`."
             raise NotImplementedError(msg)
         if column not in c.static:
-            msg = f"no data prep for {name}: {c.name} has no column {column}"
+            msg = f"PyPSA has no data for the relation {name!r}: {c.name} has no column {column!r}. Add the column to the {c.name} components."
             raise NotImplementedError(msg)
         labels = invariant(c.static[column]).loc[self.static(c).index]
         labels = labels[~_blank(labels)]
@@ -347,8 +356,10 @@ class NetworkSources(Mapping[str, Any]):
     def missing(self, name: str, laid: Collection[Hashable]) -> list[str]:
         """Return the declared dims of `name` that `laid` lacks.
 
-        Raises:
-            ValueError: `laid` holds a dim `name` does not declare.
+        Raises
+        ------
+        ValueError
+            `laid` holds a dim `name` does not declare.
 
         """
         dims = self.declared(name)
@@ -455,8 +466,10 @@ class NetworkSources(Mapping[str, Any]):
     def kept(self, c: Components) -> np.ndarray | None:
         """Return the positions of the build's units in `c.static`, in their order, None where they are all of it.
 
-        Raises:
-            ValueError: A unit of the build is not in `c.static`.
+        Raises
+        ------
+        ValueError
+            A unit of the build is not in `c.static`.
 
         """
         return self.memo(f"{c.name} kept", lambda: self._kept(c))
@@ -503,18 +516,21 @@ class NetworkSources(Mapping[str, Any]):
     def attr(self, c: Components, name: str) -> str:
         """Return the PyPSA attribute a parameter `<Component>_<attr>` names.
 
-        Raises:
-            NotImplementedError: `c` has no such attribute.
-            ValueError: The attribute varies by snapshot, the spec holds it static.
+        Raises
+        ------
+        NotImplementedError
+            `c` has no such attribute.
+        ValueError
+            The attribute varies by snapshot, the spec holds it static.
 
         """
         attr = name.removeprefix(f"{c.name}_")
         if attr not in c.static and attr not in c.dynamic:
-            msg = f"no data prep for {name}: {c.name} has no attribute {attr}"
+            msg = f"PyPSA has no data for the parameter {name!r}: {c.name} has no attribute {attr!r}. Add it as a column of the {c.name} components."
             raise NotImplementedError(msg)
         varies = attr == "active" or attr in c.dynamic.keys()
         if varies and "snapshot" not in self.declared(name):
-            msg = f"{name} varies by snapshot in the network, the spec holds it static"
+            msg = f"{name} varies by snapshot in the network, but its spec entry has no `snapshot` dim. Add `snapshot` to its `dims`."
             raise ValueError(msg)
         return attr
 

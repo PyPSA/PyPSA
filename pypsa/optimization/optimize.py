@@ -45,7 +45,7 @@ from pypsa.optimization.global_constraints import (
 from pypsa.optimization.overrides import Overrides
 from pypsa.optimization.piecewise import PiecewiseOptions
 from pypsa.optimization.spec import build_model
-from pypsa.optimization.spec.layers import _effective
+from pypsa.optimization.spec.layers import effective
 from pypsa.optimization.window import SnapshotWindow
 
 if TYPE_CHECKING:
@@ -263,7 +263,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         self.expressions = StatisticExpressionsAccessor(self._n)
         self.overrides = Overrides(self._n)
         """
-        Network [stored overrides][pypsa.optimization.overrides.Overrides], which every build lays over the formulation.
+        Network [stored overrides][pypsa.optimization.overrides.Overrides], which every build applies to the formulation.
         """
 
     @property
@@ -416,6 +416,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             "optimal" or one of the codes listed in
             [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
+        Examples
+        --------
+        Remove a constraint for this call and read an expression of the spec:
+
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus")
+        >>> n.add("Generator", "gas", bus="bus", p_nom=10, marginal_cost=50)
+        >>> n.add("Load", "load", bus="bus", p_set=5)
+        >>> no_upper = {"constraints": {"Generator_fix_p_upper": None}}
+        >>> n.optimize(overrides=[no_upper], include_expressions=True, log_to_console=False)
+        ('ok', 'optimal')
+        >>> float(n.model.expressions["total_cost"].solution)
+        250.0
+
         """
         # Handle default parameters from options
         if model_kwargs is None:
@@ -489,8 +503,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         piecewise_options: list[PiecewiseOptions | dict] | None = None,
         cycle_basis_method: str = "bfs-refined",
         objective_scaling: float = 1.0,
-        branch_outages: pd.MultiIndex | None = None,
         *,
+        branch_outages: pd.MultiIndex | None = None,
         overrides: Sequence[Override] | None = None,
         include_expressions: bool = False,
         **kwargs: Any,
@@ -576,6 +590,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         -------
         linopy.model
 
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus")
+        >>> n.add("Generator", "gas", bus="bus", p_nom=10, marginal_cost=50)
+        >>> no_upper = {"constraints": {"Generator_fix_p_upper": None}}
+        >>> m = n.optimize.create_model(overrides=[no_upper], include_expressions=True)
+        >>> list(m.constraints)
+        ['Bus-nodal_balance', 'Generator-fix-p-lower']
+        >>> "total_cost" in m.expressions
+        True
+
         """
         n = self._n
         sns = as_index(n, snapshots, "snapshots")
@@ -612,8 +638,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if snapshot_index not in ("auto", "flat"):
             msg = (
                 f"Invalid snapshot representation {snapshot_index!r}. Multi-period "
-                "models are always built over a flat `snapshot` dimension, as "
-                "linopy's v1 semantics forbid a MultiIndex dimension."
+                "models are always built over a flat `snapshot` dimension. Set "
+                "`pypsa.options.optimization.model_snapshot_index` to 'auto'."
             )
             raise ValueError(msg)
         if snapshot_index == "flat":
@@ -658,10 +684,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
     ) -> Spec:
         """Return the specification that `n.optimize()` builds the model from.
 
-        It is the default specification with the layers a build lays over it:
-        the piecewise options, the composite types, the stored overrides of
-        `n.optimize.overrides` and then *overrides*. The arguments mean what
-        they mean in `n.optimize()`, and their defaults are the same.
+        It is the default specification with, in turn, the piecewise options,
+        the composite types, the stored overrides of `n.optimize.overrides`
+        and then *overrides* applied. The arguments mean what they mean in
+        `n.optimize()`, and their defaults are the same.
 
         Parameters
         ----------
@@ -684,7 +710,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         Raises
         ------
         mathspec.errors.LanguageError
-            A layer does not hold.
+            An override or a composite type does not fit the specification,
+            as when it removes an entry that does not exist.
 
         Examples
         --------
@@ -707,7 +734,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         False
 
         """
-        return _effective(
+        return effective(
             self._n,
             linearized_unit_commitment,
             _piecewise_options(piecewise_options),

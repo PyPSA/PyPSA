@@ -13,13 +13,13 @@ from linopy import Model
 
 from pypsa.optimization.spec.checks import check
 from pypsa.optimization.spec.layers import (
-    _effective,
-    _unit_dims,
+    effective,
     spec_names,
     spec_scalings,
+    unit_dims,
 )
-from pypsa.optimization.spec.naming import _relabel, _renamer, _split_by_label
-from pypsa.optimization.spec.scaling import _rules, _scale
+from pypsa.optimization.spec.naming import pypsa_renamer, relabel, split_by_label
+from pypsa.optimization.spec.scaling import rules, scale
 from pypsa.optimization.spec.sources import NetworkSources
 
 if TYPE_CHECKING:
@@ -48,10 +48,11 @@ def build_model(
 ) -> Model:
     """Build the model of `n` over the build's snapshots from the spec, with its composites, its stored overrides and then *overrides* laid over it.
 
-    Raises:
-        mathspec.errors.LanguageError: A layer does not hold, as where an
-            override in *overrides* removes an entry a stored override
-            removes already.
+    Raises
+    ------
+    mathspec.errors.LanguageError
+        A layer does not hold, as where an override in *overrides* removes an
+        entry a stored override removes already.
 
     """
     from pypsa.composites import providers  # noqa: PLC0415
@@ -65,9 +66,7 @@ def build_model(
     )
     model_kwargs = model_kwargs or {}
     n.calculate_dependent_values()
-    s, expanded = _effective(
-        n, linearized_unit_commitment, piecewise_options, overrides
-    )
+    s, expanded = effective(n, linearized_unit_commitment, piecewise_options, overrides)
     if stored := list(n.optimize.overrides):
         logger.info("The build applies the stored overrides %s.", stored)
     sources = NetworkSources(
@@ -79,17 +78,17 @@ def build_model(
         **options,
     )
     mode = (options.get("transmission_losses") or {}).get("mode")
-    rename = _renamer(s, spec_names(linearized_unit_commitment), mode)
+    rename = pypsa_renamer(s, spec_names(linearized_unit_commitment), mode)
     m = Model.from_spec(
         expanded,
         sources,
         expressions=include_expressions,
         rename=rename,
-        dim_order=_unit_dims(),
+        dim_order=unit_dims(),
         **model_kwargs,
     )
-    _relabel(m, snapshots=model_index, network_index=network_index)
-    rules = _rules(spec_scalings(linearized_unit_commitment), rename)
-    _scale(m, n, sources, rules, objective_scaling)
-    _split_by_label(m)
+    relabel(m, snapshots=model_index, network_index=network_index)
+    scaled = rules(spec_scalings(linearized_unit_commitment), rename)
+    scale(m, n, sources, scaled, objective_scaling)
+    split_by_label(m)
     return m

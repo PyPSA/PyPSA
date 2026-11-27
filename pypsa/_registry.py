@@ -36,9 +36,11 @@ MATH = {COMPOSITES: "math", OVERRIDES: "patch"}
 def jsonable(content: Any, what: str) -> Any:
     """Return `content` as JSON reads it back, a deep copy.
 
-    Raises:
-        ValueError: `content` changes under the round trip, as a NumPy number,
-            a date, a tuple or a key that is no str does.
+    Raises
+    ------
+    ValueError
+        `content` changes under the round trip, as a NumPy number, a date, a
+        tuple or a key that is no str does.
 
     """
     try:
@@ -46,7 +48,7 @@ def jsonable(content: Any, what: str) -> Any:
     except (TypeError, ValueError):
         read = None
     if read != content:
-        msg = f"{what} holds JSON values only: mappings with str keys, lists, str, numbers, bool and null."
+        msg = f"{what} holds a value that JSON cannot store. Use only mappings with str keys, lists, str, numbers, bool and None."
         raise ValueError(msg)
     return read
 
@@ -54,10 +56,12 @@ def jsonable(content: Any, what: str) -> Any:
 def entries(n: Network, kind: str) -> dict[str, Any]:
     """Return the stored entries of a kind, by name in the order they were registered.
 
-    Raises:
-        ValueError: The registries of the network, or its entries of this
-            kind, are no mapping of names to mappings, as a saved network
-            with a malformed meta key `"_pypsa"` gives.
+    Raises
+    ------
+    ValueError
+        The registries of the network, or its entries of this kind, are no
+        mapping of names to mappings, as a saved network with a malformed meta
+        key `"_pypsa"` gives.
 
     """
     root = n._registries
@@ -67,7 +71,7 @@ def entries(n: Network, kind: str) -> dict[str, Any]:
         isinstance(e, Mapping) for e in stored.values()
     ):
         where = f"[{ROOT!r}][{kind!r}]" if nested else f"[{ROOT!r}]"
-        msg = f"The saved meta {where} maps each name to a mapping, not {type(stored).__name__}: {str(stored)[:200]}"
+        msg = f"The saved meta {where} must map each name to a mapping, not {type(stored).__name__}: {str(stored)[:200]}. Fix or delete it in the saved file."
         raise ValueError(msg)
     return dict(stored)
 
@@ -75,8 +79,10 @@ def entries(n: Network, kind: str) -> dict[str, Any]:
 def entry(n: Network, kind: str, name: str) -> Any:
     """Return the stored entry of a name.
 
-    Raises:
-        KeyError: None of this name is registered.
+    Raises
+    ------
+    KeyError
+        None of this name is registered.
 
     """
     stored = entries(n, kind)
@@ -94,8 +100,10 @@ def equal(n: Network, other: Network, kind: str) -> bool:
 def check_free(n: Network, kind: str, name: str, overwrite: bool) -> None:
     """Refuse a name that is registered, unless its entry is to be replaced.
 
-    Raises:
-        ValueError: The name is registered and `overwrite` is False.
+    Raises
+    ------
+    ValueError
+        The name is registered and `overwrite` is False.
 
     """
     if name in entries(n, kind) and not overwrite:
@@ -106,8 +114,10 @@ def check_free(n: Network, kind: str, name: str, overwrite: bool) -> None:
 def below(n: Network, kind: str, name: str) -> set[str]:
     """Return the keys the default formulation declares below the entry `name` of a kind, or below a new entry.
 
-    Raises:
-        ValueError: The formulation does not hold with the entries below it.
+    Raises
+    ------
+    ValueError
+        The formulation does not hold with the entries below it.
 
     """
     return _keys(n, _lower(n, kind, name))
@@ -116,10 +126,11 @@ def below(n: Network, kind: str, name: str) -> set[str]:
 def register(n: Network, kind: str, name: str, content: Any) -> None:
     """Register `content` under a name, in the place of the entry of that name where there is one.
 
-    Raises:
-        ValueError: The default formulation does not hold with it, as where
-            an entry laid after it builds on what it replaces. Nothing is
-            registered then.
+    Raises
+    ------
+    ValueError
+        The default formulation does not hold with it, as where an entry laid
+        after it builds on what it replaces. Nothing is registered then.
 
     """
     root = _with(n, kind, entries(n, kind) | {name: content})
@@ -130,10 +141,13 @@ def register(n: Network, kind: str, name: str, content: Any) -> None:
 def unregister(n: Network, kind: str, name: str) -> None:
     """Unregister an entry, also where the formulation does not hold with it.
 
-    Raises:
-        KeyError: None of this name is registered.
-        ValueError: Something needs the entry; `_drop` lists the cases.
-            Nothing is unregistered then.
+    Raises
+    ------
+    KeyError
+        None of this name is registered.
+    ValueError
+        Something needs the entry; `_drop` lists the cases. Nothing is
+        unregistered then.
 
     """
     entry(n, kind, name)
@@ -143,9 +157,11 @@ def unregister(n: Network, kind: str, name: str) -> None:
 def clear(n: Network, kind: str) -> None:
     """Unregister all entries of a kind, also where the formulation does not hold with them.
 
-    Raises:
-        ValueError: Something needs one of them; `_drop` lists the cases.
-            Nothing is unregistered then.
+    Raises
+    ------
+    ValueError
+        Something needs one of them; `_drop` lists the cases. Nothing is
+        unregistered then.
 
     """
     _drop(n, kind, list(entries(n, kind)))
@@ -154,10 +170,12 @@ def clear(n: Network, kind: str) -> None:
 def _drop(n: Network, kind: str, names: Collection[str]) -> None:
     """Unregister the entries `names` of a kind unless something needs them.
 
-    Raises:
-        ValueError: Instances of a composite type exist; an entry that stays,
-            a later one of its kind or a stored override, builds on one of
-            them; or the formulation held with them and does not without.
+    Raises
+    ------
+    ValueError
+        Instances of a composite type exist; an entry that stays, a later one
+        of its kind or a stored override, builds on one of them; or the
+        formulation held with them and does not without.
 
     """
     if kind == COMPOSITES:
@@ -175,7 +193,7 @@ def _drop(n: Network, kind: str, names: Collection[str]) -> None:
         for name in names:
             healthy = _builds(n, _lower(n, kind, name, with_it=True))
             if healthy and (dependents := _dependents(n, kind, name, names)):
-                msg = f"{dependents} build on {name!r}; unregister them first."
+                msg = f"{dependents} depend on {name!r}. Unregister them first."
                 raise ValueError(msg) from e
         if _builds(n, n._registries):
             raise
@@ -241,8 +259,10 @@ def _with(n: Network, kind: str, stored: Mapping[str, Any]) -> dict[str, Any]:
 def _keys(n: Network, root: dict[str, Any]) -> set[str]:
     """Return the keys the default formulation declares with the registries `root`, which `n` does not keep.
 
-    Raises:
-        ValueError: The formulation does not hold with them.
+    Raises
+    ------
+    ValueError
+        The formulation does not hold with them.
 
     """
     from pypsa.optimization.spec import holding  # noqa: PLC0415
@@ -272,13 +292,15 @@ def _told(kind: str, stored: Any) -> Any:
     return stored[MATH[kind]] if kind == OVERRIDES else stored
 
 
-def united(n: Network, other: Network) -> dict[str, dict[str, Any]]:
-    """Return the registries of both networks as a network keeps them, the entries of `other` after those of `n`.
+def unite(n: Network, other: Network) -> None:
+    """Add the entries of `other` to those of `n`, after them.
 
-    Raises:
-        ValueError: A name holds a different entry in both, an override told
-            by its patch, or the default formulation does not hold with the
-            entries of both.
+    Raises
+    ------
+    ValueError
+        A name holds a different entry in both, an override told by its patch,
+        or the default formulation does not hold with the entries of both.
+        Nothing changes then.
 
     """
     root = {}
@@ -289,16 +311,31 @@ def united(n: Network, other: Network) -> dict[str, dict[str, Any]]:
             k for k in shared if _told(kind, mine[k]) != _told(kind, theirs[k])
         )
         if clash:
-            msg = f"Both networks register a different {noun} under the names {clash}."
+            msg = f"Both networks register a different {noun} under the names {clash}. Rename or unregister them in one network before you merge."
             raise ValueError(msg)
         if both := mine | {k: e for k, e in theirs.items() if k not in mine}:
             root[kind] = copy.deepcopy(both)
     try:
         _keys(n, root)
     except ValueError as e:
-        msg = f"The composite types and stored overrides of both networks do not build together: {e}"
+        msg = f"The composite types and stored overrides of both networks do not work together. Unregister the conflicting ones in one network before you merge. Cause: {e}"
         raise ValueError(msg) from e
-    return root
+    n._registries = root
+
+
+def ordered(root: Mapping[str, Mapping[str, Any]]) -> dict[str, list]:
+    """Return the registries `root` in a form that compares the order of the entries too."""
+    return {k: list(v.items()) for k, v in root.items()}
+
+
+def saved(n: _NetworkABC) -> dict[str, Any]:
+    """Return the meta that saves the registries of `n`, none where it has no entries."""
+    return {ROOT: n._registries} if n._registries else {}
+
+
+def restore(n: _NetworkABC, meta: dict[str, Any]) -> None:
+    """Give `n` the registries a saved `meta` holds, and take them out of `meta`."""
+    n._registries = meta.pop(ROOT, {})
 
 
 def carry(n: _NetworkABC, new: _NetworkABC) -> None:

@@ -163,7 +163,7 @@ def test_an_added_relation_reads_a_static_column(ac_dc_network, blank, spelling)
     [
         (
             {"relations": {"Link_cable_end1": {"key": "Link", "values": "bus"}}},
-            "has no column cable_end1",
+            "has no column 'cable_end1'",
         ),
         (
             {
@@ -171,14 +171,14 @@ def test_an_added_relation_reads_a_static_column(ac_dc_network, blank, spelling)
                     "Link_ends": {"key": "Link", "values": {"a": "bus", "b": "bus"}}
                 }
             },
-            r"declare it \{key: Link, values: <dimension>\}",
+            r"declare it as `\{key: Link, values: <dimension>\}`",
         ),
         (
             {
                 "dimensions": {"cable": {}},
                 "parameters": {"cable_length": {"dims": ["cable"]}},
             },
-            "no data prep for cable: no relation maps units into it",
+            "No relation maps components into it",
         ),
     ],
 )
@@ -229,7 +229,7 @@ def test_a_loaded_network_solves_as_its_author_did(ac_dc_network, tmp_path):
 @pytest.mark.parametrize(
     ("override", "name", "error", "match"),
     [
-        (NO_RAMPS, None, ValueError, "takes a `name`"),
+        (NO_RAMPS, None, ValueError, "Pass `name`"),
         (NO_RAMPS, "no-ramps", ValueError, "identifier"),
         ("# nothing\n", "empty", FileNotFoundError, "not YAML text"),
         ({"constraints": {"Generator_p_half": (1, 2)}}, "x", ValueError, "JSON"),
@@ -283,7 +283,7 @@ def test_a_patch_is_stored_once_and_apart_from_its_source(ac_dc_network):
     overrides.register(patch, name="no_ramps")
     patch["constraints"].clear()
     assert overrides["no_ramps"] == NO_RAMPS
-    with pytest.raises(ValueError, match="stored as 'no_ramps'"):
+    with pytest.raises(ValueError, match="registered already as 'no_ramps'"):
         overrides.register(NO_RAMPS, name="again")
     overrides.register(NO_RAMPS, name="no_ramps", overwrite=True)
     assert list(overrides) == ["no_ramps"]
@@ -320,7 +320,7 @@ def test_an_override_of_linearised_unit_commitment_stays_per_call(ac_dc_network)
                 "edits": {"constraints.Generator_old": "0"},
                 "creates": [],
             },
-            r"'old' edits \['constraints.Generator_old'\], which the spec below it no longer declares",
+            r"'old' changes \['constraints.Generator_old'\], which no longer exist",
         ),
         (
             {
@@ -328,7 +328,7 @@ def test_an_override_of_linearised_unit_commitment_stays_per_call(ac_dc_network)
                 "edits": {},
                 "creates": ["constraints.Generator_ext_p_upper"],
             },
-            r"'old' creates \['constraints.Generator_ext_p_upper'\], which the spec below it now declares",
+            r"'old' adds \['constraints.Generator_ext_p_upper'\], which exist already",
         ),
         (
             {
@@ -336,7 +336,7 @@ def test_an_override_of_linearised_unit_commitment_stays_per_call(ac_dc_network)
                 "edits": {"constraints.Generator_ext_p_upper": "0"},
                 "creates": [],
             },
-            r"'old' edits \['constraints.Generator_ext_p_upper'\], which PyPSA changed since",
+            r"'old' changes \['constraints.Generator_ext_p_upper'\], which PyPSA now defines differently",
         ),
     ],
 )
@@ -364,7 +364,7 @@ def test_an_entry_linearised_unit_commitment_rewrites_is_no_change(ac_dc_network
 
 def test_a_stored_override_without_its_record_fails(ac_dc_network):
     ac_dc_network._registries = {"overrides": {"old": NO_RAMPS}}
-    with pytest.raises(ValueError, match="'old' lacks the `patch`"):
+    with pytest.raises(ValueError, match="'old' lacks `patch`"):
         ac_dc_network.optimize.create_model()
 
 
@@ -374,7 +374,7 @@ def test_a_stored_override_drifting_under_build_options_says_so(ac_dc_network):
         {"constraints": {"Generator_com_p_before": HALF}}, name="before"
     )
     n.optimize.create_model()
-    with pytest.raises(ValueError, match="pass it to this build as a per-call"):
+    with pytest.raises(ValueError, match="Pass this override to"):
         n.optimize.create_model(linearized_unit_commitment=True)
 
 
@@ -384,7 +384,7 @@ def test_merge_refuses_overrides_that_do_not_build_together(ac_dc_network):
     other.set_snapshots(n.snapshots)
     n.optimize.overrides.register(OVERRIDE, name="half")
     other.optimize.overrides.register(OVERRIDE, name="half_too")
-    with pytest.raises(ValueError, match="do not build together"):
+    with pytest.raises(ValueError, match="do not work together"):
         n.merge(other, inplace=True)
     assert list(n.optimize.overrides) == ["half"]
 

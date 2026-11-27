@@ -31,7 +31,7 @@ from pyproj import CRS
 
 from pypsa._future import future_flag
 from pypsa._options import options
-from pypsa._registry import ROOT
+from pypsa._registry import ROOT, restore, saved
 from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.composites import TAGS
 from pypsa.consistency import check_for_unknown_buses
@@ -1373,9 +1373,7 @@ class NetworkIOMixin(_NetworkABC):
         if ROOT in self.meta:
             msg = f"The meta key {ROOT!r} is reserved for the composite types and stored overrides in saved networks. Rename or delete `n.meta[{ROOT!r}]` before you export."
             raise ValueError(msg)
-        if not self._registries:
-            return self.meta
-        return self.meta | {ROOT: self._registries}
+        return self.meta | saved(self)
 
     def _export_to_exporter(
         self,
@@ -1576,7 +1574,7 @@ class NetworkIOMixin(_NetworkABC):
 
         """
         meta = importer.get_meta()
-        self._registries = meta.pop(ROOT, {})
+        restore(self, meta)
         self.meta = meta
 
         # n.crs
