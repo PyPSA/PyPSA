@@ -17,19 +17,19 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pypsa._registry import Registry, builds_on, jsonable
-from pypsa.optimization.spec.build import (
-    _layer,
+from pypsa.optimization.spec import (
     fingerprint,
     holding,
     is_path,
     laid,
+    read_override,
     written,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from pypsa.optimization.spec.build import Layer, Override
+    from pypsa.optimization.spec import Layer, Override
 
 META = "overrides"
 
@@ -107,7 +107,7 @@ class Overrides(Registry[dict[str, Any]]):
             The patch does not hold with the formulation.
 
         """
-        layer = _layer(override)
+        layer = read_override(override)
         stem = None
         if name is None and is_path(override):
             name = stem = Path(override).stem

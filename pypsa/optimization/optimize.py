@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
     from pypsa import Network, SubNetwork
     from pypsa.components import Links, Processes
-    from pypsa.optimization.spec.build import Override
+    from pypsa.optimization.spec import Override
 logger = logging.getLogger(__name__)
 
 lookup = pd.read_csv(

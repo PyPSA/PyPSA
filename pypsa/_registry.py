@@ -42,7 +42,7 @@ def jsonable(content: Any, what: str) -> Any:
 
 def builds_on(patch: Mapping[str, Any], touched: set[str], created: list[str]) -> bool:
     """Whether `patch` writes a key of `touched` or reads one of `created`."""
-    from pypsa.optimization.spec.build import written  # noqa: PLC0415
+    from pypsa.optimization.spec import written  # noqa: PLC0415
 
     if touched & written(patch).keys():
         return True
@@ -171,7 +171,7 @@ class Registry[T](Mapping[str, T]):
                 is left as it was.
 
         """
-        from pypsa.optimization.spec.build import holding  # noqa: PLC0415
+        from pypsa.optimization.spec import holding  # noqa: PLC0415
 
         before = self.n._registries
         self._write(entries)
@@ -183,7 +183,7 @@ class Registry[T](Mapping[str, T]):
 
     def _builds(self, upto: str | None = None) -> bool:
         """Whether the build stack of the network holds, or its part up to and with the entry `upto`."""
-        from pypsa.optimization.spec.build import holding  # noqa: PLC0415
+        from pypsa.optimization.spec import holding  # noqa: PLC0415
 
         before = self.n._registries
         if upto is not None:
@@ -269,7 +269,7 @@ def united(n: Network, other: Network) -> dict[str, dict[str, Any]]:
             stack does not hold with the entries of both.
 
     """
-    from pypsa.optimization.spec.build import holding  # noqa: PLC0415
+    from pypsa.optimization.spec import holding  # noqa: PLC0415
 
     unions = {
         mine.META: mine._union(theirs)

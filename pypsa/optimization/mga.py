@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pypsa import Network
-    from pypsa.optimization.spec.build import Override
+    from pypsa.optimization.spec import Override
 logger = logging.getLogger(__name__)
 
 

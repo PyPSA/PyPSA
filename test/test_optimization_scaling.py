@@ -8,9 +8,9 @@ import linopy
 import numpy as np
 import pandas as pd
 import pytest
-from pypsa.optimization.scaling import KVL
 
 import pypsa
+from pypsa.optimization.spec.scaling import KVL
 
 RTOL = 1e-5
 

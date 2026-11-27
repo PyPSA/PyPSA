@@ -2,11 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Data prep of the spec: piecewise curves."""
+"""Data prep of the spec: piecewise curves, and the patch that applies piecewise options to them."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import re
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -15,7 +16,12 @@ import xarray as xr
 from pypsa.optimization.spec.sources import NetworkSources, source
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from mathspec.spec import Spec
+
     from pypsa.components import Components
+    from pypsa.optimization.piecewise import PiecewiseOptions
 
 
 def _nominal(s: NetworkSources, c: Components, names: pd.Index) -> pd.Series:
@@ -111,3 +117,73 @@ def _port_curve(s: NetworkSources, name: str) -> xr.DataArray:
         frame = x if name.endswith("_p") else (x * y).fillna(0).where(x.notna())
         frames.append(frame.set_axis([(u, k) for u in frame.columns], axis=1))
     return _grid(s, name, pd.concat(frames, axis=1))
+
+
+def _link(link: Any, sign: str) -> list[str]:
+    """Return a piecewise link as the spec writes it, which leaves out the default `==`."""
+    return [link.expression, link.values, *([sign] if sign != "==" else [])]
+
+
+def _piecewise_patch(base: Spec, options: Sequence[PiecewiseOptions]) -> dict:
+    """Return the spec patch that states each curve by the method and sign its option names.
+
+    The spec states linopy's `method='auto'` for PyPSA's default signs as
+    two entries per curve, one picked by data. An option keeps the entry of
+    its method, ungated from that pick, and removes the other; its sign
+    goes on the curve's last link, the y-axis. `auto` with an equality
+    takes the incremental entry, as linopy does.
+
+    Raises:
+        NotImplementedError: An option names units, two options name one
+            curve, the curve has no entry of the method, or `auto` asks
+            for another inequality than the spec's.
+        ValueError: An option names a curve the spec does not hold.
+
+    """
+    patch: dict[str, Any] = {}
+    seen: set[tuple[str, str]] = set()
+    for option in options:
+        curve = (option.component, option.attribute)
+        if option.name:
+            msg = f"A piecewise option for named units ({option.name}) is not supported; give one for all units of {option.component}."
+            raise NotImplementedError(msg)
+        if curve in seen:
+            msg = f"Several piecewise options for {option.component}-{option.attribute} are not supported; give one."
+            raise NotImplementedError(msg)
+        seen.add(curve)
+        prefix = f"{option.component}_{option.attribute}"
+        entries = {
+            k: v
+            for k, v in base.piecewise.items()
+            if re.fullmatch(rf"{prefix}_(lp|incremental)", k)
+        }
+        if not entries:
+            msg = f"No piecewise curve {option.component}-{option.attribute} to apply the option to."
+            raise ValueError(msg)
+        method = option.method
+        if method == "auto" and option.sign == "==":
+            method = "incremental"
+        elif method == "auto":
+            if any(
+                list(e.links.values())[-1].sign != option.sign for e in entries.values()
+            ):
+                msg = f"method='auto' with sign '{option.sign}' is not supported for {option.component}-{option.attribute}; name the method."
+                raise NotImplementedError(msg)
+            continue
+        kept = f"{prefix}_{method}"
+        if kept not in entries:
+            msg = f"method='{option.method}' is not supported for {option.component}-{option.attribute}."
+            raise NotImplementedError(msg)
+        entry = entries[kept]
+        *head, (y, last) = entry.links.items()
+        patch |= dict.fromkeys(set(entries) - {kept})
+        patch[kept] = {
+            "method": method,
+            "links": {k: _link(v, v.sign) for k, v in head}
+            | {y: _link(last, option.sign)},
+        }
+        if entry.where:
+            patch[kept]["where"] = re.sub(
+                rf"(NOT )?{prefix}_as_lp AND ", "", entry.where
+            )
+    return {"piecewise": patch}

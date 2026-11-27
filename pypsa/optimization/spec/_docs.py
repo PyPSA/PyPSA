@@ -37,7 +37,7 @@ from pypsa.optimization.spec._render import (
     renamer,
     symbols,
 )
-from pypsa.optimization.spec.build import SPEC, _patch, spec
+from pypsa.optimization.spec.layers import SPEC, _patch, spec
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator

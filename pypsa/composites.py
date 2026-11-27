@@ -29,10 +29,13 @@ from pypsa._registry import Registry, builds_on, jsonable
 from pypsa.components.types import all_components
 from pypsa.components.types import get as component_type
 from pypsa.network.transform import _build_suffixed_names
+from pypsa.optimization.spec import read_override, spec, written
+from pypsa.optimization.spec._render import PLACEHOLDERS
+from pypsa.optimization.spec.sources import of_scenario
 
 if TYPE_CHECKING:
     from pypsa import Network
-    from pypsa.optimization.spec.build import Override
+    from pypsa.optimization.spec import Override
     from pypsa.optimization.spec.sources import NetworkSources
 
 #: The key of the registries of a network that holds the registered definitions.
@@ -54,8 +57,6 @@ def _dim(class_name: str) -> str:
 
 def _tags(n: Network) -> pd.DataFrame:
     """Return every member of a composite: its class, its name and its tags."""
-    from pypsa.optimization.spec.sources import of_scenario  # noqa: PLC0415
-
     frames = [
         of_scenario(c.static, n)[TAGS].assign(class_name=c.name)
         for c in n.components
@@ -132,9 +133,7 @@ class CompositeType:
                 formulation.
 
         """
-        from pypsa.optimization.spec.build import _layer  # noqa: PLC0415
-
-        d = copy.deepcopy(_layer(definition))
+        d = copy.deepcopy(read_override(definition))
         unknown = d.keys() - SECTIONS
         if unknown or "name" not in d:
             msg = f"A composite definition has a name and the sections {sorted(SECTIONS - {'name'})}; it has {sorted(d)}."
@@ -215,9 +214,6 @@ class CompositeType:
         return {k for section in self.patch().values() for k in section}
 
     def _check(self) -> None:
-        from pypsa.optimization.spec._render import PLACEHOLDERS  # noqa: PLC0415
-        from pypsa.optimization.spec.build import spec  # noqa: PLC0415
-
         t = self.name
         base = spec()
         taken = _components() | {*base.dimensions, *PLACEHOLDERS, *dir(Composites)}
@@ -510,8 +506,6 @@ class Composite:
         A parameter given as a time series shows its static value, as
         `n.c.<component>.static` does; the series is in the member's `dynamic`.
         """
-        from pypsa.optimization.spec.sources import of_scenario  # noqa: PLC0415
-
         members = self.members
         read = {}
         for p, (member, attr) in self.type.homes.items():
@@ -558,8 +552,6 @@ class Composite:
 
     def _parameter(self, s: NetworkSources, name: str) -> xr.DataArray:
         """Return a parameter `<type>_<parameter>` of the math over the scenarios and the instances in the build."""
-        from pypsa.optimization.spec.sources import of_scenario  # noqa: PLC0415
-
         column = self.type.column(name.removeprefix(f"{self.name}_"))
         anchors = self._built(s)[self.type.anchor]
         static = self.n.c[self.type.members[self.type.anchor]].static
@@ -644,8 +636,6 @@ class Composites(Registry[Composite]):
         self._remove(name)
 
     def _dependents(self, name: str, entries: dict[str, Any]) -> list[str]:
-        from pypsa.optimization.spec.build import written  # noqa: PLC0415
-
         touched = set(written(CompositeType.read(entries[name]).patch()))
         created = [k.rpartition(".")[2] for k in touched]
         later = list(entries)[list(entries).index(name) + 1 :]
