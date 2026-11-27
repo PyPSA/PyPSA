@@ -414,7 +414,9 @@ one it adds, the build fails instead of changing the problem silently; the
 same holds where the options of a build remove or add such entries. After a
 release, check the override and register it again with `overwrite=True`; for the options
 of a build, pass it per call. The check does not cover entries an override
-only reads, such as a variable its own constraint uses.
+only reads, such as a variable its own constraint uses. It also does not cover
+the content of an entry that a composite type declares: if you change the type
+with `overwrite=True`, check the overrides that edit its entries.
 
 To add a group of components with the math that ties them as often as needed,
 define a [composite](../optimization/composites.md).
