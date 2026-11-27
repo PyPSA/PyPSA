@@ -37,6 +37,8 @@ Currently supported metrics are:
 - [Marginal prices][pypsa.statistics.StatisticsAccessor.prices]: The marginal prices at the buses for all snapshots.
 - [Transmission][pypsa.statistics.StatisticsAccessor.transmission]: The energy transmitted through transmission components (links, lines, transformers connecting to buses of the same carrier).
 
+Congestion rent, capture rate, profit, input costs, and producer and consumer surplus follow from these metrics, see [Derived Metrics](#derived-metrics).
+
 These metrics can be calculated using the `n.statistics` accessor, for instance:
 
 ``` py
@@ -158,6 +160,167 @@ Load      load                     NaN  ...                  NaN
 - **`nice_names`**: Use nice names for carriers
 - **`drop_zero`**: Remove zero-value rows
 - **`round`**: Round to decimal places
+
+## Derived Metrics
+
+Some common market metrics have no method of their own, because one or two existing statistics give them. The examples use the solved network, with one investment period and no scenarios. The [last section](#investment-periods-and-scenarios) adapts them to other cases.
+
+``` py
+>>> _ = n.optimize(log_to_console=False)
+```
+
+### Congestion rent
+
+The congestion rent, or merchandising surplus, arises when transmission limits separate prices. It has two standard definitions: for one branch, its flow times the price difference between its ends; for the whole system, what consumers pay minus what producers receive. The rent of a branch is zero when the prices of its start and end buses are equal or when no power flows. In PyPSA, the [revenue][pypsa.statistics.StatisticsAccessor.revenue] of a branch is the value of the energy it delivers minus the value of the energy it withdraws, which is the first definition:
+
+``` py
+>>> n.statistics.revenue(components=["Line", "Link"])
+component  carrier
+Line       AC         609.62732
+Link       DC         798.60693
+dtype: float64
+```
+
+As the revenues of all components cancel at every bus, the sum over all branches also gives the second definition.
+
+!!! note "Edge cases"
+
+    - A single branch can earn a negative rent, for instance when loop flows push power from an expensive to a cheaper bus. The sum over all branches is non-negative.
+    - A branch need not be congested itself to earn a rent. Congestion elsewhere in the network suffices to separate the prices at its ends.
+    - For links with losses, the rent is the price difference times the withdrawn flow minus the losses valued at the price of the receiving bus.
+    - For links between buses of different carriers, such as electrolysers, the rent is the margin on the price spread between the carriers. Exclude them with the `carrier` filter.
+
+### Capture rate
+
+The capture rate, or value factor, of a technology is the average price it earns relative to the average price over time[^1]. In PyPSA, divide its [market value][pypsa.statistics.StatisticsAccessor.market_value] by the time-weighted average [price][pypsa.statistics.StatisticsAccessor.prices] of the buses with the same `bus_carrier`:
+
+``` py
+>>> market_value = n.statistics.market_value(components="Generator", bus_carrier="AC")
+>>> base_price = n.statistics.prices(bus_carrier="AC", groupby="bus_carrier", weighting="time")
+>>> (market_value / base_price["AC"]).round(2)
+carrier
+gas     2.83
+wind    1.07
+dtype: float64
+```
+
+### Profit
+
+The profit of an asset is its revenue minus all its costs, including the annualised capital cost. In PyPSA, subtract the [system cost][pypsa.statistics.StatisticsAccessor.system_cost] from the [revenue][pypsa.statistics.StatisticsAccessor.revenue] at all ports. The `fill_value=0` keeps components without costs, such as loads:
+
+``` py
+>>> profit = n.statistics.revenue().sub(n.statistics.system_cost(), fill_value=0)
+>>> profit.round()
+component  carrier
+Generator  gas         2178292.0
+           wind              0.0
+Line       AC                0.0
+Link       DC                0.0
+Load       load      -20619313.0
+dtype: float64
+```
+
+Profit is in the units of the objective function. As `capital_cost` is annualised, it is a yearly value only if the snapshot weightings add up to one year.
+
+In a long-run equilibrium, the zero-profit rule holds: an extendable asset at an interior optimum of a linear model earns exactly its costs[^2]. Under an emission cap, emitters break even only after paying the CO2 price, the shadow price of the cap, for their emissions. The system cost excludes this payment, so the profit above contains it. In this network, the gas generators are the only emitters and their emissions fill the cap:
+
+``` py
+>>> co2_limit = n.c.global_constraints.static.loc["co2_limit"]
+>>> round(-co2_limit.mu * co2_limit.constant)
+2178292
+```
+
+!!! warning "Exceptions to the zero-profit rule"
+
+    - Fixed capacities and binding capacity limits, such as `p_nom_min` and `p_nom_max`, earn a positive or negative rent.
+    - With a `marginal_cost_quadratic` $c_q$, the price exceeds the average operational cost, and an extendable asset earns the rent $\sum_t w_t c_q p_t^2$ on top of its costs.
+    - With unit commitment or modular capacities, the problem is not convex, and prices need not recover costs.
+
+### Input costs
+
+The input cost of a converter is the value of the energy it withdraws, such as the fuel a gas turbine burns or the electricity an electrolyser uses, at the marginal prices of the buses it withdraws from. In PyPSA, it is the negative [revenue][pypsa.statistics.StatisticsAccessor.revenue] with `direction="input"`. For the DC link, these are the withdrawals at either end:
+
+``` py
+>>> input_cost = -n.statistics.revenue(components="Link", direction="input")
+>>> input_cost.round()
+carrier
+DC    6143792.0
+dtype: float64
+```
+
+Pass `at_port` to value only some ports, e.g. `at_port=[0]` for the fuel at `bus0` of a gas turbine modelled as a link.
+
+!!! warning
+
+    The input cost is a valuation after the optimisation, not part of the [system cost][pypsa.statistics.StatisticsAccessor.system_cost]. The [operational expenditure][pypsa.statistics.StatisticsAccessor.opex] of a converter contains only its own `marginal_cost`, while the cost of producing its inputs appears with the components that supply them. Adding the input cost to the system cost counts it twice.
+
+### Producer and consumer surplus
+
+The producer surplus, or producer rent, is what producers receive minus their variable costs. In PyPSA, it is the [revenue][pypsa.statistics.StatisticsAccessor.revenue] minus the [operational expenditure][pypsa.statistics.StatisticsAccessor.opex]. It equals the [profit](#profit) plus the [capital expenditure][pypsa.statistics.StatisticsAccessor.capex], and for branches without operational costs it is the [congestion rent](#congestion-rent):
+
+``` py
+>>> revenue = n.statistics.revenue()
+>>> producer_surplus = revenue.sub(n.statistics.opex(), fill_value=0).drop("Load")
+>>> producer_surplus.round()
+component  carrier
+Generator  gas         2279124.0
+           wind       18329600.0
+Line       AC              610.0
+Link       DC              799.0
+dtype: float64
+```
+
+The consumer surplus, or consumer rent, is what consumers would be willing to pay for their energy minus what they pay. Loads with a fixed demand have no willingness to pay in the model. As a proxy, assume one above the highest price. If the model uses [load shedding][pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding], take its cost, the value of lost load. The demand of loads is their [withdrawal][pypsa.statistics.StatisticsAccessor.withdrawal], and their revenue is negative; it is their payment:
+
+``` py
+>>> willingness_to_pay = 3000  # €/MWh, an assumption
+>>> demand = n.statistics.withdrawal(components="Load")
+>>> consumer_surplus = willingness_to_pay * demand + revenue["Load"]
+>>> consumer_surplus.round()
+carrier
+load    77023571.0
+dtype: float64
+```
+
+!!! warning
+
+    The level of this proxy scales with the assumed willingness to pay. Compare it only between scenarios with the same demand, where the assumption cancels.
+
+!!! info "Elastic demand"
+
+    Elastic demand needs no proxy. Model it as a generator with `sign=-1` and a negative `marginal_cost`, the willingness to pay, as in the [data centre example](../examples/data-centre-investment.ipynb). A positive `marginal_cost_quadratic` makes the willingness to pay fall with consumption. Its revenue minus its operational expenditure, the formula of the producer surplus, is then its consumer surplus.
+
+The welfare is the sum of consumer surplus, producer surplus and congestion rent. As the revenues of all components cancel at every bus, it equals the value of the demand minus the operational expenditure:
+
+``` py
+>>> welfare = willingness_to_pay * demand.sum() - n.statistics.opex().sum()
+>>> round(consumer_surplus.sum() + producer_surplus.sum() - welfare)
+0
+```
+
+### Investment periods and scenarios
+
+With investment periods, statistics have one column per period. The [system cost][pypsa.statistics.StatisticsAccessor.system_cost], [capital][pypsa.statistics.StatisticsAccessor.capex] and [operational expenditure][pypsa.statistics.StatisticsAccessor.opex] of each period are weighted by `n.investment_period_weightings.objective`, which discounts them, but the [revenue][pypsa.statistics.StatisticsAccessor.revenue] is not. Weight the revenue, and the value of the demand, in the same way before you subtract costs. An asset that lives over several periods then breaks even over its lifetime, not in each period:
+
+``` py
+>>> weights = n.investment_period_weightings.objective
+>>> revenue = n.statistics.revenue().mul(weights, level="period")  # doctest: +SKIP
+>>> profit = revenue.sub(n.statistics.system_cost(), fill_value=0).sum(axis=1)  # doctest: +SKIP
+```
+
+!!! warning
+
+    The [prices][pypsa.statistics.StatisticsAccessor.prices] statistic averages over all periods, so the [capture rate](#capture-rate) recipe gives no value per period.
+
+With scenarios, statistics have one row per scenario, and the capital expenditure repeats in each of them. Weight scenarios by `n.scenario_weightings.weight` for expected values. For the capture rate, divide by the base price of each scenario:
+
+``` py
+>>> base_price = base_price.xs("AC", level="bus_carrier")  # doctest: +SKIP
+>>> market_value.div(base_price, level="scenario")  # doctest: +SKIP
+```
+
+[^1]: L. Hirth (2013), [The market value of variable renewables](https://doi.org/10.1016/j.eneco.2013.02.004), Energy Economics 38, 218–236.
+[^2]: T. Brown, L. Reichenberg (2021), [Decreasing market value of variable renewables can be avoided by policy action](https://doi.org/10.1016/j.eneco.2021.105354), Energy Economics 100, 105354.
 
 ## Expressions
 
