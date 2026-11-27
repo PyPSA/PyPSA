@@ -130,23 +130,29 @@ def test_a_key_is_its_linopy_name_with_underscores(section):
 
 
 @pytest.mark.parametrize(
-    ("rule", "error"), [("none", None), ("largest", "rules \\['largest'\\]")]
+    ("section", "rule", "error"),
+    [
+        ("constraints", "none", None),
+        ("constraints", "largest", "rules \\['largest'\\]"),
+        ("variables", "objective", None),
+        ("variables", "cycle", "rules \\['cycle'\\] in `variables`"),
+        ("piecewise", "objective", None),
+        ("piecewise", "carrier", "rules \\['carrier'\\] in `piecewise`"),
+    ],
 )
-def test_a_constraint_states_its_scaling_rule_apart_from_the_spec(
-    tmp_path, rule, error
+def test_an_entry_states_its_scaling_rule_apart_from_the_spec(
+    tmp_path, section, rule, error
 ):
     path = tmp_path / "fragment.yaml"
-    path.write_text(
-        f"constraints:\n  COMPONENT_x:\n    scaling: {rule}\n    dims: []\n"
-    )
+    path.write_text(f"{section}:\n  COMPONENT_x:\n    scaling: {rule}\n    dims: []\n")
     rename = renamer(pypsa.Network().components["Generator"])
     if error:
         with pytest.raises(ValueError, match=error):
             _load(path, rename)
         return
     data, _, scalings = _load(path, rename)
-    assert scalings == {"Generator_x": rule}
-    assert data["constraints"]["COMPONENT_x"] == {"dims": []}
+    assert scalings == {(section, "Generator_x"): rule}
+    assert data[section]["COMPONENT_x"] == {"dims": []}
 
 
 SHARED = {

@@ -45,6 +45,7 @@ macros:
 variables:
   COMPONENT_marginal_cost_piecewise:
     name: COMPONENT-marginal_cost_piecewise
+    scaling: objective
     description: the running cost of a unit with a `marginal_cost` curve
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_marginal_cost_curve AND COMPONENT_activity_mask

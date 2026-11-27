@@ -63,6 +63,7 @@ relations:
 variables:
   COMPONENT_maintenance:
     name: COMPONENT-maintenance
+    scaling: none
     description: one where an event covers the snapshot, zero otherwise
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_maint
@@ -87,6 +88,7 @@ variables:
       lower: 0
   COMPONENT_maintenance_status:
     name: COMPONENT-maintenance_status
+    scaling: none
     description: the status while in maintenance, zero otherwise
     dims: [scenario, snapshot, UNIT]
     where: COMPONENT_maint_com AND NOT (COMPONENT_NOM_extendable AND NOT COMPONENT_modular)

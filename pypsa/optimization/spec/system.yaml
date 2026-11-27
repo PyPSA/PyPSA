@@ -187,6 +187,7 @@ variables:
     missing: 0
   CVaR_a:
     name: CVaR-a
+    scaling: objective
     description: how far a scenario's operating cost exceeds the value at risk
     dims: [scenario]
     where: CVaR_omega
@@ -195,11 +196,13 @@ variables:
       lower: 0
   CVaR_theta:
     name: CVaR-theta
+    scaling: objective
     description: the value at risk, where the tail starts
     dims: []
     where: CVaR_omega
     missing: 0
   CVaR:
+    scaling: objective
     description: the CVaR, the mean operating cost in the tail
     dims: []
     where: CVaR_omega

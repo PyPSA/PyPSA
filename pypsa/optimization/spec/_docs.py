@@ -128,8 +128,8 @@ def _entries(path: Traversable, rename: Callable[[str], str], page: str) -> list
             if isinstance(source, dict):
                 named = names.get(section, {})
                 source = ({"name": named[renamed]} if renamed in named else {}) | source
-                if section == "constraints" and renamed in scalings:
-                    source["scaling"] = scalings[renamed]
+                if (section, renamed) in scalings:
+                    source["scaling"] = scalings[section, renamed]
             entries.append(Entry(renamed, section, source, page))
     return entries
 

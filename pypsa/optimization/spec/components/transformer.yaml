@@ -31,6 +31,7 @@ parameters:
 variables:
   Transformer_phase_shift:
     name: Transformer-phase_shift
+    scaling: none
     description: the phase shift of a varying transformer, in degrees
     dims: [scenario, snapshot, Transformer]
     where: Transformer_phase_shift_varying AND Transformer_activity_mask

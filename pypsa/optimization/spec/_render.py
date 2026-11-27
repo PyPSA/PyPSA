@@ -47,10 +47,18 @@ Name = str | dict[str, str]
 Names = dict[str, dict[str, Name]]
 #: The sections whose entries may carry a `name:`.
 NAMED = ("variables", "constraints", "piecewise")
-#: The rules a constraint may name in `scaling:` for the factor of its rows.
-SCALINGS = frozenset({"bus", "objective", "none", "cycle", "carrier", "global"})
-#: The scaling rule of each entry that names one, by its key.
-Scalings = dict[str, str]
+#: The rules an entry may name in `scaling:`, by section: a variable for the
+#: factor of its columns, a constraint for that of its rows, a piecewise curve
+#: for that of the rows that hold its cost.
+SCALINGS = {
+    "variables": frozenset({"bus", "objective", "none"}),
+    "constraints": frozenset(
+        {"bus", "objective", "none", "cycle", "carrier", "global"}
+    ),
+    "piecewise": frozenset({"bus", "objective", "none"}),
+}
+#: The scaling rule of each entry that names one, by its section and key.
+Scalings = dict[tuple[str, str], str]
 #: A word of a name, between `_` or `-`.
 WORD = re.compile(r"[^\W_]+")
 #: The words that stand for a value of the component.
@@ -114,13 +122,13 @@ def renamer(c: Components) -> Callable[[str], str]:
 def _load(
     path: Traversable, rename: Callable[[str], str]
 ) -> tuple[dict, Names, Scalings]:
-    """Return the spec in *path* without its `name:` and `scaling:` fields, and those fields keyed by renamed key.
+    """Return the spec in *path* without its `name:` and `scaling:` fields, and those fields by section and renamed key.
 
     The closed mathspec schema refuses both fields, and `mathspec.rename`
     keeps the label of a piecewise link, so all are renamed here.
 
     Raises:
-        ValueError: A `scaling:` names no rule in `SCALINGS`.
+        ValueError: A `scaling:` names no rule `SCALINGS` allows in its section.
 
     """
     import yaml  # noqa: PLC0415
@@ -137,17 +145,15 @@ def _load(
             else {m: rename(n) for m, n in v.items()}
             for k, v in named.items()
         }
-    scalings = {
-        rename(k): v.pop("scaling")
-        for k, v in data.get("constraints", {}).items()
-        if "scaling" in v
-    }
-    unknown = sorted(set(scalings.values()) - SCALINGS)
-    if unknown:
-        msg = (
-            f"{path} names the scaling rules {unknown}; use one of {sorted(SCALINGS)}."
-        )
-        raise ValueError(msg)
+    scalings: Scalings = {}
+    for section, rules in SCALINGS.items():
+        entries = data.get(section, {})
+        scaled = {k: v.pop("scaling") for k, v in entries.items() if "scaling" in v}
+        unknown = sorted(set(scaled.values()) - rules)
+        if unknown:
+            msg = f"{path} names the scaling rules {unknown} in `{section}`; use one of {sorted(rules)}."
+            raise ValueError(msg)
+        scalings |= {(section, rename(k)): rule for k, rule in scaled.items()}
     for entry in data.get("piecewise", {}).values():
         if "links" in entry:
             entry["links"] = {rename(k): v for k, v in entry["links"].items()}
@@ -213,9 +219,12 @@ def render(
     wherever *root* has one. A file under *patch* at one of these paths is
     part of the patch. An entry of a variable, constraint or piecewise
     curve may state its PyPSA name in `name:`, one per loss mode where
-    PyPSA names it by mode; one without keeps its key as name. A
-    constraint may name the rule of its row factors in `scaling:`, one of
-    `SCALINGS`.
+    PyPSA names it by mode; one without keeps its key as name. It may
+    also name in `scaling:` one of the rules `SCALINGS` allows in its
+    section: a variable for its column factors, a constraint for its row
+    factors, a piecewise curve for the factors of the rows that hold its
+    cost. An entry without one takes the rule its structure gives, which
+    `pypsa.optimization.spec.scaling` states.
 
     The files are joined as a dict, not by `mathspec.merge`, which needs
     each file to load on its own: `system.yaml` and the component files

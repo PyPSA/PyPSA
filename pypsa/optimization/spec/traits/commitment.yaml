@@ -213,6 +213,7 @@ conditions:
 piecewise:
   COMPONENT_marginal_cost_lp:
     name: COMPONENT-marginal_cost_piecewise
+    scaling: objective
     description: the running cost is at least the `marginal_cost` curve at the power, by segment lines
     along: breakpoint
     dims: [scenario, snapshot, UNIT]
@@ -225,6 +226,7 @@ piecewise:
       cost: ["COMPONENT_marginal_cost_piecewise", "COMPONENT_marginal_cost_curve_cost", ">="]
   COMPONENT_marginal_cost_incremental:
     name: COMPONENT-marginal_cost_piecewise
+    scaling: objective
     description: >-
       the running cost is at least the `marginal_cost` curve at the power, by
       segments filled in order; the status gates the curve of a committable unit

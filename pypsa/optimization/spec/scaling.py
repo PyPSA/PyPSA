@@ -6,13 +6,14 @@
 
 It owns the factor of each column and row, which PyPSA derives from
 `Bus.scaling`, `GlobalConstraint.scaling` and the `objective_scaling`
-argument, and the scaling rule of each constraint. linopy transforms
-solutions, duals and the objective back to original units.
+argument by the scaling rule of each variable and constraint. A spec entry
+states its rule in `scaling:`; one without takes the rule its kind gives.
+linopy transforms solutions, duals and the objective back to original units.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 import xarray as xr
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
     import pandas as pd
     from linopy import Model
     from linopy.constraints import Constraint
+    from linopy.variables import Variable
 
     from pypsa import Network
     from pypsa.optimization.spec._render import Scalings
@@ -92,66 +94,78 @@ def check_sub_networks(n: Network) -> None:
         raise ValueError(msg)
 
 
-#: Columns PyPSA never scales: unit commitment, modules, maintenance and angles.
-UNSCALED = {
-    "status",
-    "start_up",
-    "shut_down",
-    "n_mod",
-    "maintenance",
-    "maintenance_start",
-    "maintenance_status",
-    "phase_shift",
-}
 #: The rows of a piecewise curve that hold only its weights and binaries.
 WEIGHT_ROWS = {"active_bound", "binary_order", "delta_bound", "fill_order"}
-#: The rows of a cost curve that hold the cost: its chords and its `cost` link.
-COST_ROWS = {"chord", "cost"}
+#: The rows of a cost curve that hold the cost: its chords and its `cost` link, gated or not.
+COST_ROWS = ("chord", "cost", "cost_ungated")
 
 
-def _scale_columns(m: Model, n: Network, objective: float) -> None:
-    """Give every column PyPSA's factor.
+class Rules(NamedTuple):
+    """The scaling rule of each variable and constraint that states one, by PyPSA name."""
 
-    A cost column takes the objective factor. A continuous column of a
-    component on a bus takes `Bus.scaling` of its bus; the weights and
-    binaries of a piecewise curve, and the columns in `UNSCALED`, keep `1`.
+    columns: dict[str, str]
+    rows: dict[str, str]
+
+
+def _rules(scalings: Scalings, rename: Callable[[str], str]) -> Rules:
+    """Return the scaling rules the spec states by the PyPSA name of what they scale.
+
+    The rule of a piecewise curve goes to the rows of `COST_ROWS` it expands into.
     """
-    attached = n.one_port_components | n.branch_components
-    for name, var in m.variables.items():
-        component, _, attr = name.partition("-")
-        if component == "CVaR" or attr.endswith("cost_piecewise"):
-            var.scaling = objective
-        elif (
-            component in attached
-            and "name" in var.labels.dims
-            and attr not in UNSCALED
-            and "_piecewise_" not in attr
-            and not (var.attrs.get("binary") or var.attrs.get("integer"))
-        ):
-            var.scaling = n.c[component]._scaling(var.labels.indexes["name"])
+    rules = Rules({}, {})
+    for (section, key), rule in scalings.items():
+        if section == "variables":
+            rules.columns[rename(key)] = rule
+        elif section == "constraints":
+            rules.rows[rename(key)] = rule
+        else:
+            rules.rows.update({rename(f"{key}_{kind}"): rule for kind in COST_ROWS})
+    return rules
 
 
-def _rules(scalings: Scalings, rename: Callable[[str], str]) -> dict[str, str]:
-    """Return the scaling rule of each entry by its PyPSA name."""
-    return {rename(key): rule for key, rule in scalings.items()}
+def _column_rule(name: str, var: Variable, n: Network, rules: Rules) -> str:
+    """Return the scaling rule of the variable `name`: its `scaling:`, else one by its kind.
 
-
-def _rule(name: str, con: Constraint, n: Network, rules: dict[str, str]) -> str:
-    """Return the scaling rule of the constraint `name`: its `scaling:`, else one by its kind.
-
-    A row of a piecewise curve that holds only its weights and binaries
-    takes `none`, one of a cost curve that holds the cost `objective`. A
-    row over the units of a component on a bus takes `bus`, any other
+    A continuous column over the units of a component on a bus takes
+    `bus`; any other, as the weights and binaries of a piecewise curve,
     `none`.
     """
-    if name in rules:
-        return rules[name]
-    curve, piecewise, kind = name.rpartition("_piecewise_")
+    if name in rules.columns:
+        return rules.columns[name]
+    component, _, attr = name.partition("-")
+    attached = n.one_port_components | n.branch_components
+    discrete = var.attrs.get("binary") or var.attrs.get("integer")
+    on_bus = component in attached and "name" in var.labels.dims
+    return "bus" if on_bus and "_piecewise_" not in attr and not discrete else "none"
+
+
+def _scale_columns(m: Model, n: Network, rules: Rules, objective: float) -> None:
+    """Give every column the factor its scaling rule takes from the network data.
+
+    `bus` takes `Bus.scaling` of each unit's bus, `objective` the objective
+    factor, and `none` keeps `1`.
+    """
+    for name, var in m.variables.items():
+        match _column_rule(name, var, n, rules):
+            case "bus":
+                component = name.partition("-")[0]
+                var.scaling = n.c[component]._scaling(var.labels.indexes["name"])
+            case "objective":
+                var.scaling = objective
+
+
+def _rule(name: str, con: Constraint, n: Network, rules: Rules) -> str:
+    """Return the scaling rule of the constraint `name`: its `scaling:` or its curve's, else one by its kind.
+
+    A row of a piecewise curve that holds only its weights and binaries
+    takes `none`. A row over the units of a component on a bus takes
+    `bus`, any other `none`.
+    """
+    if name in rules.rows:
+        return rules.rows[name]
+    _, piecewise, kind = name.rpartition("_piecewise_")
     if piecewise and kind in WEIGHT_ROWS:
         return "none"
-    cost = kind.removesuffix("_ungated") in COST_ROWS
-    if piecewise and curve.endswith("cost") and cost:
-        return "objective"
     component = name.partition("-")[0]
     attached = n.one_port_components | n.branch_components | {"Bus"}
     return "bus" if component in attached and "name" in con.labels.dims else "none"
@@ -194,7 +208,7 @@ def _scale_rows(
     m: Model,
     n: Network,
     sources: NetworkSources,
-    rules: dict[str, str],
+    rules: Rules,
     objective: float,
 ) -> None:
     """Give every constraint the factor its scaling rule takes from the network data.
@@ -233,7 +247,7 @@ def _scale(
     m: Model,
     n: Network,
     sources: NetworkSources,
-    rules: dict[str, str],
+    rules: Rules,
     objective: float,
 ) -> None:
     """Apply PyPSA's numerical scaling to the built model.
@@ -245,5 +259,5 @@ def _scale(
     m.objective.scaling = objective
     if KVL in m.constraints:
         check_sub_networks(n)
-    _scale_columns(m, n, objective)
+    _scale_columns(m, n, rules, objective)
     _scale_rows(m, n, sources, rules, objective)

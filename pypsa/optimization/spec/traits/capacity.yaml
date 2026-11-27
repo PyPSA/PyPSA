@@ -108,6 +108,7 @@ variables:
       lower: 0
   COMPONENT_capital_cost_piecewise:
     name: COMPONENT-capital_cost_piecewise
+    scaling: objective
     description: the build cost of an asset with a `capital_cost` curve
     dims: [UNIT]
     where: COMPONENT_capital_cost_curve
@@ -178,6 +179,7 @@ conditions:
 piecewise:
   COMPONENT_capital_cost_lp:
     name: COMPONENT-capital_cost_piecewise
+    scaling: objective
     description: the build cost is at least the `capital_cost` curve at the build, by segment lines
     along: breakpoint
     dims: [UNIT]
@@ -188,6 +190,7 @@ piecewise:
       cost: ["COMPONENT_capital_cost_piecewise", "COMPONENT_capital_cost_curve_cost", ">="]
   COMPONENT_capital_cost_incremental:
     name: COMPONENT-capital_cost_piecewise
+    scaling: objective
     description: the build cost is at least the `capital_cost` curve at the build, by segments filled in order
     along: breakpoint
     dims: [UNIT]

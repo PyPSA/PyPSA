@@ -4,16 +4,19 @@
 
 variables:
   COMPONENT_status:
+    scaling: none
     description: the share of a committable unit that is on
     domain: null
     bounds:
       upper: 1
   COMPONENT_start_up:
+    scaling: none
     description: the share that starts in this snapshot
     domain: null
     bounds:
       upper: 1
   COMPONENT_shut_down:
+    scaling: none
     description: the share that stops in this snapshot
     domain: null
     bounds:
