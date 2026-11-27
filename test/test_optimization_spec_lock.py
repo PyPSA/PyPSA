@@ -47,7 +47,8 @@ DATA = Path(__file__).parent / "data" / "equivalence"
 SPEC_KEYS = DATA / "spec_keys.json"
 DIGESTS = DATA / "model_digests.json"
 REGENERATE = "python test/test_optimization_spec_lock.py"
-VARIANTS = {"default": False, "linearized_unit_commitment": True}
+VARIANTS = ("default", "linearized_unit_commitment")
+REMOVED = "removed"
 
 
 def risk_averse_growth_limit() -> None:
@@ -233,6 +234,18 @@ def spec_keys(linearized_unit_commitment: bool) -> dict[str, dict[str, str]]:
     return {kind: dict(sorted(named.items())) for kind, named in sorted(keys.items())}
 
 
+def spec_lock() -> dict[str, dict[str, dict[str, str]]]:
+    """Return the fingerprint of each key of the default spec, and of each key linearised unit commitment changes."""
+    default, linearized = spec_keys(False), spec_keys(True)
+    changed: dict[str, dict[str, str]] = {}
+    for kind in sorted(default.keys() | linearized.keys()):
+        before, after = default.get(kind, {}), linearized.get(kind, {})
+        for name in sorted(before.keys() | after.keys()):
+            if before.get(name) != after.get(name):
+                changed.setdefault(kind, {})[name] = after.get(name, REMOVED)
+    return dict(zip(VARIANTS, (default, changed), strict=True))
+
+
 def _number(value: float) -> float:
     return float(f"{value:.10g}")
 
@@ -340,7 +353,7 @@ def _assert_unchanged(expected: Any, found: Any, root: str) -> None:
 @pytest.mark.parametrize("variant", VARIANTS)
 def test_spec_keys_match_lock(variant: str) -> None:
     expected = json.loads(SPEC_KEYS.read_text())[variant]
-    _assert_unchanged(expected, spec_keys(VARIANTS[variant]), variant)
+    _assert_unchanged(expected, spec_lock()[variant], variant)
 
 
 @pytest.mark.parametrize("case", CASES)
@@ -365,7 +378,6 @@ if __name__ == "__main__":
     for name in pypsa.options.future._children:
         if pypsa.options.get_option(f"future.{name}") is None:
             pypsa.options.set_option(f"future.{name}", False)
-    keys = {variant: spec_keys(v) for variant, v in VARIANTS.items()}
     digests = {case: digest(build(case)) for case in CASES}
-    SPEC_KEYS.write_text(_dumps(keys, 3) + "\n")
+    SPEC_KEYS.write_text(_dumps(spec_lock(), 3) + "\n")
     DIGESTS.write_text(_dumps(digests, 3) + "\n")
