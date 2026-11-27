@@ -196,6 +196,7 @@ nav:
 
 - Contributing:
   - Instructions: contributing/contributing.md
+  - Changing the Formulation: contributing/formulation.md
   - AI-based Contributions: contributing/ai.md
   - Code of Conduct: CODE_OF_CONDUCT.md
   - Security: SECURITY.md
