@@ -352,10 +352,9 @@ def _relabel(
         data = frame(var.data, dims, _pypsa_dims(dims, False))
         m.variables.add(Variable(data, m, name, skip_broadcast=True))
 
-    for name, expr in list(m.expressions.items()):
+    for expr in list(m.expressions.values()):
         dims = tuple(expr.coord_dims)
-        m.remove_expressions(name)
-        m.add_expressions(frame(expr, dims, _pypsa_dims(dims, False)), name=name)
+        m.expressions.add(frame(expr, dims, _pypsa_dims(dims, False)))
 
     constraints = {}
     for name, con in m.constraints.items():
