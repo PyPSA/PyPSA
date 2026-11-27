@@ -50,8 +50,10 @@ NO_PERIOD = 0
 _SOURCES: dict[str, Callable[..., Any]] = {}
 
 
-def source[F: Callable[..., Any]](*keys: str) -> Callable[[F], F]:
-    """Register `f` as the one derivation of each key, called as `f(s, name)`.
+def source[F: Callable[..., Any]](
+    *keys: str, registry: dict[str, Callable[..., Any]] = _SOURCES
+) -> Callable[[F], F]:
+    """Register `f` in `registry` as the one derivation of each key, called as `f(s, name)`.
 
     A key with the placeholders of a trait, as `COMPONENT_active`, stands for that
     source of every component with a formulation; `f` takes the component as
@@ -64,10 +66,10 @@ def source[F: Callable[..., Any]](*keys: str) -> Callable[[F], F]:
 
     def register(f: F) -> F:
         for key in keys:
-            if key in _SOURCES:
-                msg = f"{key} is derived by {_SOURCES[key].__qualname__} already."
+            if key in registry:
+                msg = f"{key} is derived by {registry[key].__qualname__} already."
                 raise ValueError(msg)
-            _SOURCES[key] = f
+            registry[key] = f
         return f
 
     return register
@@ -493,7 +495,7 @@ class NetworkSources(Mapping[str, Any]):
 
         """
         attr = name.removeprefix(f"{c.name}_")
-        if attr not in c.static and attr not in c.dynamic:
+        if not self.takes(c, attr):
             msg = f"no data prep for {name}: {c.name} has no attribute {attr}"
             raise NotImplementedError(msg)
         varies = attr == "active" or attr in c.dynamic.keys()
@@ -501,6 +503,10 @@ class NetworkSources(Mapping[str, Any]):
             msg = f"{name} varies by snapshot in the network, the spec holds it static"
             raise ValueError(msg)
         return attr
+
+    def takes(self, c: Components, attr: str) -> bool:
+        """Whether a component has the PyPSA attribute `attr`."""
+        return attr in c.static or attr in c.dynamic
 
     def attribute(self, c: Components, name: str) -> xr.DataArray:
         """Return a parameter `<Component>_<attr>` named after a PyPSA attribute, read off `c.da`."""
@@ -819,8 +825,7 @@ def _nom_bound(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
 @source("COMPONENT_NOM_set", "COMPONENT_s_set")
 def _optional(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """Return the attribute, NaN where the component has none."""
-    attr = name.removeprefix(f"{c.name}_")
-    if attr in c.static or attr in c.dynamic:
+    if s.takes(c, name.removeprefix(f"{c.name}_")):
         return s.attribute(c, name)
     return s.filled(name, np.nan)
 
@@ -866,7 +871,7 @@ def _port_attribute(
     parts = []
     for k, group in s.ports(c).groupby("port", sort=True):
         attr = f"{prefix}{c._port_suffix(k)}"
-        if attr in c.static or attr in c.dynamic:
+        if s.takes(c, attr):
             da = s.da(c, attr)
         else:
             names = s.names(c).to_numpy()

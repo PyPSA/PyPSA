@@ -4,6 +4,7 @@
 
 import doctest
 import importlib
+import importlib.util
 import json
 import pkgutil
 import re
@@ -79,6 +80,10 @@ modules = [
     importlib.import_module(name)
     for _, name, _ in pkgutil.walk_packages(pypsa.__path__, pypsa.__name__ + ".")
     if name not in ["pypsa.utils", "pypsa.components.utils", "pypsa.typing"]
+    and (
+        name != "pypsa.optimization.spec.record_sources"
+        or importlib.util.find_spec("datarecord")
+    )
 ]
 
 
