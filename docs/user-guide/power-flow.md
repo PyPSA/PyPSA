@@ -71,6 +71,8 @@ For meshed DC networks the equations are a special case of those for AC networks
 
 To solve the non-linear equations for a DC network, ensure that the series reactance $x$ and shunt susceptance $b$ are zero for all branches, pick a slack bus (where $V_0 = 1$) and set all other buses to be 'PQ' buses. Then execute [`n.pf()`][pypsa.Network.pf].
 
+The buses must have the carrier `AC`: [`n.pf()`][pypsa.Network.pf] raises a `NotImplementedError` for a sub-network with the carrier `DC`.
+
 The voltage magnitudes then satisfy at each bus $i$:
 
 $$P_i  = V_i I_i = V_i \sum_j G_{ij} V_j$$

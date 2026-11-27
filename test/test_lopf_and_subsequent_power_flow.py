@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-
+import pytest
 from numpy.testing import assert_allclose
 
 
@@ -27,3 +27,10 @@ def test_fix_optimal_dispatch_reproduces_flows(ac_dc_network):
 
     assert_allclose(n.c.lines.dynamic.p0, lines, atol=1e-6)
     assert_allclose(n.c.links.dynamic.p0, links, atol=1e-6)
+
+
+def test_non_linear_power_flow_refuses_dc_sub_network(ac_dc_network):
+    n = ac_dc_network
+
+    with pytest.raises(NotImplementedError, match="only AC sub-networks"):
+        n.pf(n.snapshots[:1])
