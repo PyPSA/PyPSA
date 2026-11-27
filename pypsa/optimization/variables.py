@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Removed in PyPSA 1.5.0: `n.optimize()` builds the model from `pypsa/optimization/spec/`."""
+"""The variable definitions, removed in PyPSA 1.5.0: `n.optimize()` builds the model from `pypsa/optimization/spec/`."""
 
 from typing import TYPE_CHECKING
 
