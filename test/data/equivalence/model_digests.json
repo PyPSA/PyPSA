@@ -573,5 +573,266 @@
       "abs_coeffs": 14030.0,
       "sense": "min"
     }
+  },
+  "multi_period_storage_primary_energy_scaled": {
+    "variables": {
+      "Generator-p": {"dims": ["name", "scenario", "snapshot"], "entries": 90, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 9.0},
+      "Generator-p_nom": {"dims": ["name"], "entries": 4, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.4},
+      "Line-s": {"dims": ["name", "scenario", "snapshot"], "entries": 100, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 10.0},
+      "Line-s_nom": {"dims": ["name"], "entries": 4, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.4},
+      "StorageUnit-p_dispatch": {"dims": ["name", "scenario", "snapshot"], "entries": 90, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 9.0},
+      "StorageUnit-p_nom": {"dims": ["name"], "entries": 4, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.4},
+      "StorageUnit-p_store": {"dims": ["name", "scenario", "snapshot"], "entries": 90, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 9.0},
+      "StorageUnit-state_of_charge": {"dims": ["name", "scenario", "snapshot"], "entries": 90, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 9.0}
+    },
+    "constraints": {
+      "Bus-nodal_balance": {"dims": ["name", "scenario", "snapshot"], "rows": 80, "nonzeros": 470, "abs_coeffs": 470.0, "rhs": 8360.0, "signs": {"=": 80}, "scaling": 8.0},
+      "Generator-ext-p-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 90, "nonzeros": 90, "abs_coeffs": 90.0, "rhs": 0.0, "signs": {">=": 90}, "scaling": 9.0},
+      "Generator-ext-p-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 90, "nonzeros": 180, "abs_coeffs": 180.0, "rhs": 0.0, "signs": {"<=": 90}, "scaling": 9.0},
+      "Generator-ext-p_nom-lower": {"dims": ["name"], "rows": 4, "nonzeros": 4, "abs_coeffs": 4.0, "rhs": 0.0, "signs": {">=": 4}, "scaling": 0.4},
+      "GlobalConstraint-co2limit": {"dims": ["scenario"], "rows": 1, "nonzeros": 4, "abs_coeffs": 400.0, "rhs": -77000.0, "signs": {"=": 1}, "scaling": 0.001},
+      "Kirchhoff-Voltage-Law": {"dims": ["cycle", "scenario", "snapshot"], "rows": 60, "nonzeros": 120, "abs_coeffs": 1200.0, "rhs": 0.0, "signs": {"=": 60}, "scaling": 6.0},
+      "Line-ext-s-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 100, "nonzeros": 200, "abs_coeffs": 200.0, "rhs": 0.0, "signs": {">=": 100}, "scaling": 10.0},
+      "Line-ext-s-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 100, "nonzeros": 200, "abs_coeffs": 200.0, "rhs": 0.0, "signs": {"<=": 100}, "scaling": 10.0},
+      "Line-ext-s_nom-lower": {"dims": ["name"], "rows": 4, "nonzeros": 4, "abs_coeffs": 4.0, "rhs": 0.0, "signs": {">=": 4}, "scaling": 0.4},
+      "StorageUnit-energy_balance": {"dims": ["name", "scenario", "snapshot"], "rows": 90, "nonzeros": 356, "abs_coeffs": 356.0, "rhs": -800.0, "signs": {"=": 90}, "scaling": 9.0},
+      "StorageUnit-ext-p_dispatch-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 90, "nonzeros": 90, "abs_coeffs": 90.0, "rhs": 0.0, "signs": {">=": 90}, "scaling": 9.0},
+      "StorageUnit-ext-p_dispatch-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 90, "nonzeros": 180, "abs_coeffs": 180.0, "rhs": 0.0, "signs": {"<=": 90}, "scaling": 9.0},
+      "StorageUnit-ext-p_nom-lower": {"dims": ["name"], "rows": 4, "nonzeros": 4, "abs_coeffs": 4.0, "rhs": 0.0, "signs": {">=": 4}, "scaling": 0.4},
+      "StorageUnit-ext-p_store-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 90, "nonzeros": 90, "abs_coeffs": 90.0, "rhs": 0.0, "signs": {">=": 90}, "scaling": 9.0},
+      "StorageUnit-ext-p_store-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 90, "nonzeros": 180, "abs_coeffs": 180.0, "rhs": 0.0, "signs": {"<=": 90}, "scaling": 9.0},
+      "StorageUnit-ext-state_of_charge-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 90, "nonzeros": 90, "abs_coeffs": 90.0, "rhs": 0.0, "signs": {">=": 90}, "scaling": 9.0},
+      "StorageUnit-ext-state_of_charge-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 90, "nonzeros": 180, "abs_coeffs": 180.0, "rhs": 0.0, "signs": {"<=": 90}, "scaling": 9.0}
+    },
+    "objective": {
+      "terms": 162,
+      "abs_coeffs": 5681.631702,
+      "sense": "min"
+    }
+  },
+  "unit_commitment_linearized_scaled": {
+    "variables": {
+      "Generator-p": {"dims": ["name", "scenario", "snapshot"], "entries": 1600, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 160.0},
+      "Generator-shut_down": {"dims": ["name", "scenario", "snapshot"], "entries": 1600, "binary": 0, "integer": 0, "finite_lower": 1600, "lower": 0.0, "finite_upper": 1600, "upper": 1600.0, "scaling": 1600.0},
+      "Generator-start_up": {"dims": ["name", "scenario", "snapshot"], "entries": 1600, "binary": 0, "integer": 0, "finite_lower": 1600, "lower": 0.0, "finite_upper": 1600, "upper": 1600.0, "scaling": 1600.0},
+      "Generator-status": {"dims": ["name", "scenario", "snapshot"], "entries": 1600, "binary": 0, "integer": 0, "finite_lower": 1600, "lower": 0.0, "finite_upper": 1600, "upper": 1600.0, "scaling": 1600.0}
+    },
+    "constraints": {
+      "Bus-nodal_balance": {"dims": ["name", "scenario", "snapshot"], "rows": 40, "nonzeros": 1600, "abs_coeffs": 1600.0, "rhs": 27500.0, "signs": {"=": 40}, "scaling": 4.0},
+      "Generator-com-down-time": {"dims": ["name", "scenario", "snapshot"], "rows": 1480, "nonzeros": 5583, "abs_coeffs": 5583.0, "rhs": 1480.0, "signs": {"<=": 1480}, "scaling": 1480.0},
+      "Generator-com-p-before": {"dims": ["name", "scenario", "snapshot"], "rows": 1000, "nonzeros": 1950, "abs_coeffs": 23205.0, "rhs": 0.0, "signs": {"<=": 1000}, "scaling": 100.0},
+      "Generator-com-p-current": {"dims": ["name", "scenario", "snapshot"], "rows": 1000, "nonzeros": 2000, "abs_coeffs": 23800.0, "rhs": 0.0, "signs": {"<=": 1000}, "scaling": 100.0},
+      "Generator-com-p-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 1600, "nonzeros": 3200, "abs_coeffs": 12900.0, "rhs": 0.0, "signs": {">=": 1600}, "scaling": 160.0},
+      "Generator-com-p-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 1600, "nonzeros": 3200, "abs_coeffs": 41600.0, "rhs": 0.0, "signs": {"<=": 1600}, "scaling": 160.0},
+      "Generator-com-partly-shut-down": {"dims": ["name", "scenario", "snapshot"], "rows": 1000, "nonzeros": 3950, "abs_coeffs": 31325.0, "rhs": 0.0, "signs": {"<=": 1000}, "scaling": 100.0},
+      "Generator-com-partly-start-up": {"dims": ["name", "scenario", "snapshot"], "rows": 1000, "nonzeros": 4950, "abs_coeffs": 45957.0, "rhs": 0.0, "signs": {"<=": 1000}, "scaling": 100.0},
+      "Generator-com-transition-shut-down": {"dims": ["name", "scenario", "snapshot"], "rows": 1600, "nonzeros": 4760, "abs_coeffs": 4760.0, "rhs": 0.0, "signs": {">=": 1600}, "scaling": 1600.0},
+      "Generator-com-transition-start-up": {"dims": ["name", "scenario", "snapshot"], "rows": 1600, "nonzeros": 4760, "abs_coeffs": 4760.0, "rhs": 0.0, "signs": {">=": 1600}, "scaling": 1600.0},
+      "Generator-com-up-time": {"dims": ["name", "scenario", "snapshot"], "rows": 1400, "nonzeros": 5272, "abs_coeffs": 5272.0, "rhs": 0.0, "signs": {"<=": 1400}, "scaling": 1400.0},
+      "Generator-shut_down-p-fixed-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 1600, "nonzeros": 1600, "abs_coeffs": 1600.0, "rhs": 1600.0, "signs": {"<=": 1600}, "scaling": 1600.0},
+      "Generator-start_up-p-fixed-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 1600, "nonzeros": 1600, "abs_coeffs": 1600.0, "rhs": 1600.0, "signs": {"<=": 1600}, "scaling": 1600.0},
+      "Generator-status-p-fixed-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 1600, "nonzeros": 1600, "abs_coeffs": 1600.0, "rhs": 1600.0, "signs": {"<=": 1600}, "scaling": 1600.0}
+    },
+    "objective": {
+      "terms": 4800,
+      "abs_coeffs": 881200.0,
+      "sense": "min"
+    }
+  },
+  "piecewise_costs_scaled": {
+    "variables": {
+      "Generator-capital_cost_piecewise": {"dims": ["name"], "entries": 1, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.0001},
+      "Generator-marginal_cost_piecewise": {"dims": ["name", "scenario", "snapshot"], "entries": 2, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.0002},
+      "Generator-marginal_cost_piecewise_delta": {"dims": ["name", "_breakpoint", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 0, "finite_lower": 6, "lower": 0.0, "finite_upper": 6, "upper": 6.0, "scaling": 6.0},
+      "Generator-marginal_cost_piecewise_order": {"dims": ["name", "_breakpoint", "scenario", "snapshot"], "entries": 6, "binary": 6, "integer": 0, "finite_lower": 6, "lower": 0.0, "finite_upper": 6, "upper": 6.0, "scaling": 6.0},
+      "Generator-p": {"dims": ["name", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.6},
+      "Generator-p_nom": {"dims": ["name"], "entries": 1, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.1}
+    },
+    "constraints": {
+      "Bus-nodal_balance": {"dims": ["name", "scenario", "snapshot"], "rows": 2, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 310.0, "signs": {"=": 2}, "scaling": 0.2},
+      "Generator-capital_cost_piecewise_chord": {"dims": ["name", "_breakpoint"], "rows": 3, "nonzeros": 6, "abs_coeffs": 270.0, "rhs": -1700.0, "signs": {">=": 3}, "scaling": 0.0003},
+      "Generator-capital_cost_piecewise_domain_hi": {"dims": ["name", "_breakpoint"], "rows": 1, "nonzeros": 1, "abs_coeffs": 1.0, "rhs": 100.0, "signs": {"<=": 1}, "scaling": 0.1},
+      "Generator-capital_cost_piecewise_domain_lo": {"dims": ["name", "_breakpoint"], "rows": 1, "nonzeros": 1, "abs_coeffs": 1.0, "rhs": 0.0, "signs": {">=": 1}, "scaling": 0.1},
+      "Generator-ext-p-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 2, "nonzeros": 2, "abs_coeffs": 2.0, "rhs": 0.0, "signs": {">=": 2}, "scaling": 0.2},
+      "Generator-ext-p-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 2, "nonzeros": 4, "abs_coeffs": 4.0, "rhs": 0.0, "signs": {"<=": 2}, "scaling": 0.2},
+      "Generator-ext-p_nom-lower": {"dims": ["name"], "rows": 1, "nonzeros": 1, "abs_coeffs": 1.0, "rhs": 0.0, "signs": {">=": 1}, "scaling": 0.1},
+      "Generator-ext-p_nom-upper": {"dims": ["name"], "rows": 1, "nonzeros": 1, "abs_coeffs": 1.0, "rhs": 100.0, "signs": {"<=": 1}, "scaling": 0.1},
+      "Generator-fix-p-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 4, "nonzeros": 4, "abs_coeffs": 4.0, "rhs": 0.0, "signs": {">=": 4}, "scaling": 0.4},
+      "Generator-fix-p-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 4, "nonzeros": 4, "abs_coeffs": 4.0, "rhs": 400.0, "signs": {"<=": 4}, "scaling": 0.4},
+      "Generator-marginal_cost_piecewise_binary_order": {"dims": ["name", "_breakpoint", "scenario", "snapshot"], "rows": 4, "nonzeros": 8, "abs_coeffs": 8.0, "rhs": 0.0, "signs": {"<=": 4}, "scaling": 4.0},
+      "Generator-marginal_cost_piecewise_cost_ungated": {"dims": ["name", "scenario", "snapshot", "_breakpoint"], "rows": 2, "nonzeros": 8, "abs_coeffs": 14002.0, "rhs": 0.0, "signs": {">=": 2}, "scaling": 0.0002},
+      "Generator-marginal_cost_piecewise_delta_bound": {"dims": ["name", "_breakpoint", "scenario", "snapshot"], "rows": 6, "nonzeros": 12, "abs_coeffs": 12.0, "rhs": 0.0, "signs": {"<=": 6}, "scaling": 6.0},
+      "Generator-marginal_cost_piecewise_fill_order": {"dims": ["name", "_breakpoint", "scenario", "snapshot"], "rows": 4, "nonzeros": 8, "abs_coeffs": 8.0, "rhs": 0.0, "signs": {"<=": 4}, "scaling": 4.0},
+      "Generator-marginal_cost_piecewise_p_ungated": {"dims": ["name", "scenario", "snapshot", "_breakpoint"], "rows": 2, "nonzeros": 8, "abs_coeffs": 202.0, "rhs": 0.0, "signs": {"=": 2}, "scaling": 0.2}
+    },
+    "objective": {
+      "terms": 7,
+      "abs_coeffs": 123.0,
+      "sense": "min"
+    }
+  },
+  "risk_averse_growth_limit_scaled": {
+    "variables": {
+      "CVaR": {"dims": [], "entries": 1, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.0001},
+      "CVaR-a": {"dims": ["scenario"], "entries": 2, "binary": 0, "integer": 0, "finite_lower": 2, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.0002},
+      "CVaR-theta": {"dims": [], "entries": 1, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.0001},
+      "Generator-p": {"dims": ["name", "scenario", "snapshot"], "entries": 180, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 18.0},
+      "Generator-p_nom": {"dims": ["name"], "entries": 4, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.4},
+      "Line-s": {"dims": ["name", "scenario", "snapshot"], "entries": 200, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 20.0},
+      "Line-s_nom": {"dims": ["name"], "entries": 4, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.4},
+      "StorageUnit-p_dispatch": {"dims": ["name", "scenario", "snapshot"], "entries": 180, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 18.0},
+      "StorageUnit-p_nom": {"dims": ["name"], "entries": 4, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.4},
+      "StorageUnit-p_store": {"dims": ["name", "scenario", "snapshot"], "entries": 180, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 18.0},
+      "StorageUnit-state_of_charge": {"dims": ["name", "scenario", "snapshot"], "entries": 180, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 18.0}
+    },
+    "constraints": {
+      "Bus-nodal_balance": {"dims": ["name", "scenario", "snapshot"], "rows": 160, "nonzeros": 940, "abs_coeffs": 940.0, "rhs": 16720.0, "signs": {"=": 160}, "scaling": 16.0},
+      "CVaR-def": {"dims": [], "rows": 1, "nonzeros": 4, "abs_coeffs": 12.0, "rhs": 0.0, "signs": {"<=": 1}, "scaling": 0.0001},
+      "CVaR-excess": {"dims": ["scenario"], "rows": 2, "nonzeros": 304, "abs_coeffs": 584.0, "rhs": 0.0, "signs": {">=": 2}, "scaling": 0.0002},
+      "Carrier-growth_limit": {"dims": ["Carrier", "periods"], "rows": 4, "nonzeros": 4, "abs_coeffs": 4.0, "rhs": 400.0, "signs": {"<=": 4}, "scaling": 0.4},
+      "Generator-ext-p-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 180, "nonzeros": 180, "abs_coeffs": 180.0, "rhs": 0.0, "signs": {">=": 180}, "scaling": 18.0},
+      "Generator-ext-p-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 180, "nonzeros": 360, "abs_coeffs": 360.0, "rhs": 0.0, "signs": {"<=": 180}, "scaling": 18.0},
+      "Generator-ext-p_nom-lower": {"dims": ["name"], "rows": 4, "nonzeros": 4, "abs_coeffs": 4.0, "rhs": 0.0, "signs": {">=": 4}, "scaling": 0.4},
+      "Kirchhoff-Voltage-Law": {"dims": ["cycle", "scenario", "snapshot"], "rows": 120, "nonzeros": 240, "abs_coeffs": 2400.0, "rhs": 0.0, "signs": {"=": 120}, "scaling": 12.0},
+      "Line-ext-s-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 200, "nonzeros": 400, "abs_coeffs": 400.0, "rhs": 0.0, "signs": {">=": 200}, "scaling": 20.0},
+      "Line-ext-s-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 200, "nonzeros": 400, "abs_coeffs": 400.0, "rhs": 0.0, "signs": {"<=": 200}, "scaling": 20.0},
+      "Line-ext-s_nom-lower": {"dims": ["name"], "rows": 4, "nonzeros": 4, "abs_coeffs": 4.0, "rhs": 0.0, "signs": {">=": 4}, "scaling": 0.4},
+      "StorageUnit-energy_balance": {"dims": ["name", "scenario", "snapshot"], "rows": 180, "nonzeros": 712, "abs_coeffs": 712.0, "rhs": 0.0, "signs": {"=": 180}, "scaling": 18.0},
+      "StorageUnit-ext-p_dispatch-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 180, "nonzeros": 180, "abs_coeffs": 180.0, "rhs": 0.0, "signs": {">=": 180}, "scaling": 18.0},
+      "StorageUnit-ext-p_dispatch-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 180, "nonzeros": 360, "abs_coeffs": 360.0, "rhs": 0.0, "signs": {"<=": 180}, "scaling": 18.0},
+      "StorageUnit-ext-p_nom-lower": {"dims": ["name"], "rows": 4, "nonzeros": 4, "abs_coeffs": 4.0, "rhs": 0.0, "signs": {">=": 4}, "scaling": 0.4},
+      "StorageUnit-ext-p_store-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 180, "nonzeros": 180, "abs_coeffs": 180.0, "rhs": 0.0, "signs": {">=": 180}, "scaling": 18.0},
+      "StorageUnit-ext-p_store-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 180, "nonzeros": 360, "abs_coeffs": 360.0, "rhs": 0.0, "signs": {"<=": 180}, "scaling": 18.0},
+      "StorageUnit-ext-state_of_charge-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 180, "nonzeros": 180, "abs_coeffs": 180.0, "rhs": 0.0, "signs": {">=": 180}, "scaling": 18.0},
+      "StorageUnit-ext-state_of_charge-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 180, "nonzeros": 360, "abs_coeffs": 360.0, "rhs": 0.0, "signs": {"<=": 180}, "scaling": 18.0}
+    },
+    "objective": {
+      "terms": 313,
+      "abs_coeffs": 5537.131702,
+      "sense": "min"
+    }
+  },
+  "maintenance_modules_ramps_scaled": {
+    "variables": {
+      "Generator-maintenance": {"dims": ["name", "scenario", "snapshot"], "entries": 12, "binary": 0, "integer": 0, "finite_lower": 12, "lower": 0.0, "finite_upper": 12, "upper": 12.0, "scaling": 12.0},
+      "Generator-maintenance_capacity": {"dims": ["name", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 0, "finite_lower": 6, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.6},
+      "Generator-maintenance_start": {"dims": ["name", "scenario", "snapshot"], "entries": 12, "binary": 12, "integer": 0, "finite_lower": 12, "lower": 0.0, "finite_upper": 12, "upper": 12.0, "scaling": 12.0},
+      "Generator-maintenance_status": {"dims": ["name", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 0, "finite_lower": 6, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 6.0},
+      "Generator-n_mod": {"dims": ["name"], "entries": 1, "binary": 0, "integer": 1, "finite_lower": 1, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 1.0},
+      "Generator-p": {"dims": ["name", "scenario", "snapshot"], "entries": 18, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 1.26},
+      "Generator-p_nom": {"dims": ["name"], "entries": 1, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.1},
+      "Generator-shut_down": {"dims": ["name", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 6, "finite_lower": 6, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 6.0},
+      "Generator-start_up": {"dims": ["name", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 6, "finite_lower": 6, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 6.0},
+      "Generator-status": {"dims": ["name", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 6, "finite_lower": 6, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 6.0},
+      "Link-p": {"dims": ["name", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.06},
+      "Link-p_piecewise": {"dims": ["name", "port", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.06},
+      "Link-p_piecewise_delta": {"dims": ["name", "_breakpoint", "port", "scenario", "snapshot"], "entries": 12, "binary": 0, "integer": 0, "finite_lower": 12, "lower": 0.0, "finite_upper": 12, "upper": 12.0, "scaling": 12.0},
+      "Link-p_piecewise_order": {"dims": ["name", "_breakpoint", "port", "scenario", "snapshot"], "entries": 12, "binary": 12, "integer": 0, "finite_lower": 12, "lower": 0.0, "finite_upper": 12, "upper": 12.0, "scaling": 12.0},
+      "Store-e": {"dims": ["name", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.06},
+      "Store-p": {"dims": ["name", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.06},
+      "Store-p_store": {"dims": ["name", "scenario", "snapshot"], "entries": 6, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 0.06}
+    },
+    "constraints": {
+      "Bus-nodal_balance": {"dims": ["name", "scenario", "snapshot"], "rows": 12, "nonzeros": 36, "abs_coeffs": 36.0, "rhs": 390.0, "signs": {"=": 12}, "scaling": 0.66},
+      "Generator-com-p-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 0.0, "signs": {">=": 6}, "scaling": 0.6},
+      "Generator-com-p-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 18, "abs_coeffs": 1206.0, "rhs": 0.0, "signs": {"<=": 6}, "scaling": 0.6},
+      "Generator-com-transition-shut-down": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 17, "abs_coeffs": 17.0, "rhs": 1.0, "signs": {">=": 6}, "scaling": 6.0},
+      "Generator-com-transition-start-up": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 17, "abs_coeffs": 17.0, "rhs": -1.0, "signs": {">=": 6}, "scaling": 6.0},
+      "Generator-e_sum_max": {"dims": ["name", "scenario"], "rows": 1, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 200.0, "signs": {"<=": 1}, "scaling": 0.1},
+      "Generator-ext-p-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 0.0, "signs": {">=": 6}, "scaling": 0.6},
+      "Generator-ext-p-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 18, "abs_coeffs": 18.0, "rhs": 0.0, "signs": {"<=": 6}, "scaling": 0.6},
+      "Generator-ext-p_nom-lower": {"dims": ["name"], "rows": 1, "nonzeros": 1, "abs_coeffs": 1.0, "rhs": 0.0, "signs": {">=": 1}, "scaling": 0.1},
+      "Generator-ext-p_nom-upper": {"dims": ["name"], "rows": 1, "nonzeros": 1, "abs_coeffs": 1.0, "rhs": 100.0, "signs": {"<=": 1}, "scaling": 0.1},
+      "Generator-fix-p-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 0.0, "signs": {">=": 6}, "scaling": 0.06},
+      "Generator-fix-p-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 1200.0, "signs": {"<=": 6}, "scaling": 0.06},
+      "Generator-maint-event-count": {"dims": ["name", "scenario"], "rows": 2, "nonzeros": 12, "abs_coeffs": 12.0, "rhs": 2.0, "signs": {"=": 2}, "scaling": 2.0},
+      "Generator-maint-start-horizon": {"dims": ["name", "scenario", "snapshot"], "rows": 1, "nonzeros": 1, "abs_coeffs": 1.0, "rhs": 0.0, "signs": {"=": 1}, "scaling": 1.0},
+      "Generator-maint-status-lb": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 18, "abs_coeffs": 18.0, "rhs": -6.0, "signs": {">=": 6}, "scaling": 6.0},
+      "Generator-maint-status-le-maint": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 12, "abs_coeffs": 12.0, "rhs": 0.0, "signs": {"<=": 6}, "scaling": 6.0},
+      "Generator-maint-status-le-status": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 12, "abs_coeffs": 12.0, "rhs": 0.0, "signs": {"<=": 6}, "scaling": 6.0},
+      "Generator-maint-window": {"dims": ["name", "scenario", "snapshot"], "rows": 12, "nonzeros": 29, "abs_coeffs": 29.0, "rhs": 0.0, "signs": {"=": 12}, "scaling": 12.0},
+      "Generator-maintcap_lower_nommax": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 18, "abs_coeffs": 612.0, "rhs": -600.0, "signs": {">=": 6}, "scaling": 0.6},
+      "Generator-maintcap_upper": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 12, "abs_coeffs": 12.0, "rhs": 0.0, "signs": {"<=": 6}, "scaling": 0.6},
+      "Generator-maintcap_upper_nommax": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 12, "abs_coeffs": 606.0, "rhs": 0.0, "signs": {"<=": 6}, "scaling": 0.6},
+      "Generator-p_nom_modularity": {"dims": ["name"], "rows": 1, "nonzeros": 2, "abs_coeffs": 21.0, "rhs": 0.0, "signs": {"=": 1}, "scaling": 0.1},
+      "Generator-p_set": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 240.0, "signs": {"=": 6}, "scaling": 0.06},
+      "Generator-shut_down-p-fixed-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 6.0, "signs": {"<=": 6}, "scaling": 6.0},
+      "Generator-start_up-p-fixed-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 6.0, "signs": {"<=": 6}, "scaling": 6.0},
+      "Generator-status-p-fixed-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 6.0, "signs": {"<=": 6}, "scaling": 6.0},
+      "Link-fix-p-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 0.0, "signs": {">=": 6}, "scaling": 0.06},
+      "Link-fix-p-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 600.0, "signs": {"<=": 6}, "scaling": 0.06},
+      "Link-p-ramp_limit_down": {"dims": ["name", "scenario", "snapshot"], "rows": 5, "nonzeros": 10, "abs_coeffs": 10.0, "rhs": 150.0, "signs": {"<=": 5}, "scaling": 0.05},
+      "Link-p-ramp_limit_up": {"dims": ["name", "scenario", "snapshot"], "rows": 5, "nonzeros": 10, "abs_coeffs": 10.0, "rhs": 150.0, "signs": {"<=": 5}, "scaling": 0.05},
+      "Link-p_piecewise_binary_order": {"dims": ["name", "_breakpoint", "port", "scenario", "snapshot"], "rows": 6, "nonzeros": 12, "abs_coeffs": 12.0, "rhs": 0.0, "signs": {"<=": 6}, "scaling": 6.0},
+      "Link-p_piecewise_delivery_ungated": {"dims": ["name", "port", "scenario", "snapshot", "_breakpoint"], "rows": 6, "nonzeros": 18, "abs_coeffs": 306.0, "rhs": 0.0, "signs": {"=": 6}, "scaling": 0.06},
+      "Link-p_piecewise_delta_bound": {"dims": ["name", "_breakpoint", "port", "scenario", "snapshot"], "rows": 12, "nonzeros": 24, "abs_coeffs": 24.0, "rhs": 0.0, "signs": {"<=": 12}, "scaling": 12.0},
+      "Link-p_piecewise_fill_order": {"dims": ["name", "_breakpoint", "port", "scenario", "snapshot"], "rows": 6, "nonzeros": 12, "abs_coeffs": 12.0, "rhs": 0.0, "signs": {"<=": 6}, "scaling": 6.0},
+      "Link-p_piecewise_p_ungated": {"dims": ["name", "port", "scenario", "snapshot", "_breakpoint"], "rows": 6, "nonzeros": 18, "abs_coeffs": 606.0, "rhs": 0.0, "signs": {"=": 6}, "scaling": 0.06},
+      "Store-energy_balance": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 18, "abs_coeffs": 18.0, "rhs": 0.0, "signs": {"=": 6}, "scaling": 0.06},
+      "Store-fix-e-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 0.0, "signs": {">=": 6}, "scaling": 0.06},
+      "Store-fix-e-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 300.0, "signs": {"<=": 6}, "scaling": 0.06},
+      "Store-fix-p_store-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 0.0, "signs": {">=": 6}, "scaling": 0.06},
+      "Store-fix-p_store-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 6, "nonzeros": 6, "abs_coeffs": 6.0, "rhs": 0.0, "signs": {"<=": 6}, "scaling": 0.06}
+    },
+    "objective": {
+      "terms": 13,
+      "abs_coeffs": 245.0,
+      "sense": "min"
+    }
+  },
+  "scigrid_de_expansion_scaled": {
+    "variables": {
+      "Generator-p": {"dims": ["name", "scenario", "snapshot"], "entries": 1423, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 142.3},
+      "Line-s": {"dims": ["name", "scenario", "snapshot"], "entries": 852, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 85.2},
+      "Line-s_nom": {"dims": ["name"], "entries": 426, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 42.6},
+      "StorageUnit-p_dispatch": {"dims": ["name", "scenario", "snapshot"], "entries": 38, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 3.8},
+      "StorageUnit-p_store": {"dims": ["name", "scenario", "snapshot"], "entries": 38, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 3.8},
+      "StorageUnit-state_of_charge": {"dims": ["name", "scenario", "snapshot"], "entries": 38, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 3.8},
+      "Transformer-phase_shift": {"dims": ["name", "scenario", "snapshot"], "entries": 2, "binary": 0, "integer": 0, "finite_lower": 2, "lower": -60.0, "finite_upper": 2, "upper": 60.0, "scaling": 2.0},
+      "Transformer-s": {"dims": ["name", "scenario", "snapshot"], "entries": 96, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 9.6},
+      "Transformer-s_nom": {"dims": ["name"], "entries": 48, "binary": 0, "integer": 0, "finite_lower": 0, "lower": 0.0, "finite_upper": 0, "upper": 0.0, "scaling": 4.8}
+    },
+    "constraints": {
+      "Bus-nodal_balance": {"dims": ["name", "scenario", "snapshot"], "rows": 585, "nonzeros": 3395, "abs_coeffs": 3395.0, "rhs": 51754.08, "signs": {"=": 585}, "scaling": 58.5},
+      "Generator-fix-p-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 1423, "nonzeros": 1423, "abs_coeffs": 1423.0, "rhs": 0.0, "signs": {">=": 1423}, "scaling": 142.3},
+      "Generator-fix-p-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 1423, "nonzeros": 1423, "abs_coeffs": 1423.0, "rhs": 120177.7854, "signs": {"<=": 1423}, "scaling": 142.3},
+      "Kirchhoff-Voltage-Law": {"dims": ["cycle", "scenario", "snapshot"], "rows": 364, "nonzeros": 1464, "abs_coeffs": 27307.46942, "rhs": 0.0, "signs": {"=": 364}, "scaling": 36.4},
+      "Line-ext-s-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 426, "nonzeros": 852, "abs_coeffs": 852.0, "rhs": 0.0, "signs": {">=": 426}, "scaling": 42.6},
+      "Line-ext-s-lower-security": {"dims": ["name", "outage", "scenario", "snapshot"], "rows": 852, "nonzeros": 2364, "abs_coeffs": 1707.680623, "rhs": 0.0, "signs": {">=": 852}, "scaling": 85.2},
+      "Line-ext-s-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 426, "nonzeros": 852, "abs_coeffs": 852.0, "rhs": 0.0, "signs": {"<=": 426}, "scaling": 42.6},
+      "Line-ext-s-upper-security": {"dims": ["name", "outage", "scenario", "snapshot"], "rows": 852, "nonzeros": 2364, "abs_coeffs": 1707.680623, "rhs": 0.0, "signs": {"<=": 852}, "scaling": 85.2},
+      "Line-ext-s_nom-lower": {"dims": ["name"], "rows": 426, "nonzeros": 426, "abs_coeffs": 426.0, "rhs": 0.0, "signs": {">=": 426}, "scaling": 42.6},
+      "Line-fix-s-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 426, "nonzeros": 426, "abs_coeffs": 426.0, "rhs": -476099.7372, "signs": {">=": 426}, "scaling": 42.6},
+      "Line-fix-s-lower-security": {"dims": ["name", "outage", "scenario", "snapshot"], "rows": 852, "nonzeros": 1519, "abs_coeffs": 853.8790132, "rhs": -952199.4744, "signs": {">=": 852}, "scaling": 85.2},
+      "Line-fix-s-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 426, "nonzeros": 426, "abs_coeffs": 426.0, "rhs": 476099.7372, "signs": {"<=": 426}, "scaling": 42.6},
+      "Line-fix-s-upper-security": {"dims": ["name", "outage", "scenario", "snapshot"], "rows": 852, "nonzeros": 1519, "abs_coeffs": 853.8790132, "rhs": 952199.4744, "signs": {"<=": 852}, "scaling": 85.2},
+      "Line-v_ang-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 852, "nonzeros": 852, "abs_coeffs": 852.0, "rhs": -86758449.11, "signs": {">=": 852}, "scaling": 85.2},
+      "Line-v_ang-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 852, "nonzeros": 852, "abs_coeffs": 852.0, "rhs": 86758449.11, "signs": {"<=": 852}, "scaling": 85.2},
+      "StorageUnit-energy_balance": {"dims": ["name", "scenario", "snapshot"], "rows": 38, "nonzeros": 114, "abs_coeffs": 114.1, "rhs": 0.0, "signs": {"=": 38}, "scaling": 3.8},
+      "StorageUnit-fix-p_dispatch-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 38, "nonzeros": 38, "abs_coeffs": 38.0, "rhs": 0.0, "signs": {">=": 38}, "scaling": 3.8},
+      "StorageUnit-fix-p_dispatch-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 38, "nonzeros": 38, "abs_coeffs": 38.0, "rhs": 9179.5, "signs": {"<=": 38}, "scaling": 3.8},
+      "StorageUnit-fix-p_store-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 38, "nonzeros": 38, "abs_coeffs": 38.0, "rhs": 0.0, "signs": {">=": 38}, "scaling": 3.8},
+      "StorageUnit-fix-p_store-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 38, "nonzeros": 38, "abs_coeffs": 38.0, "rhs": 9179.5, "signs": {"<=": 38}, "scaling": 3.8},
+      "StorageUnit-fix-state_of_charge-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 38, "nonzeros": 38, "abs_coeffs": 38.0, "rhs": 0.0, "signs": {">=": 38}, "scaling": 3.8},
+      "StorageUnit-fix-state_of_charge-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 38, "nonzeros": 38, "abs_coeffs": 38.0, "rhs": 55077.0, "signs": {"<=": 38}, "scaling": 3.8},
+      "Transformer-ext-s-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 48, "nonzeros": 96, "abs_coeffs": 96.0, "rhs": 0.0, "signs": {">=": 48}, "scaling": 4.8},
+      "Transformer-ext-s-lower-security": {"dims": ["name", "outage", "scenario", "snapshot"], "rows": 96, "nonzeros": 281, "abs_coeffs": 192.1846595, "rhs": 0.0, "signs": {">=": 96}, "scaling": 9.6},
+      "Transformer-ext-s-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 48, "nonzeros": 96, "abs_coeffs": 96.0, "rhs": 0.0, "signs": {"<=": 48}, "scaling": 4.8},
+      "Transformer-ext-s-upper-security": {"dims": ["name", "outage", "scenario", "snapshot"], "rows": 96, "nonzeros": 281, "abs_coeffs": 192.1846595, "rhs": 0.0, "signs": {"<=": 96}, "scaling": 9.6},
+      "Transformer-ext-s_nom-lower": {"dims": ["name"], "rows": 48, "nonzeros": 48, "abs_coeffs": 48.0, "rhs": 0.0, "signs": {">=": 48}, "scaling": 4.8},
+      "Transformer-fix-s-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 48, "nonzeros": 48, "abs_coeffs": 48.0, "rhs": -96000.0, "signs": {">=": 48}, "scaling": 4.8},
+      "Transformer-fix-s-lower-security": {"dims": ["name", "outage", "scenario", "snapshot"], "rows": 96, "nonzeros": 192, "abs_coeffs": 96.19951315, "rhs": -192000.0, "signs": {">=": 96}, "scaling": 9.6},
+      "Transformer-fix-s-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 48, "nonzeros": 48, "abs_coeffs": 48.0, "rhs": 96000.0, "signs": {"<=": 48}, "scaling": 4.8},
+      "Transformer-fix-s-upper-security": {"dims": ["name", "outage", "scenario", "snapshot"], "rows": 96, "nonzeros": 192, "abs_coeffs": 96.19951315, "rhs": 192000.0, "signs": {"<=": 96}, "scaling": 9.6},
+      "Transformer-v_ang-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 94, "nonzeros": 94, "abs_coeffs": 94.0, "rhs": -984365.6981, "signs": {">=": 94}, "scaling": 9.4},
+      "Transformer-v_ang-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 94, "nonzeros": 94, "abs_coeffs": 94.0, "rhs": 984365.6981, "signs": {"<=": 94}, "scaling": 9.4},
+      "Transformer-v_ang-var-lower": {"dims": ["name", "scenario", "snapshot"], "rows": 2, "nonzeros": 4, "abs_coeffs": 700.1317008, "rhs": -20943.95102, "signs": {">=": 2}, "scaling": 0.2},
+      "Transformer-v_ang-var-upper": {"dims": ["name", "scenario", "snapshot"], "rows": 2, "nonzeros": 4, "abs_coeffs": 700.1317008, "rhs": 20943.95102, "signs": {"<=": 2}, "scaling": 0.2}
+    },
+    "objective": {
+      "terms": 479,
+      "abs_coeffs": 14030.0,
+      "sense": "min"
+    }
   }
 }

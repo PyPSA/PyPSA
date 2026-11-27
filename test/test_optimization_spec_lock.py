@@ -10,6 +10,7 @@ A refactor of the spec build must keep both. Record them again with
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import math
@@ -18,6 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import pandas as pd
 import pytest
 import scipy.sparse
 from linopy import Model
@@ -31,6 +33,7 @@ from test_optimization_spec_equivalence import (
 )
 
 import pypsa
+import pypsa.optimization.optimize as optimize_module
 from pypsa.optimization.spec import fingerprint, spec, written
 
 if TYPE_CHECKING:
@@ -133,6 +136,33 @@ def scigrid_de_expansion() -> None:
     n.optimize.optimize_security_constrained(n.snapshots[0], branch_outages=outages)
 
 
+def _with_factors(build_model: Callable[..., Model]) -> Callable[..., Model]:
+    def build(n: pypsa.Network, *args: Any, **kwargs: Any) -> Model:
+        n.determine_network_topology()
+        buses = n.c.buses.static
+        buses["scaling"] = 10.0 ** -(1 + pd.factorize(buses.sub_network)[0] % 2)
+        n.c.global_constraints.static["scaling"] = 1e-3
+        return build_model(n, *args, **{**kwargs, "objective_scaling": 1e-4})
+
+    return build
+
+
+def scaled(case: Callable[[], Any]) -> None:
+    with pytest.MonkeyPatch.context() as patch:
+        build_model = _with_factors(optimize_module.build_model)
+        patch.setattr(optimize_module, "build_model", build_model)
+        case()
+
+
+SCALED = [
+    "multi_period_storage_primary_energy",
+    "unit_commitment_linearized",
+    "piecewise_costs",
+    "risk_averse_growth_limit",
+    "maintenance_modules_ramps",
+    "scigrid_de_expansion",
+]
+
 CASES: dict[str, Callable[[], Any]] = {
     **{
         name: SOLVED[name]
@@ -161,6 +191,7 @@ CASES: dict[str, Callable[[], Any]] = {
         ]
     },
 }
+CASES |= {f"{name}_scaled": functools.partial(scaled, CASES[name]) for name in SCALED}
 
 
 class _Built(Exception):  # noqa: N818
