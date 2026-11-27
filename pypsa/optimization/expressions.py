@@ -17,7 +17,6 @@ import pandas as pd
 from linopy import LinearExpression, Variable
 from packaging import version
 
-from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa.common import deprecated_kwargs
 from pypsa.components._types.mixin.multiports import _Multiport
 from pypsa.components.common import invariant
@@ -269,13 +268,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         return expr.mul(weights, join="left").groupby("period").sum()
 
     def _aggregate_components(self, *args: Any, **kwargs: Any) -> Any:
-        # Expressions built from masked model variables leave absent slots, the
-        # legacy groupby yields a stacked `group` MultiIndex (flattened right
-        # after), and cross-component merges drop a conflicting aux coord; all are
-        # handled identically here under legacy and v1, so silence the notices.
-        with suppress_semantics_warnings():
-            res = super()._aggregate_components(*args, **kwargs)
-        return _restack_flat_groups(res)
+        return _restack_flat_groups(super()._aggregate_components(*args, **kwargs))
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
         return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())

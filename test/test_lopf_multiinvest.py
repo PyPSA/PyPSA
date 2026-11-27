@@ -10,7 +10,6 @@ from pandas import IndexSlice as idx
 
 import pypsa
 from pypsa import option_context
-from pypsa._linopy_compat import linopy_uses_v1
 from pypsa.optimization.window import tuple_snapshot_index
 
 kwargs = {"multi_investment_periods": True}
@@ -1335,50 +1334,23 @@ def test_operational_limit_with_investment_period_storage():
     assert total_2030 <= 25 + 1e-6  # Allow small numerical tolerance
 
 
-def test_model_snapshot_index_default_follows_semantics(n):
-    n.optimize(**kwargs)
-    snapshots = n.model.parameters.snapshots.to_index()
-    assert isinstance(snapshots, pd.MultiIndex) is not linopy_uses_v1()
-
-
-def test_model_snapshot_index_flat(n):
-    with option_context("optimization.model_snapshot_index", "flat"):
-        status, cond = n.optimize(**kwargs)
+def test_model_snapshot_is_flat(n):
+    status, cond = n.optimize(**kwargs)
     assert status == "ok"
     assert cond == "optimal"
-    assert not isinstance(n.model.parameters.snapshots.to_index(), pd.MultiIndex)
     pd.testing.assert_index_equal(
         n.model.parameters.snapshots.to_index(), tuple_snapshot_index(n.snapshots)
     )
 
 
-def _make_multi_period_network():
-    n = pypsa.Network(snapshots=range(10))
-    n.investment_periods = [2020, 2030, 2040, 2050]
-    n.add("Bus", [1, 2])
-    n.add(
-        "Generator",
-        ["g1", "g2"],
-        bus=[1, 2],
-        p_nom_extendable=True,
-        capital_cost=[10, 20],
-    )
-    n.add("Load", ["l1", "l2"], bus=[1, 2], p_set=1.0)
-    return n
-
-
-def test_model_snapshot_index_flat_same_results():
-    ref_n = _make_multi_period_network()
-    flat_n = _make_multi_period_network()
-    ref_n.optimize(**kwargs)
+def test_model_snapshot_index_flat_is_deprecated(n):
     with option_context("optimization.model_snapshot_index", "flat"):
-        flat_n.optimize(**kwargs)
-    assert flat_n.objective == ref_n.objective
+        with pytest.warns(FutureWarning, match="model_snapshot_index"):
+            n.optimize.create_model(**kwargs)
 
 
 def test_model_snapshot_index_flat_da_accessor_stable(n):
-    with option_context("optimization.model_snapshot_index", "flat"):
-        n.optimize.create_model(**kwargs)
+    n.optimize.create_model(**kwargs)
     da = n.c.generators.da.p_max_pu
     assert not isinstance(da.indexes["snapshot"], pd.MultiIndex)
     pd.testing.assert_index_equal(
@@ -1386,17 +1358,17 @@ def test_model_snapshot_index_flat_da_accessor_stable(n):
     )
 
 
-def test_model_snapshot_index_invalid_option(n):
+@pytest.mark.parametrize("value", ["bogus", "multiindex"])
+def test_model_snapshot_index_invalid_option(n, value):
     with pytest.raises(ValueError):
-        with option_context("optimization.model_snapshot_index", "bogus"):
+        with option_context("optimization.model_snapshot_index", value):
             n.optimize.create_model(**kwargs)
 
 
-@pytest.fixture(params=["auto", "flat"])
-def windowed_n(request, n):
-    """Multi-period network with a live model, built in each representation."""
-    with option_context("optimization.model_snapshot_index", request.param):
-        n.optimize.create_model(**kwargs)
+@pytest.fixture
+def windowed_n(n):
+    """Multi-period network with a live model."""
+    n.optimize.create_model(**kwargs)
     return n
 
 
@@ -1423,7 +1395,7 @@ def test_network_arrays_use_model_labels(windowed_n):
 def test_window_flatten_keeps_pre_window_history(n):
     from pypsa.optimization.window import SnapshotWindow, snapshot_array
 
-    window = SnapshotWindow.build(n, n.snapshots[3:], "flat")
+    window = SnapshotWindow.build(n, n.snapshots[3:])
     weightings = n.snapshot_weightings.objective
     da = window.flatten(snapshot_array(weightings.to_numpy(), weightings.index))
 
@@ -1449,20 +1421,17 @@ def test_window_subset_rejects_unknown_snapshots(windowed_n):
 
 
 def test_flat_labels_are_the_snapshot_tuples(n):
-    with option_context("optimization.model_snapshot_index", "flat"):
-        n.optimize.create_model(**kwargs)
+    n.optimize.create_model(**kwargs)
     model_sns = n.model.parameters.snapshots.to_index()
     assert not isinstance(model_sns, pd.MultiIndex)
     recovered = pd.MultiIndex.from_tuples(model_sns, names=n.snapshots.names)
     assert recovered.equals(n.snapshots)
 
 
-@pytest.mark.parametrize("representation", ["auto", "flat"])
-def test_extra_functionality_receives_the_build_snapshots(n, representation):
+def test_extra_functionality_receives_the_build_snapshots(n):
     seen = []
-    with option_context("optimization.model_snapshot_index", representation):
-        n.optimize.create_model(snapshots=n.snapshots[:12], **kwargs)
-        n.optimize.solve_model(extra_functionality=lambda _, sns: seen.append(sns))
+    n.optimize.create_model(snapshots=n.snapshots[:12], **kwargs)
+    n.optimize.solve_model(extra_functionality=lambda _, sns: seen.append(sns))
     pd.testing.assert_index_equal(seen[0], n.model.parameters.snapshots.to_index())
 
 

@@ -708,9 +708,9 @@ def build_model(
     check(
         n,
         network_index,
+        multi_invest=options.get("multi_invest", False),
         linearized_unit_commitment=linearized_unit_commitment,
         piecewise_options=piecewise_options,
-        **options,
     )
     model_kwargs = model_kwargs or {}
     n.calculate_dependent_values()

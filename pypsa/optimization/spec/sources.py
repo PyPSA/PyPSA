@@ -986,7 +986,7 @@ def _brought_in(s: NetworkSources, name: str, c: Components) -> xr.DataArray:
     """How much of the start-ups (`up`) or shut-downs (`down`) before the build still bind.
 
     A switch at lag `l` binds a snapshot at position `p` while `l + p` is
-    below the minimum up or down time (`constraints.py:677-678`).
+    below the minimum up or down time.
     """
     kind = name.removeprefix(f"{c.name}_").partition("_")[0]
     history = _history(s, c)

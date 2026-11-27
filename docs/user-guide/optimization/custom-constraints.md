@@ -337,7 +337,7 @@ since the expressions add to the time and memory of the build.
 ## Handling snapshots in multi-investment optimizations
 
 In multi-period networks, `n.snapshots` is a `pandas.MultiIndex`. linopy's v1
-semantics do not allow a `MultiIndex` on a model dimension, so under v1 PyPSA
+semantics do not allow a `MultiIndex` on a model dimension, so PyPSA
 builds `snapshot` as a flat dimension labelled by the `(period, timestep)`
 tuples, with `period` and `timestep` as auxiliary coordinates. Auxiliary
 coordinates are extra labels on a dimension that do not index it but still work

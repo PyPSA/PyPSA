@@ -9,7 +9,6 @@ import pytest
 from numpy.testing import assert_almost_equal as equal
 
 import pypsa
-from pypsa import option_context
 
 
 def test_optimize_security_constrained(scipy_network):
@@ -144,17 +143,15 @@ def _security_rows(n: pypsa.Network) -> dict[str, set[tuple]]:
     return rows
 
 
-@pytest.mark.parametrize("snapshot_index", ["auto", "flat"])
 @pytest.mark.parametrize("scenarios", [False, True])
-def test_optimize_security_constrained_multi_period_bodf(scenarios, snapshot_index):
+def test_optimize_security_constrained_multi_period_bodf(scenarios):
     n = _multi_period_network()
     if scenarios:
         n.set_scenarios({"s1": 0.5, "s2": 0.5})
 
-    with option_context("optimization.model_snapshot_index", snapshot_index):
-        status, _ = n.optimize.optimize_security_constrained(
-            branch_outages=["ab", "ab_old", "ca"], multi_investment_periods=True
-        )
+    status, _ = n.optimize.optimize_security_constrained(
+        branch_outages=["ab", "ab_old", "ca"], multi_investment_periods=True
+    )
     assert status == "ok"
 
     s = n.model.variables["Line-s"].labels

@@ -19,7 +19,6 @@ from scipy.sparse.csgraph import connected_components
 from scipy.sparse.linalg import splu
 
 from pypsa._future import future_flag
-from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import as_index
 from pypsa.components.array import _from_xarray
@@ -418,7 +417,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         n = self._n
         n._multi_invest = int(multi_investment_periods)
-        n._linearized_uc = linearized_unit_commitment
 
         if consistency_check:
             n.consistency_check(strict=OPTIMIZE_STRICT_CHECKS)
@@ -462,7 +460,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         return status, condition
 
-    @suppress_semantics_warnings()
     def create_model(
         self,
         snapshots: Sequence | None = None,
@@ -564,7 +561,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """
         n = self._n
         sns = as_index(n, snapshots, "snapshots")
-        n._linearized_uc = int(linearized_unit_commitment)
         n._multi_invest = int(multi_investment_periods)
         n._committable_big_m = committable_big_m
         piecewise_opts: list[PiecewiseOptions] = list(
@@ -599,7 +595,23 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             **options.params.optimize.model_kwargs,
             **kwargs,
         }
-        window = SnapshotWindow.build(n, sns, options.optimization.model_snapshot_index)
+        snapshot_index = options.optimization.model_snapshot_index
+        if snapshot_index not in ("auto", "flat"):
+            msg = (
+                f"Invalid snapshot representation {snapshot_index!r}. Multi-period "
+                "models are always built over a flat `snapshot` dimension, as "
+                "linopy's v1 semantics forbid a MultiIndex dimension."
+            )
+            raise ValueError(msg)
+        if snapshot_index == "flat":
+            warnings.warn(
+                "`pypsa.options.optimization.model_snapshot_index` has no effect "
+                "and will be removed in PyPSA 2.0. Multi-period models are always "
+                "built over a flat `snapshot` dimension.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        window = SnapshotWindow.build(n, sns)
         n._optimize_window = window
         sns = window.model_index
         n._model = build_model(

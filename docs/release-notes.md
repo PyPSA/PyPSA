@@ -97,6 +97,8 @@ SPDX-License-Identifier: CC-BY-4.0
 - Deprecate `get_segment_result()`, `get_resample_result()`, `get_downsample_result()` and `get_from_snapshot_map_result()` of `n.cluster.temporal`, and the argument `solver` of `segment()`. They will be removed in PyPSA 2.0. Call a `get_*_map()` method and `from_snapshot_map()` instead.
     - **Behavior change**: `segment()` requires tsam 3 or later, and the optional dependency is pinned to `tsam>=3`.
 
+- Deprecate the option `pypsa.options.optimization.model_snapshot_index`. Multi-period models are always built over a flat `snapshot` dimension, so the option has no effect. It will be removed in PyPSA 2.0. (<!-- md:pr 2128 -->)
+
 ### Enhancements
 
 - Move the topology algorithms of the passive network (sub-networks, cycle basis, incidence, PTDF, BODF) into private functions that need no network, which the `Network` and `SubNetwork` methods call. Results are unchanged. (<!-- md:pr 2200 -->)

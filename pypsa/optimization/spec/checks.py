@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -242,9 +242,8 @@ def check(
     multi_invest: bool = False,
     linearized_unit_commitment: bool = False,
     piecewise_options: Sequence[PiecewiseOptions] = (),
-    **_: Any,
 ) -> None:
-    """Warn and raise on network data as PyPSA's code-built model did, before the build."""
+    """Warn and raise on the network's data, before the build."""
     _check_invariants(n)
     _check_deprecations(n)
     _check_modules(n)

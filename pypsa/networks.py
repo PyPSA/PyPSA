@@ -91,7 +91,6 @@ class Network(
 
     # Optimization
     _multi_invest: int
-    _linearized_uc: int
     _committable_big_m: float | None
     _optimize_window: SnapshotWindow | None
     iteration: int
@@ -1082,7 +1081,6 @@ class Network(
         for attr in [
             "_name",
             "_meta",
-            "_linearized_uc",
             "_multi_invest",
             "_committable_big_m",
             "_objective",
