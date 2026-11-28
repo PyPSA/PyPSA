@@ -43,6 +43,18 @@ class Links(_Multiport):
     """
 
     _operational_variables = ["p"]
+    _power_variable = "p"
+    _formulation = (
+        "capacity",
+        "marginal_cost",
+        "dispatch",
+        "rating",
+        "commitment",
+        "ramping",
+        "maintenance",
+        "transmission_expansion",
+        "multiport",
+    )
     _unsuffixed_attrs = {"efficiency", "delay", "cyclic_delay"}
 
     @property

@@ -65,15 +65,15 @@ class TestPiecewiseCostsDefine:
         return n
 
     @pytest.mark.parametrize(
-        ("fixture_name", "formulation_name", "piecewise_options", "expected_convexity"),
+        ("fixture_name", "formulation_name", "piecewise_options"),
         [
-            (
+            pytest.param(
                 "convex_marginal_cost_network",
                 "Generator-marginal_cost_piecewise",
                 None,
-                "convex",
+                id="convex-default",
             ),
-            (
+            pytest.param(
                 "convex_capital_cost_network",
                 "Generator-capital_cost_piecewise",
                 [
@@ -84,9 +84,9 @@ class TestPiecewiseCostsDefine:
                         "method": "lp",
                     }
                 ],
-                "convex",
+                id="convex-capital-lp",
             ),
-            (
+            pytest.param(
                 "concave_marginal_cost_network",
                 "Generator-marginal_cost_piecewise",
                 [
@@ -97,26 +97,104 @@ class TestPiecewiseCostsDefine:
                         "method": "lp",
                     }
                 ],
-                "concave",
+                id="concave-lp-upper",
             ),
         ],
     )
-    def test_piecewise_lp_formulation_method_and_convexity(
+    def test_piecewise_lp_formulation(
         self,
         request: pytest.FixtureRequest,
         fixture_name: str,
         formulation_name: str,
         piecewise_options: list[dict[str, Any]] | None,
-        expected_convexity: str,
     ) -> None:
         n = request.getfixturevalue(fixture_name)
 
         model = n.optimize.create_model(
             include_objective_constant=False, piecewise_options=piecewise_options or []
         )
-        formulation = model._piecewise_formulations[formulation_name]
-        assert formulation.method == "lp"
-        assert formulation.convexity == expected_convexity
+        assert f"{formulation_name}_chord" in model.constraints, "lp states chords"
+        assert not model.binaries, "lp needs no binaries"
+
+    @pytest.mark.parametrize(
+        ("sign", "method"),
+        [
+            pytest.param(">=", "incremental", id="incremental"),
+            pytest.param("==", "auto", id="auto-equality"),
+        ],
+    )
+    def test_piecewise_incremental_option_overrides_lp(
+        self, convex_marginal_cost_network: pypsa.Network, sign: str, method: str
+    ) -> None:
+        option = {
+            "component": "Generator",
+            "attribute": "marginal_cost",
+            "sign": sign,
+            "method": method,
+        }
+        model = convex_marginal_cost_network.optimize.create_model(
+            include_objective_constant=False, piecewise_options=[option]
+        )
+        assert "Generator-marginal_cost_piecewise_order" in model.binaries
+        assert "Generator-marginal_cost_piecewise_chord" not in model.constraints
+
+    @pytest.mark.parametrize(
+        ("options", "error", "match"),
+        [
+            pytest.param(
+                [{"name": "gen", "method": "lp"}],
+                NotImplementedError,
+                "named units",
+                id="name-filter",
+            ),
+            pytest.param(
+                [{"method": "lp"}, {"method": "incremental"}],
+                NotImplementedError,
+                "Several piecewise options",
+                id="two-options",
+            ),
+            pytest.param([{"method": "sos2"}], NotImplementedError, "sos2", id="sos2"),
+            pytest.param(
+                [{"sign": "<="}], NotImplementedError, "name the method", id="auto-sign"
+            ),
+            pytest.param(
+                [{"method": "lp", "committable": True}],
+                ValueError,
+                "status gate",
+                id="lp-committable",
+            ),
+        ],
+    )
+    def test_piecewise_options_refused(
+        self,
+        convex_marginal_cost_network: pypsa.Network,
+        options: list[dict[str, Any]],
+        error: type[Exception],
+        match: str,
+    ) -> None:
+        n = convex_marginal_cost_network
+        base = {"component": "Generator", "attribute": "marginal_cost", "sign": ">="}
+        if any(option.pop("committable", False) for option in options):
+            n.c.generators.static.loc["gen", "committable"] = True
+        with pytest.raises(error, match=match):
+            n.optimize.create_model(
+                include_objective_constant=False,
+                piecewise_options=[base | option for option in options],
+            )
+
+    @pytest.mark.parametrize(
+        ("attr", "value"),
+        [("p_nom_extendable", True), ("p_nom", 0.0), ("p_nom", float("inf"))],
+    )
+    def test_piecewise_per_unit_curve_needs_fixed_nominal(
+        self, convex_marginal_cost_network: pypsa.Network, attr: str, value: Any
+    ) -> None:
+        n = convex_marginal_cost_network
+        n.c.generators.static.loc["gen", attr] = value
+        with pytest.raises(
+            ValueError, match="Generator_marginal_cost_curve_on_a_fixed_build"
+        ):
+            n.optimize.create_model(include_objective_constant=False)
 
     def test_piecewise_unsorted_rows_get_sorted(self) -> None:
         """Shuffled segment rows must produce the same dispatch as sorted rows."""
@@ -425,6 +503,130 @@ class TestPiecewiseCostsStatus:
         assert (n.c.generators.dynamic.p["gen-committable"] == 0).all()
 
 
+OBJECTIVE, BUS = 1e-2, 1e-3
+INCREMENTAL = {"", "_delta", "_order"}
+WEIGHTS = dict.fromkeys(["_binary_order", "_delta_bound", "_fill_order"], 1.0)
+
+
+@pytest.mark.parametrize(
+    ("component", "attrs", "committable", "curve", "variables", "constraints"),
+    [
+        pytest.param(
+            "Generator",
+            {"bus": "bus0", "p_nom": 100, "marginal_cost": {0: 60, 0.5: 35, 1: 100}},
+            [True, False],
+            "marginal_cost_piecewise",
+            INCREMENTAL,
+            WEIGHTS
+            | {"_active_bound": 1.0, "_p": BUS, "_p_ungated": BUS}
+            | {"_cost": OBJECTIVE, "_cost_ungated": OBJECTIVE},
+            id="mixed-commitment",
+        ),
+        pytest.param(
+            "Generator",
+            {"bus": "bus0", "p_nom": 100, "marginal_cost": {0: 0, 0.5: 1, 1: 4}},
+            [False],
+            "marginal_cost_piecewise",
+            {""},
+            {"_chord": OBJECTIVE, "_domain_lo": BUS, "_domain_hi": BUS},
+            id="convex",
+        ),
+        pytest.param(
+            "Generator",
+            {
+                "bus": "bus0",
+                "p_nom_extendable": True,
+                "p_nom_max": 100,
+                "capital_cost": {0: 0, 50: 5, 100: 2},
+            },
+            [False],
+            "capital_cost_piecewise",
+            INCREMENTAL,
+            WEIGHTS | {"_p_nom": BUS, "_cost": OBJECTIVE},
+            id="capital-cost",
+        ),
+        pytest.param(
+            "Link",
+            {
+                "bus0": "bus0",
+                "bus1": "bus1",
+                "p_nom": 100,
+                "marginal_cost": 1,
+                "efficiency": {0: 0, 0.1: 0.3, 0.5: 0.4, 1: 0.6},
+            },
+            [False],
+            "p_piecewise",
+            INCREMENTAL,
+            WEIGHTS | {"_p_ungated": BUS, "_delivery_ungated": BUS},
+            id="link-efficiency",
+        ),
+    ],
+)
+def test_piecewise_names_and_scaling(
+    component: str,
+    attrs: dict[str, Any],
+    committable: list[bool],
+    curve: str,
+    variables: set[str],
+    constraints: dict[str, float],
+) -> None:
+    """Pin the names mathspec gives the helpers of a curve, and their scaling."""
+    n = pypsa.Network()
+    n.add("Bus", ["bus0", "bus1"], scaling=BUS)
+    n.add("Load", "load", bus="bus0", p_set=50)
+    for i, com in enumerate(committable):
+        n.add(component, f"unit{i}", committable=com, **attrs)
+    m = n.optimize.create_model(objective_scaling=OBJECTIVE)
+    name = f"{component}-{curve}"
+    assert {k for k in m.variables if "piecewise" in k} == {name + k for k in variables}
+    factors = {
+        k: set(c.scaling.values[c.labels.values != -1])
+        for k, c in m.constraints.items()
+        if "piecewise" in k
+    }
+    assert factors == {name + k: {v} for k, v in constraints.items()}
+
+
+@pytest.mark.parametrize(
+    ("component", "attrs", "assumption"),
+    [
+        (
+            "Generator",
+            {"bus": "bus0", "marginal_cost": {0: 60, 0.5: 75, 1: 100}},
+            "Generator_marginal_cost",
+        ),
+        (
+            "Generator",
+            {"bus": "bus0", "efficiency": {0: 0, 0.5: 0.4, 1: 0.6}},
+            "Generator_efficiency",
+        ),
+        (
+            "Link",
+            {"bus0": "bus0", "bus1": "bus1", "efficiency": {0: 0, 0.5: 0.4, 1: 0.6}},
+            "Link_efficiency",
+        ),
+        (
+            "Process",
+            {"bus0": "bus0", "bus1": "bus1", "rate1": {0: 0, 0.5: 0.4, 1: 0.6}},
+            "Process_rate",
+        ),
+    ],
+)
+def test_linearized_unit_commitment_refuses_committable_curve(
+    component: str, attrs: dict[str, Any], assumption: str
+) -> None:
+    """A curve of a committable unit needs an integer status gate."""
+    n = pypsa.Network()
+    n.add("Bus", ["bus0", "bus1"])
+    n.add("Carrier", "gas", co2_emissions=1)
+    n.add("GlobalConstraint", "co2", sense="<=", constant=1e4)
+    n.add("Generator", ["s0", "s1"], bus=["bus0", "bus1"], p_nom=100, marginal_cost=1)
+    n.add(component, "unit", p_nom=100, committable=True, carrier="gas", **attrs)
+    n.optimize.create_model()
+    with pytest.raises(ValueError, match=f"{assumption}_curve_is_not_committable"):
+        n.optimize.create_model(linearized_unit_commitment=True)
+
+
 class TestPiecewiseCostsErrors:
     def test_piecewise_capital_cost_with_overnight_cost_raises(self) -> None:
         """Defining overnight_cost next to a piecewise capital_cost curve is ambiguous."""
@@ -439,7 +641,59 @@ class TestPiecewiseCostsErrors:
             capital_cost={0.0: 2.0, 100.0: 2.0},
             overnight_cost=1000,
             lifetime=20,
+            discount_rate=0.05,
         )
         n.add("Load", "load", bus="bus0", p_set=50)
-        with pytest.raises(ValueError, match="overnight_cost"):
+        with pytest.raises(
+            ValueError, match="Generator_capital_cost_curve_without_overnight_cost"
+        ):
             n.optimize.create_model(include_objective_constant=False)
+
+
+SUPPLIERS: dict[str, dict[str, Any]] = {
+    "Generator": {"bus": "bus0"},
+    "Link": {"bus0": "bus1", "bus1": "bus0"},
+    "Process": {"bus0": "bus1", "bus1": "bus0", "rate0": -1, "rate1": 1},
+    "StorageUnit": {"bus": "bus0", "max_hours": 1, "state_of_charge_initial": 100},
+    "Store": {"bus": "bus0", "e_initial": 100},
+    "Line": {"bus0": "bus1", "bus1": "bus0", "x": 0.1},
+    "Transformer": {"bus0": "bus1", "bus1": "bus0", "x": 0.1},
+}
+CURVES = [
+    *((c, "marginal_cost") for c in list(SUPPLIERS)[:5]),
+    *((c, "capital_cost") for c in SUPPLIERS),
+]
+
+
+def _supplied_load(component: str, attribute: str, cost: Any) -> pypsa.Network:
+    """Return a load that `component` supplies cheaper than a backup, at `cost`."""
+    n = pypsa.Network()
+    n.add("Bus", ["bus0", "bus1"])
+    n.add("Generator", "source", bus="bus1", p_nom=1000, marginal_cost=1)
+    n.add("Generator", "backup", bus="bus0", p_nom=1000, marginal_cost=100)
+    n.add("Load", "load", bus="bus0", p_set=50)
+    nom = n.components[component]._operational_attrs["nom"]
+    build: dict[str, Any] = {nom: 100}
+    if attribute == "capital_cost":
+        build = {f"{nom}_extendable": True, f"{nom}_max": 100}
+    n.add(component, "unit", **SUPPLIERS[component], **build, **{attribute: cost})
+    return n
+
+
+@pytest.mark.parametrize("method", ["lp", "incremental"])
+@pytest.mark.parametrize(("component", "attribute"), CURVES)
+def test_constant_slope_curve_costs_its_slope(
+    component: str, attribute: str, method: str
+) -> None:
+    linear = _supplied_load(component, attribute, 2.0)
+    linear.optimize()
+    end = 100.0 if attribute == "capital_cost" else 1.0
+    n = _supplied_load(component, attribute, {0.0: 0.0, end / 2: 2.0, end: 2.0})
+    option = {
+        "component": component,
+        "attribute": attribute,
+        "method": method,
+        "sign": ">=",
+    }
+    n.optimize(piecewise_options=[option])
+    assert n.objective == pytest.approx(linear.objective, rel=1e-6)

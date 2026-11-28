@@ -4,13 +4,13 @@
 
 """Build optimisation problems from PyPSA networks with Linopy."""
 
-from pypsa.optimization import abstract, constraints, optimize, variables
+from pypsa.optimization import abstract, optimize
 from pypsa.optimization.optimize import OptimizationAccessor
+from pypsa.optimization.spec import Override
 
 __all__ = [
     "abstract",
-    "constraints",
     "optimize",
-    "variables",
     "OptimizationAccessor",
+    "Override",
 ]

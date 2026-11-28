@@ -9,7 +9,6 @@ import warnings
 from pathlib import Path
 
 import geopandas as gpd
-import linopy
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -17,7 +16,6 @@ import pytest
 from shapely.geometry import Polygon
 
 import pypsa
-from pypsa._linopy_compat import V1_ONLY
 from pypsa.constants import DEFAULT_EPSG
 
 
@@ -34,18 +32,15 @@ def restore_options_module():
     """Re-import `_options` after each test and rebind pypsa's references.
 
     Opt-in for tests that reload the module (env var tests), which would
-    otherwise leak their state. The session-wide options set in
-    `pytest_configure` (`--new-components-api`, `--linopy-sparse`) are carried
-    over.
+    otherwise leak their state. The session-wide option set in
+    `pytest_configure` (`--new-components-api`) is carried over.
     """
     components_api = pypsa.options.future.components_api
-    model_kwargs = pypsa.options.params.optimize.model_kwargs
     yield
     from pypsa import _options
 
     importlib.reload(_options)
     _options.options.future.components_api = components_api
-    _options.options.params.optimize.model_kwargs = model_kwargs
 
     pypsa.options = _options.options
     pypsa.get_option = _options.options.get_option
@@ -117,12 +112,6 @@ def pytest_addoption(parser):
         help="Activate the new components API (options.future.components_api)",
     )
     parser.addoption(
-        "--linopy-sparse",
-        action="store_true",
-        default=False,
-        help="Build optimization models on linopy's sparse backend",
-    )
-    parser.addoption(
         "--test-docs",
         action="store_true",
         default=False,
@@ -146,13 +135,6 @@ def pytest_configure(config):
     """Configure pytest session with custom options."""
     if config.getoption("--new-components-api"):
         pypsa.options.future.components_api = True
-    if config.getoption("--linopy-sparse"):
-        if not V1_ONLY:
-            linopy.options.set_value(semantics="v1")
-        pypsa.options.params.optimize.model_kwargs = {"sparse": True}
-        config.addinivalue_line(
-            "filterwarnings", "default::linopy.constants.PerformanceWarning"
-        )
 
 
 def pytest_collection_modifyitems(config, items):

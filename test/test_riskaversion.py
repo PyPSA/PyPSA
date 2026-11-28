@@ -228,9 +228,9 @@ def test_cvar_constraints_cover_many_settings():
 
     # CVaR constraints created correctly
     assert "CVaR-def" in n.model.constraints
-    for s in n.scenarios:
-        key = f"CVaR-excess-{s}"
-        assert key in n.model.constraints
+    assert list(n.model.constraints["CVaR-excess"].indexes["scenario"]) == list(
+        n.scenarios
+    )
 
 
 def test_cvar_constraints_multiperiod_opt():
@@ -278,8 +278,9 @@ def test_cvar_constraints_multiperiod_opt():
 
     # CVaR constraints present
     assert "CVaR-def" in n.model.constraints
-    for s in n.scenarios:
-        assert f"CVaR-excess-{s}" in n.model.constraints
+    assert list(n.model.constraints["CVaR-excess"].indexes["scenario"]) == list(
+        n.scenarios
+    )
 
 
 def test_cvar_with_quadratic_opex_raises():
@@ -309,17 +310,20 @@ def test_cvar_with_quadratic_opex_raises():
     n.set_scenarios({"s1": 0.5, "s2": 0.5})
     n.set_risk_preference(alpha=0.5, omega=0.3)
 
-    with pytest.raises(ValueError, match=r"CVaR with quadratic operational costs"):
+    with pytest.raises(
+        ValueError, match=r"marginal_cost_quadratic_without_risk_preference"
+    ):
         n.optimize(log_to_console=False)
 
 
-def test_objective_without_any_costs_raises():
+@pytest.mark.parametrize("generator", [{"p_nom": 5.0}, {"p_nom_extendable": True}])
+def test_objective_without_any_costs_raises(generator: dict) -> None:
     """Cover optimize.py guard when neither CAPEX nor OPEX terms exist."""
     n = pypsa.Network(snapshots=range(2))
     n.add("Carrier", "elec")
     n.add("Bus", "b", carrier="elec")
     n.add("Load", "d", bus="b", p_set=[1.0, 1.0])
-    n.add("Generator", "g", bus="b", p_nom=5.0)
+    n.add("Generator", "g", bus="b", **generator)
 
     # No capex/opex terms — objective cannot be formed
     with pytest.raises(ValueError, match=r"Objective function could not be created"):
@@ -374,5 +378,6 @@ def test_cvar_with_zero_opex(toy_network):
 
     # Verify CVaR constraints exist
     assert "CVaR-def" in n.model.constraints
-    for s in n.scenarios:
-        assert f"CVaR-excess-{s}" in n.model.constraints
+    assert list(n.model.constraints["CVaR-excess"].indexes["scenario"]) == list(
+        n.scenarios
+    )

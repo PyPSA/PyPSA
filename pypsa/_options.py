@@ -537,11 +537,9 @@ options._add_option(
 options._add_option(
     "optimization.model_snapshot_index",
     "auto",
-    "Snapshot dimension of multi-period models: 'multiindex' keeps the "
-    "(period, timestep) MultiIndex, 'flat' uses tuple labels "
-    "with period/timestep auxiliary coordinates, 'auto' picks by linopy's active "
-    "semantics ('flat' under v1, else 'multiindex'). Applies to newly built "
-    "models only.",
+    "Deprecated, has no effect and will be removed in PyPSA 2.0. Multi-period "
+    "models are always built over a flat `snapshot` dimension with tuple labels "
+    "and period/timestep auxiliary coordinates.",
 )
 # Warnings category
 options._add_option(

@@ -18,6 +18,7 @@ import scipy.sparse as sp
 from packaging.version import Version, parse
 from pandas import Series
 
+from pypsa._registry import carry
 from pypsa.common import _scenarios_not_implemented
 from pypsa.geo import haversine_pts
 
@@ -963,6 +964,7 @@ class SpatialClusteringMixin:
         )
 
         clustered = n.__class__()
+        carry(n, clustered)
 
         clustered.add("Bus", buses.index, **buses)
         clustered.add("Line", lines.index, **lines)

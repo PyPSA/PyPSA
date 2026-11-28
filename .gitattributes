@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+test/data/equivalence/spec_keys.json linguist-generated=true
+test/data/equivalence/model_digests.json linguist-generated=true

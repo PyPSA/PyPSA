@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import signal
 import tempfile
+from functools import partial
 from multiprocessing import get_context
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pypsa import Network
+    from pypsa.optimization.spec import Override
 logger = logging.getLogger(__name__)
 
 
@@ -214,15 +216,16 @@ class OptimizationAbstractMGAMixin:
             for attr, coeffs in attrs.items():
                 if isinstance(coeffs, dict):
                     coeffs = pd.Series(coeffs)
+                var = m[f"{c}-{attr}"]
                 if attr == nominal_attrs[c] and isinstance(coeffs, pd.Series):
-                    coeffs = coeffs.reindex(self._n.c[c].extendables, fill_value=0)
+                    coeffs = coeffs.reindex(var.indexes["name"], fill_value=0)
                 elif isinstance(coeffs, pd.Series):
                     coeffs = coeffs.reindex(columns=self._n.c[c].static.index)
                 elif isinstance(coeffs, pd.DataFrame):
                     coeffs = coeffs.reindex(
                         columns=self._n.c[c].static.index, index=self._n.snapshots
                     )
-                expr.append(m[f"{c}-{attr}"] * coeffs)
+                expr.append(var * coeffs)
         return merge(expr, join="outer")
 
     def _add_near_opt_constraint(
@@ -319,6 +322,9 @@ class OptimizationAbstractMGAMixin:
         slack: float = 0.05,
         model_kwargs: dict | None = None,
         objective_scaling: float = 1.0,
+        *,
+        overrides: Sequence[Override] | None = None,
+        include_expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Run modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
@@ -343,12 +349,16 @@ class OptimizationAbstractMGAMixin:
         slack : float
             Cost slack for budget constraint. Defaults to 0.05.
         model_kwargs : dict, optional
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Keyword arguments used by `linopy.Model`, such as `solver_dir`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         objective_scaling : float, default 1.0
             Factor applied to all objective coefficients in the solver, see
             `n.optimize.create_model`.
+        overrides : list[Override], optional
+            Changes to the optimisation problem, see `n.optimize.create_model`.
+        include_expressions : bool, default False
+            Whether to build the named expressions, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -387,6 +397,8 @@ class OptimizationAbstractMGAMixin:
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
             objective_scaling=objective_scaling,
+            overrides=overrides,
+            include_expressions=include_expressions,
             **model_kwargs,
         )
 
@@ -477,6 +489,9 @@ class OptimizationAbstractMGAMixin:
         slack: float = 0.05,
         model_kwargs: dict | None = None,
         objective_scaling: float = 1.0,
+        *,
+        overrides: Sequence[Override] | None = None,
+        include_expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str, pd.Series | None]:
         """Run MGA in a given direction in a low-dimension projection.
@@ -502,12 +517,16 @@ class OptimizationAbstractMGAMixin:
         slack : float
             Cost slack for budget constraint. Defaults to 0.05.
         model_kwargs : dict, optional
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Keyword arguments used by `linopy.Model`, such as `solver_dir`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         objective_scaling : float, default 1.0
             Factor applied to all objective coefficients in the solver, see
             `n.optimize.create_model`.
+        overrides : list[Override], optional
+            Changes to the optimisation problem, see `n.optimize.create_model`.
+        include_expressions : bool, default False
+            Whether to build the named expressions, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -554,6 +573,8 @@ class OptimizationAbstractMGAMixin:
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
             objective_scaling=objective_scaling,
+            overrides=overrides,
+            include_expressions=include_expressions,
             **model_kwargs,
         )
 
@@ -597,6 +618,9 @@ class OptimizationAbstractMGAMixin:
         model_kwargs: dict,
         objective_scaling: float,
         kwargs: dict,
+        *,
+        overrides: Sequence[Override] | None,
+        include_expressions: bool,
     ) -> tuple[dict, pd.Series | None]:
         """Solve a single direction for parallel execution (helper method).
 
@@ -616,6 +640,8 @@ class OptimizationAbstractMGAMixin:
                 slack=slack,
                 model_kwargs=model_kwargs,
                 objective_scaling=objective_scaling,
+                overrides=overrides,
+                include_expressions=include_expressions,
                 **kwargs,
             )
         except KeyboardInterrupt:
@@ -642,6 +668,9 @@ class OptimizationAbstractMGAMixin:
         model_kwargs: dict | None = None,
         max_parallel: int = 4,
         objective_scaling: float = 1.0,
+        *,
+        overrides: Sequence[Override] | None = None,
+        include_expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Run MGA optimization in multiple directions in parallel.
@@ -678,7 +707,7 @@ class OptimizationAbstractMGAMixin:
         slack : float
             Cost slack for budget constraint. Defaults to 0.05.
         model_kwargs : dict, optional
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Keyword arguments used by `linopy.Model`, such as `solver_dir`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         max_parallel : int
@@ -687,6 +716,10 @@ class OptimizationAbstractMGAMixin:
         objective_scaling : float, default 1.0
             Factor applied to all objective coefficients in the solver, see
             `n.optimize.create_model`.
+        overrides : list[Override], optional
+            Changes to the optimisation problem, see `n.optimize.create_model`.
+        include_expressions : bool, default False
+            Whether to build the named expressions, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -751,8 +784,13 @@ class OptimizationAbstractMGAMixin:
                 ) as pool
             ):
                 try:
-                    results = pool.starmap(
+                    solve = partial(
                         OptimizationAbstractMGAMixin._solve_single_direction,
+                        overrides=overrides,
+                        include_expressions=include_expressions,
+                    )
+                    results = pool.starmap(
+                        solve,
                         [
                             (
                                 fn,

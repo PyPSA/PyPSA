@@ -10,8 +10,6 @@ Snapshot naming convention
   labelling (see `pypsa.optimization.window`).
 - `window`: the build's `SnapshotWindow`, which maps those labels back to the
   network's.
-- `period_sns`: per-investment-period subset of `sns`, as yielded by
-  `window.iter_periods`.
 
 `snapshots` is reserved for the public API (`n.optimize(snapshots=...)`,
 `n.snapshots`); `"snapshot"` is the model dimension name.

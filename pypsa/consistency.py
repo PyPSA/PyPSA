@@ -481,16 +481,16 @@ def check_time_series_power_attributes(
                     )
 
             tol = options.params.consistency.numerical_tolerance
-            diff = max_pu - min_pu
-            violated = diff.to_numpy() < -tol
+            diff = max_pu.to_numpy() - min_pu.reindex_like(max_pu).to_numpy()
+            violated = diff < -tol
             for j in np.flatnonzero(violated.any(axis=0)):
                 _log_or_raise(
                     strict,
                     "The element %s of %s has a smaller maximum than minimum operational"
                     " limit which can lead to infeasibility for the following snapshots:\n%s",
-                    diff.columns[j],
+                    max_pu.columns[j],
                     component.list_name,
-                    diff.index[violated[:, j]],
+                    max_pu.index[violated[:, j]],
                 )
 
 

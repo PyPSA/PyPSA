@@ -355,9 +355,12 @@ class TestExpressionsWithPiecewise:
         n = piecewise_network_built
         expr = n.optimize.expressions.capex().unstack("group")
         assert isinstance(expr, LinearExpression)
-        assert str(expr.sel(component="StorageUnit", carrier="-")).endswith(
-            "+10 StorageUnit-p_nom[storage0] + 1 StorageUnit-capital_cost_piecewise[storage1]"
-        )
+        s = str(expr.sel(component="StorageUnit", carrier="-"))
+        for term in [
+            "10 StorageUnit-p_nom[storage0]",
+            "1 StorageUnit-capital_cost_piecewise[storage1]",
+        ]:
+            assert term in s
         assert "piecewise" not in str(expr.sel(component=["Link", "Generator"]))
 
     def test_expressions_opex(self, piecewise_network_built):
@@ -366,10 +369,10 @@ class TestExpressionsWithPiecewise:
         assert isinstance(expr, LinearExpression)
         s = str(expr.sel(component="Generator", carrier="-"))
         for term in [
-            "0.6 Generator-p[0, gen1]",
-            "0.6 Generator-p[1, gen1]",
-            "1 Generator-marginal_cost_piecewise[0, gen0]",
-            "1 Generator-marginal_cost_piecewise[1, gen0]",
+            "0.6 Generator-p[gen1, base, 0]",
+            "0.6 Generator-p[gen1, base, 1]",
+            "1 Generator-marginal_cost_piecewise[gen0, base, 0]",
+            "1 Generator-marginal_cost_piecewise[gen0, base, 1]",
         ]:
             assert term in s
         assert "piecewise" not in str(expr.sel(component=["Link", "StorageUnit"]))
@@ -423,10 +426,10 @@ class TestExpressionsWithPiecewise:
         expr = n.optimize.expressions.energy_balance().unstack("group")
         s = str(expr.sel(component="Link", carrier="AC"))
         for term in [
-            "1 Link-p[0, link]",
-            "1 Link-p[1, link]",
-            "1 Link-p1_piecewise[0, link]",
-            "1 Link-p1_piecewise[1, link]",
+            "1 Link-p[link, base, 0]",
+            "1 Link-p[link, base, 1]",
+            "1 Link-p_piecewise[link, 1, base, 0]",
+            "1 Link-p_piecewise[link, 1, base, 1]",
         ]:
             assert term in s
         assert "piecewise" not in str(
@@ -437,7 +440,7 @@ class TestExpressionsWithPiecewise:
         """A positive piecewise port counts as supply, never as withdrawal."""
         n = piecewise_network_built
         supply = n.optimize.expressions.supply().unstack("group")
-        assert "Link-p1_piecewise" in str(supply.sel(component="Link", carrier="AC"))
+        assert "Link-p_piecewise" in str(supply.sel(component="Link", carrier="AC"))
         withdrawal = n.optimize.expressions.withdrawal().unstack("group")
         assert "piecewise" not in str(withdrawal.sel(component="Link", carrier="AC"))
 
@@ -463,8 +466,8 @@ class TestExpressionsWithPiecewise:
         # linopy renders the leading term without a space after its sign; term
         # order is not part of the contract, so compare sign-normalised.
         terms = str(withdrawal.sel(component="Process")).replace("- ", "-")
-        assert "-1 Process-p0_piecewise" in terms
-        assert "p0_piecewise" not in str(supply.sel(component="Process"))
+        assert "-1 Process-p_piecewise[proc, 0" in terms
+        assert "p_piecewise" not in str(supply.sel(component="Process"))
 
 
 def test_multi_period_supply_withdrawal_energy_balance():

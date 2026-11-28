@@ -831,6 +831,19 @@ def test_1420(tmp_path):
     # tmp_path is automatically cleaned up by pytest
 
 
+def test_pickle_without_registries_loads():
+    """A network pickled before composites and stored overrides existed loads."""
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    del n.__dict__["_registries"]
+
+    n_loaded = pickle.loads(pickle.dumps(n))
+
+    assert len(n_loaded.composites) == 0
+    assert len(n_loaded.optimize.overrides) == 0
+    assert n_loaded.equals(n_loaded.copy())
+
+
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",

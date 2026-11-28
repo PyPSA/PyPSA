@@ -152,7 +152,7 @@ def test_get_strongly_meshed_buses_deprecated():
         get_strongly_meshed_buses(n)
 
 
-def test_meshed_thresholds_skip_isolated_buses():
+def test_nodal_balance_skips_isolated_buses():
     n = pypsa.Network()
     n.set_snapshots([0])
     n.add("Bus", "b0")
@@ -162,12 +162,15 @@ def test_meshed_thresholds_skip_isolated_buses():
 
     n.optimize.create_model()
 
-    names_dim = n.model.constraints["Bus-nodal_balance"].coords["name"].to_index()
-    assert "b0" in names_dim
-    assert "b1" not in names_dim
+    labels = n.model.constraints["Bus-nodal_balance"].labels.sel(snapshot=0)
+    assert labels.sel(name="b0") != -1
+    assert labels.sel(name="b1") == -1
 
 
-def test_meshed_threshold_backward_compatibility_warning():
+@pytest.mark.parametrize(
+    "kwargs", [{"meshed_thresholds": [10]}, {"meshed_threshold": 10}]
+)
+def test_meshed_thresholds_deprecated(kwargs):
     n = pypsa.Network()
     n.set_snapshots([0])
     n.add("Bus", "b0")
@@ -175,4 +178,19 @@ def test_meshed_threshold_backward_compatibility_warning():
     n.add("Load", "l", bus="b0", p_set=1)
 
     with pytest.warns(FutureWarning, match="meshed_threshold"):
-        n.optimize.create_model(meshed_threshold=10)
+        n.optimize.create_model(**kwargs)
+
+    assert not any("meshed" in k for k in n.model.constraints)
+
+
+def test_nodal_balance_is_sparse_by_default():
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Bus", "b0")
+    n.add("Generator", "g", bus="b0", p_nom=1, marginal_cost=1)
+    n.add("Load", "l", bus="b0", p_set=1)
+
+    with pypsa.option_context("params.optimize.model_kwargs", {}):
+        n.optimize.create_model()
+
+    assert n.model.constraints["Bus-nodal_balance"].lhs.is_sparse

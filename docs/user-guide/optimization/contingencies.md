@@ -31,23 +31,27 @@ considered can be made by passing the keyword argument `branch_outages` (e.g.
 `branch_outages=n.lines[:10]` for considering outages of the first 10 lines). If
 no selection is made, all branches are considered.
 
-The effect of an outage of a branch $c$ on the flows of all other branches $b$
+The effect of an outage $\zeta$ of a branch on the flows of all other branches $l$
 in a sub-network is captured by the Branch Outage Distribution Factor (BODF)
-matrix, which is built from linear power flow assumptions. For the outage of
-branch $c$, let $p_b$ be the flows before the outage and $p_b^{(c)}$ be the
-flows after the outage. Then, the BODF is defined by:
+matrix, which is built from linear power flow assumptions. Let $p_l$ be the
+flows before the outage and $p^{(\zeta)}_l$ be the flows after the outage. Then,
+the BODF is defined by:
 
-$$p_b^{(c)} = p_b + BODF_{bc}p_{c}$$
+!!! note "Background"
 
-To ensure that the flows of all other branches $b$ do not exceed their
-capacity $P_b$ after the outage of branch $c$, the following constraints are
-added to the optimisation problem:
+    $$p^{(\zeta)}_{l} = p_{l} + \mathrm{BODF}_{l,\zeta}\, p_{\zeta}$$
 
-$$|p_{b,t} + BODF_{bc}p_{c,t}| \leq |P_b| \quad \forall b,c,t$$
+To ensure that the flows of all other branches $l$ do not exceed their
+capacity $\bar{p}_{l,t} \hat{p}_l$ (or $\bar{p}_{l,t} P_l$ if extendable) after the outage $\zeta$, the following constraints are
+added to the optimisation problem. The flow $\mathit{Outage\_s}_{\zeta,s,t}$ is the flow on the branch that the outage $\zeta$ takes out. The [trait `passive_branch`](formulation/traits/passive_branch.md) states them for both lines and transformers, for fixed and extendable capacities:
+
+<!-- md:spec Line_fix_s_upper_security Line_fix_s_lower_security Line_ext_s_upper_security Line_ext_s_lower_security Transformer_fix_s_upper_security Transformer_fix_s_lower_security Transformer_ext_s_upper_security Transformer_ext_s_lower_security -->
 
 These constraints are added in the function [`n.optimize_security_constrained()`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained].
 
-With `multi_investment_periods=True`, the BODF matrix is computed from the network topology of each investment period. The constraints are added per investment period and sub-network, with the period as name suffix (e.g. `Line-fix-s-upper-security-for-Line-outage-in-sub-network-0-period-2030`). They only include the snapshots of that period and the branches active in it.
+The constraints are named per component, kind and bound, e.g. `Line-fix-s-upper-security` for the upper limit of non-extendable lines, and run over the outaged branches in the dimension `outage`. A row exists only where the outaged and the monitored branch lie in one sub-network.
+
+With `multi_investment_periods=True`, the BODF matrix is computed from the network topology of each investment period. A snapshot only has rows for the branches active in its period.
 
 Explicitly requested outages of branches that are not active in any optimized period raise an error. This includes an outage of a branch that is only active in periods outside the passed `snapshots`, which matters when you write your own rolling-horizon loop. With the default `branch_outages=None`, inactive branches are skipped.
 
@@ -59,16 +63,11 @@ Explicitly requested outages of branches that are not active in any optimized pe
     from the branch capacity for contingencies (e.g. by setting `s_max_pu=0.7` to prevent line loading above 70% of the branches' rated capacity).
     See, for example, the discussion in Gazafroudi et al. (2022)[^4].
 
-??? note "Mapping of symbols to component attributes"
+??? note "Symbols"
 
-    The following table maps the symbols used in this section to the component attributes in PyPSA:
+    <!-- md:spec-legend Line_fix_s_upper_security Line_ext_s_upper_security Transformer_fix_s_upper_security Transformer_ext_s_upper_security Outage_s -->
 
-    | Symbol | Attribute | Type |
-    |--------|---------------------|------|
-    | $p_{\{b,c\},t}$ | `n.{lines,transformers}_t.p0` | Decision Variable |
-    | $P_b$ | For extendable components `n.{lines,transformers}.eval("s_max_pu * s_nom_opt")` | Decision Variable |
-    | $P_b$ | For non-extendable components`n.{lines,transformers}.eval("s_max_pu * s_nom")` | Parameter |
-    | $BODF_{bc}$ | Calculated by [`sn.calculate_BODF()`][pypsa.networks.SubNetwork.calculate_BODF] | Parameter |
+    The BODF matrix is calculated by [`sn.calculate_BODF()`][pypsa.networks.SubNetwork.calculate_BODF].
 
 ## Calculating Branch Outage Distribution Factors (BODF)
 
@@ -77,31 +76,33 @@ The BODF is calculated by the function
 It is determined from the Power Transfer Distribution Factors (PTDF) matrix
 and the incidence matrix $K$ of the network.[^2] [^3]
 
-The first step consists of building the branch $BPTDF$
-from the $PTDF$ and incidence matrix $K$
+!!! note "Background"
 
-$$BPTDF_{bc} = \sum_{i} PTDF_{bi} K_{ic}$$
+    The first step consists of building the branch $\mathrm{BPTDF}$
+    from the $\mathrm{PTDF}$ and incidence matrix $K$:
 
-$BPTDF_{bc}$ gives the change in flow on branch $b$ if a
-unit of power is injected at `bus0` of branch $c$ and
-withdrawn from the `bus1` of branch $c$. If branch $b$ is
-the only branch connecting two regions, then $BPTDF_{bb} = 1$,
-since the power can only flow between the two ends of the branch
-through the branch itself.
+    $$\mathrm{BPTDF}_{l,\zeta} = \sum_{n \in \mathcal{N}} \mathrm{PTDF}_{l,n} K_{n,\zeta}$$
 
-The off-diagonal entries of the $BODF$ for $b \neq c$ are given by:
+    $\mathrm{BPTDF}_{l,\zeta}$ gives the change in flow on branch $l$ if a
+    unit of power is injected at `bus0` of the branch of outage $\zeta$ and
+    withdrawn from its `bus1`. If branch $l$ is
+    the only branch connecting two regions, then $\mathrm{BPTDF}_{l,l} = 1$,
+    since the power can only flow between the two ends of the branch
+    through the branch itself.
 
-$$BODF_{bc} = \frac{BPTDF_{bc}}{1-BPTDF_{cc}}$$
+    The off-diagonal entries of the $\mathrm{BODF}$ for $l \neq \zeta$ are given by:
 
-The diagonal entries of the $BODF$ are simply:
+    $$\mathrm{BODF}_{l,\zeta} = \frac{\mathrm{BPTDF}_{l,\zeta}}{1-\mathrm{BPTDF}_{\zeta,\zeta}}$$
 
-$$BODF_{bb} = -1$$
+    The diagonal entries of the $\mathrm{BODF}$ are simply:
 
-!!! warning "Warning: Singular $BODF$ matrix"
+    $$\mathrm{BODF}_{\zeta,\zeta} = -1$$
 
-    If $c$ is the only branch connecting two regions, so that the
-    regions become disconnected after the outage of $c$, then
-    $BPTDF_{cc} = 1$ and $BODF_{bc}$ becomes singular; this
+!!! warning "Warning: Singular BODF matrix"
+
+    If the branch of outage $\zeta$ is the only branch connecting two regions, so that the
+    regions become disconnected after the outage, then
+    $\mathrm{BPTDF}_{\zeta,\zeta} = 1$ and $\mathrm{BODF}_{l,\zeta}$ becomes singular; this
     case must be treated separately since, for example, each region will
     need its own slack bus.
 

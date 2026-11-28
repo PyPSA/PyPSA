@@ -17,15 +17,15 @@ specific form of the energy balance constraint.
 ## Kirchhoff's Voltage Law (KVL)
 
 For lines and transformers, whose power flows according the impedances, the
-power flow $p_{l,t}$ in AC networks is governed by the cycle-based linearised formulation
+power flow $p_{l,s,t}$ in AC networks is governed by the cycle-based linearised formulation
 of Kirchhoff's Voltage Law (KVL)
 
-$$\sum_l C_{l,c} x_l p_{l,t} = 0  \quad \forall\, c,t$$
+<!-- md:spec Kirchhoff_Voltage_Law Cycle_angle_sum Line_angle_sum -->
 
-where  $C$ is a [cycle basis
+where the weight `Line_cycle_weight` is the entry of a [cycle basis
 matrix](https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.cycles.cycle_basis.html)
-of the network graph, where the independent cycles $c$ are expressed as directed
-linear combinations of lines $l$, and $x_l$ is the series reactance.
+of the network graph times the series reactance $x_l$ of line $l$. The independent cycles $\xi$ are expressed as directed
+linear combinations of lines and transformers. The constant factor $10^5$ only improves the numerical scaling.
 
 While there are different formulations of KVL, the cycle-based formulation was
 found to be substantially faster than other formulations due to its sparsity, as
@@ -38,11 +38,11 @@ By default, PyPSA constructs the cycle basis from breadth-first spanning trees b
 al. (1982)[^2] and refines it through cycle exchanges to shorten the cycles
 (`n.optimize(cycle_basis_method="bfs-refined")`).
 
-These constraints are set in the function `define_kirchhoff_voltage_constraints()` and carry the name `Kirchhoff-Voltage-Law`.
+These constraints carry the name `Kirchhoff-Voltage-Law`.
 
 !!! tip "Tip: KVL with DC networks"
 
-    For DC networks, replace the series reactance $x_l$ by the series resistance $r_l$.
+    For DC networks, replace the series reactance $x_l$ by the series resistance (`r_pu_eff`).
 
 !!! note "Note: Retrieving the PTDF matrix"
 
@@ -54,7 +54,7 @@ These constraints are set in the function `define_kirchhoff_voltage_constraints(
 
 !!! note "Note: Handling impedance changes with transmission expansion"
 
-    If $F_l$ is also subject to optimisation (`s_nom_extendable=True`), the impedance $x$ of the line is **not** automatically changed with the capacity (e.g. to represent added parallel lines).
+    If $P_l$ is also subject to optimisation (`s_nom_extendable=True`), the impedance $x$ of the line is **not** automatically changed with the capacity (e.g. to represent added parallel lines).
     However, the extension [`n.optimize.optimize_transmission_expansion_iteratively()`][pypsa.optimization.OptimizationAccessor.optimize_transmission_expansion_iteratively] covers this through an
     iterative process as done Hagspiel et al. (2014)[^3] .
 
@@ -65,72 +65,56 @@ shift between its terminals to redistribute power flows in a meshed network,
 without adding or removing active power. Following the linearised power-flow
 treatment of PSTs in Verboomen et al. (2008)[^4] (Section III-A "Linearized
 Power Flow", eq. (3)), the phase shift enters the cycle-based KVL constraint
-as an additive angle term:
+as an additive angle term in the transformer part of the cycle sum:
 
-$$\sum_l C_{l,c} \left( x_l p_{l,t} + \alpha_{l,t} \right) = 0  \quad \forall\, c,t$$
+<!-- md:spec Transformer_angle_sum -->
 
-where $\alpha_{l,t}$ is the voltage phase-angle shift of branch $l$ in radians
-(zero for lines and transformers without phase shift).
+where $\phi_{s,t,q}$ is the voltage phase-angle shift of transformer $q$ in radians. The term `Transformer_phase_shift_weight` holds a fixed phase shift.
 
 For a `Transformer` with `phase_shift_min < phase_shift_max`, the phase shift
 becomes a per-snapshot decision variable with bounds
 
-$$\alpha_l^{min} \leq \alpha_{l,t} \leq \alpha_l^{max} \quad \forall\, l,t$$
+<!-- md:spec Transformer_phase_shift -->
 
 given by the input attributes `phase_shift_min` and `phase_shift_max` (in
 degrees, converted to radians internally). Otherwise the phase shift is fixed
 to the static or series input `phase_shift`. The realised per-snapshot
 angle is written to the dynamic output `n.transformers_t["phase_shift_opt"]`.
 
-The variables are set in `define_phase_shift_variables()` and carry the name
-`Transformer-phase_shift`; the angle term is added within
-`define_kirchhoff_voltage_constraints()`.
+The variables carry the name `Transformer-phase_shift`; the angle term enters
+the `Kirchhoff-Voltage-Law` constraints.
 
 !!! note "Note: Sign convention"
 
-    PyPSA's power-flow sign convention is $p_{l,t} = (\theta_0 - \theta_1 - \alpha_{l,t}) / x_l$,
+    PyPSA's power-flow sign convention is $p_{s,t,q} = (\theta_0 - \theta_1 - \phi_{s,t,q}) / x_q$,
     consistent with `n.pf()` and `n.lpf()`. This is the negative of the angle
     convention used in Verboomen et al. (2008)[^4], i.e.
-    $\alpha^{PyPSA} = -\alpha^{Verboomen}$.
+    $\phi^{\mathrm{PyPSA}} = -\phi^{\mathrm{Verboomen}}$.
 
 ## Linear Loss Approximation
 
-The AC transmission losses $\psi_{l,t}$ for line $l$ at timestep $t$ are given by the loss parabola
+!!! note "Background"
 
-$$
-\psi_{l,t} = r_{l} p_{l,t}^2,
-$$
+    The AC transmission losses $\psi_{l,t}$ for line $l$ at timestep $t$ are given by the loss parabola
 
-where $r_l$ is the resistance of line $l$, following Neumann et al. (2022)[^5].
+    $$\psi_{l,t} = r_{l}\, p_{l,t}^2,$$
 
-In PyPSA this non-linear function is linearized with piecewise linear constraints:
+    where $r_l$ is the resistance `r_pu_eff` of line $l$, following Neumann et al. (2022)[^5].
 
-$$
-0 \leq \psi_{l,t} \leq r_{l} (\bar{p}_{l,t} \overline{P}_{l})^2 \quad \forall l,t
-$$
+In PyPSA this non-linear function is linearized with piecewise linear constraints. The loss $\psi_{l,s,t}$ is bounded by the loss at full rating (`r_pu_eff * (s_max_pu * s_nom_max)**2`, with `s_nom` for non-extendable branches) and from below by a set of cuts $\epsilon$, one for each direction of flow:
 
-$$
-\psi_{l,t} \geq m_k \cdot p_{l,t} + a_k \quad \forall l,t,\ k = 1, \dots, n
-$$
+<!-- md:spec Line_loss Line_loss_upper Line_loss_tangents_pos Line_loss_tangents_neg -->
 
-$$
-\psi_{l,t} \geq -m_k \cdot p_{l,t} + a_k \quad \forall l,t,\ k = 1, \dots, n
-$$
+Each cut $\epsilon$ is a line of the linear approximation with slope `Line_loss_slope` and offset `Line_loss_offset`. Transformers have the same constraints (`Transformer_loss_*`).
 
-where $\bar{p}_{l,t}$ is the maximum per-unit powerflow at time $t$ and $\overline{P}_{l}^2$ is the (maximum) line capacity. The index $k$ denotes the segments of the linear approximation with a total of $n$ segments, with offsets $a_k$ and with slopes $m_k$.
+The losses also modify the [power balance](energy-balance.md), splitting losses equally between both connection points:
 
-The losses also modify the [power balance](energy-balance.md) by adding the following term to its left-hand side:
+<!-- md:spec Line_injection -->
 
-$$
--0.5 \cdot \sum_{l} |K_{n,l}| \cdot \psi_{l,t} \quad \forall n,t
-$$
-
-splitting losses equally between both connection points.
-
-The dispatch limits of $p_{\ell,t}$ are now subtracted by $\psi_{l,t}$.
+The [dispatch limits](dispatch-limits.md) of $p_{l,s,t}$ are now subtracted by $\psi_{l,s,t}$.
 
 
-Two linearization methods are available in PyPSA: the tangent-based approximation ([`define_tangent_loss_constraints()`][pypsa.optimization.constraints.define_tangent_loss_constraints]) and the secant-based approximation with error control ([`define_secant_loss_constraints()`][pypsa.optimization.constraints.define_secant_loss_constraints]).
+Two linearization methods are available in PyPSA: the tangent-based approximation and the secant-based approximation with error control.
 
 The transmission loss approximation is not activated by default, but must be enabled in [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
@@ -143,41 +127,30 @@ n.optimize(transmission_losses={"mode": "secants", "atol": 1, "rtol": 0.1})
 n.optimize(transmission_losses={"mode": "tangents", "segments": 3})
 ```
 
-When passing a dict, the `mode` key selects the method. Additional keys are forwarded to the corresponding constraint function:
+When passing a dict, the `mode` key selects the method. Additional keys set the options of that method:
 
-- **Secant mode** (`"secants"`, see [`define_secant_loss_constraints()`][pypsa.optimization.constraints.define_secant_loss_constraints]): `atol`, `rtol`, `max_segments`.
-- **Tangent mode** (`"tangents"`, see [`define_tangent_loss_constraints()`][pypsa.optimization.constraints.define_tangent_loss_constraints]): `segments`.
+- **Secant mode** (`"secants"`): `atol`, `rtol`, `max_segments`.
+- **Tangent mode** (`"tangents"`): `segments`.
 
 !!! hint "Hint: Calculating transmission losses"
 
     The losses can be calculated with `n.lines_t.p0 + n.lines_t.p1`.
 
-??? note "Mapping of symbols to component attributes"
+??? note "Symbols"
 
-| Symbol            | Attribute                                                                                                                                   | Type                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| $p_{l,t}$       | `n.lines_t.p0` or `n.transformers_t.p0`                                                                                                 | Decision variable             |
-| $\psi_{l,t}$    | `n.lines_t.losses` or `n.transformers_t.losses`                                                                                         | Decision variable             |
-| $\bar{p}_{l,t}$ | `n.lines_t.s_max_pu` or `n.transformers_t.s_max_pu`                                                                                     | Parameter                     |
-| $\bar{P}_{l}$   | `n.lines.s_nom_opt` and `n.transformers.s_nom_opt` (if extendable) or `n.lines.s_nom` or `n.transformers.s_nom` (if non-extendable) | Decision variable / Parameter |
-| $x_l$           | `n.lines.x_pu_eff` or `n.transformers.x_pu_eff`                                                                                         | Parameter                     |
-| $r_l$           | `n.lines.r_pu_eff` or `n.transformers.r_pu_eff`                                                                                         | Parameter                     |
-| $C_{l,c}$       | Cycle matrix calculated by `find_cycles()`                                                                                                | Parameter                     |
-| $K_{n,l}$       | Incidence matrix calculated by [`n.incidence_matrix()`][pypsa.networks.SubNetwork.incidence_matrix]                                       | Parameter                     |
+    <!-- md:spec-legend Kirchhoff_Voltage_Law Line_angle_sum Transformer_angle_sum Transformer_phase_shift Line_loss_upper Line_loss_tangents_pos Line_injection -->
 
 ### Secant-Based Linearization with Error Control
 
-The secant-based linearization is designed to overestimate the AC line losses and is guaranteed to stay within the error bounds defined by the specified absolute (`atol`) and relative (`rtol`) error tolerances. The slope $m_k$ and offset $a_k$ are derived as
+The secant-based linearization is designed to overestimate the AC line losses and is guaranteed to stay within the error bounds defined by the specified absolute (`atol`) and relative (`rtol`) error tolerances. The slope and offset of each cut $\epsilon$ are derived as
 
-$$
-m_{k, l} = r_l (\rho_{k-1} + \rho_{k})
-$$
+!!! note "Background"
 
-$$
-a_{k, l} = - r_l \rho_{k-1} \rho_{k}
-$$
+    $$\mathrm{Line\_loss\_slope}_{l,s,\epsilon,t} = r_l\, (\rho_{l,\epsilon-1} + \rho_{l,\epsilon})$$
 
-where $\rho_k$ are suitably chosen points on the loss parabola. For details on how these points are derived see the [original PR](https://github.com/PyPSA/PyPSA/pull/1495).
+    $$\mathrm{Line\_loss\_offset}_{l,s,\epsilon,t} = - r_l\, \rho_{l,\epsilon-1} \rho_{l,\epsilon}$$
+
+where $\rho_{l,\epsilon}$ are suitably chosen points on the loss parabola. For details on how these points are derived see the [original PR](https://github.com/PyPSA/PyPSA/pull/1495).
 
 ### Tangent-Based Linearization
 
@@ -187,19 +160,17 @@ where $\rho_k$ are suitably chosen points on the loss parabola. For details on h
     - The first segment models zero losses
     - If a line has `s_nom_max > 2 * n_segments * s_nom_opt` then that line is lossless, since all flows stay in the first segment of the approximation.
 
-For the tangent-based linearization the slope $m_k$ and offset $a_k$ are derived as:
+For the tangent-based linearization the slope and offset of cut $\epsilon$ out of $n_{\mathrm{seg}}$ cuts are derived as:
 
-$$
-\psi_{l,t}(k) = r_{l} \left(\frac{k}{n} \cdot \bar{p}_{l,t} \overline{P}_{l} \right)^2
-$$
+!!! note "Background"
 
-$$
-m_k = \frac{d \psi_{l,t}(k)}{dk} = 2 r_{l} \left(\frac{k}{n} \cdot \bar{p}_{l,t} \overline{P}_{l} \right)
-$$
+    $$\psi_{l,s,t}(\epsilon) = r_{l} \left(\frac{\epsilon}{n_{\mathrm{seg}}} \cdot \bar{p}_{l,s,t} \bar{P}_{l} \right)^2$$
 
-$$
-a_k = \psi_{l,t}(k) - m_k \left(\frac{k}{n} \cdot \bar{p}_{l,t} \overline{P}_{l} \right)
-$$
+    $$\mathrm{Line\_loss\_slope}_{l,s,\epsilon,t} = 2\, r_{l} \left(\frac{\epsilon}{n_{\mathrm{seg}}} \cdot \bar{p}_{l,s,t} \bar{P}_{l} \right)$$
+
+    $$\mathrm{Line\_loss\_offset}_{l,s,\epsilon,t} = \psi_{l,s,t}(\epsilon) - \mathrm{Line\_loss\_slope}_{l,s,\epsilon,t} \left(\frac{\epsilon}{n_{\mathrm{seg}}} \cdot \bar{p}_{l,s,t} \bar{P}_{l} \right)$$
+
+    where $\bar{P}_l$ is `s_nom_max` for extendable and `s_nom` for non-extendable branches.
 
 The higher the number of tangents, the more accurate the approximation, but also the more constraints are added to the optimisation problem. Typically, 2-4 tangents are sufficient for a reasonably accurate approximation.
 

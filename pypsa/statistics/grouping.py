@@ -269,6 +269,27 @@ class Groupers:
             carrier_series = carrier_series.mask(nice.notna(), nice).replace("", "-")
         return carrier_series
 
+    def composite(self, n: Network, c: str) -> pd.Series:
+        """Grouper method to group by the composite instance of the components.
+
+        Parameters
+        ----------
+        n : Network
+            PyPSA network instance.
+        c : str
+            Components type name. E.g. "Generator", "StorageUnit", etc.
+
+        Returns
+        -------
+        pd.Series
+            Series with the composite instance of the components, `""` for
+            none. See [composites](../../user-guide/optimization/composites.md).
+
+        """
+        static = n.c[c].static
+        fall_back = pd.Series("", index=static.index)
+        return static.get("composite", fall_back).fillna("").rename("composite")
+
     def bus_carrier(
         self, n: Network, c: str, port: str = "", nice_names: bool = True
     ) -> pd.Series:

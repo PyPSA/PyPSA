@@ -16,6 +16,7 @@ Common non-linear relationships found in energy systems include:
 !!! info "See Also"
 
     - [:material-notebook: PyPSA piecewise example](../../examples/piecewise-constraints.ipynb)
+    - [Formulation of the marginal cost curves](formulation/traits/marginal_cost.md)
     - [Linopy piecewise documentation](https://linopy.readthedocs.io/en/latest/piecewise-linear-constraints.html)
 
 ## Defining piecewise data
@@ -51,16 +52,26 @@ As of writing, this could be in the form of:
 
 Each formulation will create a piecewise auxiliary decision variable of the form `<component>-<aux_variable>` in the optimisation problem (see the table [above](#defining-piecewise-data) for all possible `component` and `aux_variable` combinations).
 For instance, a piecewise capital cost constraint applied to a generator will yield the variable `Generator-capital_cost_piecewise`, accessible at `n.model.variables["Generator-capital_cost_piecewise"]`.
+A curve marked `per_port`, as `efficiency2` of a Link, shares one variable with the other ports of its component over the dimension `port`, e.g. `n.model.variables["Link-p_piecewise"].sel(port=2)`.
 
-Depending on the formulation used, [linopy](https://linopy.readthedocs.io) will also create additional auxiliary variables and constraints.
-For instance, the incremental (delta) formulation will lead to the auxiliary variables `<component>-<aux_variable>_delta` and `<component>-<aux_variable>_binary` and the constraints:
+Depending on the formulation used, the model also holds helper variables and constraints.
+Only the variable of the curve, as `Generator-marginal_cost_piecewise`, and the results written to the network are stable.
+The formulation library [mathspec](https://github.com/energy-models/mathspec) gives the names of the helpers, and these names can change between releases.
+For instance, the incremental (delta) formulation currently adds the variables `<component>-<aux_variable>_delta` and `<component>-<aux_variable>_order` and the constraints:
 
 ```py
 <component>-<aux_variable>_delta_bound
 <component>-<aux_variable>_fill_order
 <component>-<aux_variable>_binary_order
-<component>-<aux_variable>_link
+<component>-<aux_variable>_active_bound
+<component>-<aux_variable>_<quantity>
 ```
+
+Only committable units have rows in `_active_bound`.
+The [linearized unit commitment](unit-commitment.md#linearization) does not support such a gate and raises a `ValueError` for a committable unit with a curve.
+Each quantity of the curve has one constraint `_<quantity>` that ties it to the curve, e.g. `Generator-marginal_cost_piecewise_p` and `Generator-marginal_cost_piecewise_cost`.
+The quantities are `p` and `cost` for a marginal cost, the nominal capacity (`p_nom`, `s_nom` or `e_nom`) and `cost` for a capital cost, `p` and `primary` for a Generator efficiency, `p` and `delivery` for a Link efficiency and `p` and `transfer` for a Process rate.
+For a component with unit commitment, the rows of the units that are not committable are in separate constraints with the suffix `_ungated`, e.g. `Generator-marginal_cost_piecewise_cost_ungated`.
 
 These additional constraints and auxiliary variables will not find their way into the PyPSA network results or statistics.
 You will, however, have access to the results `capital_cost_piecewise_opt` (static) and `marginal_cost_piecewise_opt` (dynamic) if applying piecewise costs.

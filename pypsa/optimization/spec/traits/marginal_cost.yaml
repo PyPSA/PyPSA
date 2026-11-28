@@ -1,0 +1,97 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+given:
+  parameters:
+    CVaR_omega: {dims: []}
+    COMPONENT_NOM: {dims: [scenario, UNIT]}
+    COMPONENT_NOM_extendable: {dims: [UNIT], dtype: bool}
+    COMPONENT_active: {dims: [UNIT], dtype: bool}
+    COMPONENT_activity_mask: {dims: [snapshot, UNIT], dtype: bool}
+    COMPONENT_marginal_cost_curve_cost: {dims: [UNIT, breakpoint]}
+    COMPONENT_marginal_cost_curve_p: {dims: [UNIT, breakpoint]}
+    period_weighting_objective: {dims: [period]}
+    snapshot_weighting_objective: {dims: [snapshot]}
+  variables:
+    COMPONENT_POWER: {dims: [scenario, snapshot, UNIT]}
+
+dimensions:
+  scenario: {}
+  snapshot: {dtype: str, ordered: true}
+  UNIT: {}
+  period: {dtype: int, ordered: true}
+  breakpoint: {dtype: int, ordered: true}
+
+parameters:
+  COMPONENT_marginal_cost:
+    description: cost of one unit of energy dispatched
+    dims: [scenario, snapshot, UNIT]
+  COMPONENT_marginal_cost_quadratic:
+    description: cost of the square of one unit of energy dispatched
+    dims: [scenario, snapshot, UNIT]
+
+relations:
+  snapshot_period: {key: snapshot, values: period}
+
+macros:
+  COMPONENT_operating_cost:
+    description: a cost per snapshot, weighted by the snapshot's hours and its period, summed
+    args: [cost]
+    template: >-
+      sum(sum((cost * snapshot_weighting_objective) * at(period_weighting_objective,
+      by=snapshot_period[period]), over=UNIT), over=snapshot)
+
+variables:
+  COMPONENT_marginal_cost_piecewise:
+    name: COMPONENT-marginal_cost_piecewise
+    scaling: objective
+    description: the running cost of a unit with a `marginal_cost` curve
+    dims: [scenario, snapshot, UNIT]
+    where: COMPONENT_marginal_cost_curve AND COMPONENT_activity_mask
+
+expressions:
+  COMPONENT_running_cost:
+    description: the cost read off the `marginal_cost` curve where there is one, power times `marginal_cost` otherwise
+    dims: [scenario, snapshot, UNIT]
+    cases:
+      curve:
+        when: COMPONENT_marginal_cost_curve
+        expression: COMPONENT_marginal_cost_piecewise
+    otherwise: COMPONENT_POWER * COMPONENT_marginal_cost
+  COMPONENT_opex:
+    expression: >-
+      COMPONENT_operating_cost(COMPONENT_running_cost)
+      + COMPONENT_operating_cost((COMPONENT_POWER * COMPONENT_POWER) * COMPONENT_marginal_cost_quadratic)
+
+conditions:
+  COMPONENT_marginal_cost_curve:
+    description: an active asset with a piecewise `marginal_cost` curve
+    condition: count(COMPONENT_marginal_cost_curve_p, over=breakpoint) > 0 AND COMPONENT_active
+  COMPONENT_marginal_cost_curve_bends_down:
+    description: a breakpoint where the `marginal_cost` curve gets less steep
+    condition: >-
+      COMPONENT_marginal_cost_curve_p
+      AND shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=1)
+      AND shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=-1)
+      AND (COMPONENT_marginal_cost_curve_cost
+      - shift(COMPONENT_marginal_cost_curve_cost, along=breakpoint, offset=1, edge=0))
+      * (shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=-1, edge=0) - COMPONENT_marginal_cost_curve_p)
+      > (shift(COMPONENT_marginal_cost_curve_cost, along=breakpoint, offset=-1, edge=0)
+      - COMPONENT_marginal_cost_curve_cost)
+      * (COMPONENT_marginal_cost_curve_p - shift(COMPONENT_marginal_cost_curve_p, along=breakpoint, offset=1, edge=0))
+  COMPONENT_marginal_cost_convex:
+    description: true where every `marginal_cost` curve of the component is convex
+    condition: >-
+      count(COMPONENT_marginal_cost_curve
+      AND count(COMPONENT_marginal_cost_curve_bends_down, over=breakpoint) > 0, over=UNIT) == 0
+
+assumptions:
+  COMPONENT_marginal_cost_curve_on_a_fixed_build:
+    holds: NOT COMPONENT_NOM_extendable AND COMPONENT_NOM > 0 AND COMPONENT_NOM < inf
+    where: COMPONENT_marginal_cost_curve
+    description: a `marginal_cost` curve needs a fixed, positive, finite nominal capacity
+  COMPONENT_marginal_cost_quadratic_without_risk_preference:
+    holds: COMPONENT_marginal_cost_quadratic == 0
+    where: CVaR_omega
+    description: "`marginal_cost_quadratic` is zero where a risk preference is set"

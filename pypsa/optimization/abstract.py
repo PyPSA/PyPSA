@@ -9,30 +9,28 @@ from __future__ import annotations
 import gc
 import logging
 from functools import reduce
-from itertools import product
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 from linopy.solvers import Solver, SolverFeature, available_solvers
 
-from pypsa._linopy_compat import suppress_semantics_warnings
 from pypsa._options import options
 from pypsa.common import _scenarios_not_implemented, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.consistency import OPTIMIZE_STRICT_CHECKS
 from pypsa.descriptors import nominal_attrs
-from pypsa.optimization.constraints import ENERGY_LIMITS, ENERGY_WEIGHTING
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from linopy import Model
-
-    from pypsa import Components, Network, SubNetwork
+    from pypsa import Components, Network
+    from pypsa.optimization.spec import Override
 logger = logging.getLogger(__name__)
+
+ENERGY_WEIGHTING = "generators"
+ENERGY_LIMITS = (("e_sum_min", ">=", -np.inf), ("e_sum_max", "<=", np.inf))
 
 _STORAGE_LEVELS = (
     ("stores", "e_initial", "e"),
@@ -124,82 +122,6 @@ def discretized_capacity(
             return nom_max
         return (nom_opt // unit_size) * unit_size
     return block_capacity
-
-
-@suppress_semantics_warnings()
-def _add_security_constraints(
-    m: Model,
-    sub_network: SubNetwork,
-    branch_outages: pd.MultiIndex,
-    selection: dict[str, pd.Index],
-    suffix: str,
-) -> None:
-    """Add branch outage constraints of a sub-network to the model.
-
-    Parameters
-    ----------
-    m : linopy.Model
-        Model to add the constraints to.
-    sub_network : pypsa.SubNetwork
-        Sub-network whose branch outage distribution factors are used.
-    branch_outages : pandas.MultiIndex
-        Passive branches to consider as possible outages.
-    selection : dict
-        Selection applied to flows and branch flow constraints, e.g. the
-        snapshots of an investment period.
-    suffix : str
-        Suffix appended to the constraint names.
-
-    """
-    branches_i = sub_network.branches_i()
-    outages = branches_i.intersection(branch_outages)
-    if outages.empty:
-        return
-
-    sub_network.calculate_BODF()
-    BODF = pd.DataFrame(sub_network.BODF, index=branches_i, columns=branches_i)[outages]
-
-    for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
-        c_outage_ = c_outage + "-outage"
-        c_outages = outages.get_loc_level(c_outage)[1]
-        flow_outage = m.variables[c_outage + "-s"].sel(name=c_outages, **selection)
-        flow_outage = flow_outage.rename({"name": c_outage_})
-
-        bodf = BODF.loc[c_affected, c_outage]
-        bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
-        added_flow = flow_outage * bodf
-
-        for (bound, sign), kind in product(
-            (("lower", ">="), ("upper", "<=")), ("fix", "ext")
-        ):
-            constraint = c_affected + "-" + kind + "-s-" + bound
-            if constraint not in m.constraints:
-                continue
-
-            con = m.constraints[constraint]
-
-            idx = con.lhs.indexes["name"].intersection(added_flow.indexes[c_affected])
-            con_selection = {"name": idx, **selection}
-
-            added_flow_aligned = added_flow.sel({c_affected: idx}).rename(
-                {c_affected: "name"}
-            )
-            lhs = con.lhs.sel(con_selection) + added_flow_aligned
-            active = con.labels.sel(con_selection) != -1
-
-            name = (
-                constraint
-                + f"-security-for-{c_outage_}-in-sub-network-{sub_network.name}"
-                + suffix
-            )
-            m.add_constraints(
-                lhs,
-                sign,
-                con.rhs.sel(con_selection).where(active, 0),
-                name=name,
-                mask=active,
-                scaling=con.scaling.sel(con_selection),
-            )
 
 
 def _energy_weightings(n: Network, multi_invest: bool) -> pd.Series:
@@ -568,6 +490,9 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         multi_investment_periods: bool = False,
         model_kwargs: dict | None = None,
         objective_scaling: float = 1.0,
+        *,
+        overrides: Sequence[Override] | None = None,
+        include_expressions: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
         """Compute Security-Constrained Linear Optimal Power Flow (SCLOPF).
@@ -593,12 +518,16 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             security constraints are added per investment period and sub-network,
             using the topology and active branches of that period.
         model_kwargs : dict, optional
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Keyword arguments used by `linopy.Model`, such as `solver_dir`.
             Defaults to module wide option (default: {}). See
             `https://go.pypsa.org/options-params` for more information.
         objective_scaling : float, default 1.0
             Factor applied to all objective coefficients in the solver, see
             `n.optimize.create_model`.
+        overrides : list[Override], optional
+            Changes to the optimisation problem, see `n.optimize.create_model`.
+        include_expressions : bool, default False
+            Whether to build the named expressions, see `n.optimize.create_model`.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -632,6 +561,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 multi_investment_periods=multi_investment_periods,
                 model_kwargs=model_kwargs,
                 objective_scaling=objective_scaling,
+                overrides=overrides,
+                include_expressions=include_expressions,
                 **kwargs,
             )
 
@@ -646,26 +577,15 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             )
             raise ValueError(msg)
 
-        m = n.optimize.create_model(
+        n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
             objective_scaling=objective_scaling,
+            branch_outages=outages,
+            overrides=overrides,
+            include_expressions=include_expressions,
             **model_kwargs,
         )
-
-        n_topology = n.get_scenario(n.scenarios[0]) if n.has_scenarios else n
-        for period, period_sns in n.optimize._window.iter_periods():
-            if period is None:
-                if n.has_scenarios:
-                    n_topology.determine_network_topology()
-                selection, suffix = {}, ""
-            else:
-                n_topology.determine_network_topology(
-                    investment_period=period, skip_isolated_buses=True
-                )
-                selection, suffix = {"snapshot": period_sns}, f"-period-{period}"
-            for sub_network in n_topology.c.sub_networks.static.obj:
-                _add_security_constraints(m, sub_network, outages, selection, suffix)
 
         return n.optimize.solve_model(**kwargs)
 

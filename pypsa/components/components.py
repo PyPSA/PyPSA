@@ -169,6 +169,9 @@ class Components(
     """
 
     _operational_variables: list[str] = []
+    _formulation: tuple[str, ...] = ()
+    _level_attrs: tuple[str, ...] = ()
+    _power_variable: str = ""
 
     def __init__(
         self,
@@ -427,21 +430,25 @@ class Components(
         row = piecewise_schema(self.name, attr)
         base, port = _split_port(attr)
         if row.empty and port:
-            # Only schema rows with a {port} placeholder accept suffixed attrs.
+            # Only per-port schema rows accept suffixed attrs.
             candidate = piecewise_schema(self.name, base)
-            if not candidate.empty and "{port}" in candidate.aux_variable:
+            if not candidate.empty and candidate.per_port:
                 row = candidate
         return row
 
     def _piecewise_aux_var(self, attr: str) -> str:
-        """Model-variable name of the piecewise auxiliary variable for `attr`."""
+        """Model-variable name of the piecewise auxiliary variable for `attr`; a per-port curve's runs over `port`."""
         row = self._piecewise_schema(attr)
         if row.empty:
             msg = f"{self.name!r} has no piecewise schema for attribute {attr!r}."
             raise ValueError(msg)
-        # An empty port suffix denotes port 1
-        port = _split_port(attr)[1] or "1"
-        return f"{self.name}-{row.aux_variable.format(port=port)}"
+        return f"{self.name}-{row.aux_variable}"
+
+    def _piecewise_port(self, attr: str) -> int | None:
+        """Port number of a per-port piecewise curve `attr`, None for another curve; an empty suffix denotes port 1."""
+        if not self._piecewise_schema(attr).per_port:
+            return None
+        return int(_split_port(attr)[1] or "1")
 
     def _piecewise_x_var(self, attr: str) -> str:
         """Model-variable name of the piecewise x variable for `attr`."""
@@ -506,6 +513,11 @@ class Components(
 
         """
         return self.ctype.list_name
+
+    @property
+    def _unit_dim(self) -> str:
+        """Dimension of the optimisation spec over the units, the component name, e.g. `StorageUnit`."""
+        return self.name
 
     @property
     def description(self) -> str:

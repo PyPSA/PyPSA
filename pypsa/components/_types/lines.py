@@ -49,6 +49,11 @@ class Lines(Components):
     """
 
     _operational_variables = ["s"]
+    _formulation = (
+        "capacity",
+        "transmission_expansion",
+        "passive_branch",
+    )
 
     def get_bounds_pu(
         self,

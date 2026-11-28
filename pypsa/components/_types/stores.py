@@ -43,6 +43,16 @@ class Stores(Components):
     """
 
     _operational_variables = ["e", "p", "p_store"]
+    _power_variable = "p"
+    _formulation = (
+        "capacity",
+        "marginal_cost",
+        "dispatch",
+        "oneport",
+        "operational_limit",
+        "storage",
+    )
+    _level_attrs = ("e_initial", "e_cyclic")
 
     def get_bounds_pu(
         self,

@@ -31,7 +31,9 @@ from pyproj import CRS
 
 from pypsa._future import future_flag
 from pypsa._options import options
+from pypsa._registry import ROOT, restore, saved
 from pypsa.common import _check_for_update, check_optional_dependency
+from pypsa.composites import TAGS
 from pypsa.consistency import check_for_unknown_buses
 from pypsa.constants import piecewise_attrs
 from pypsa.descriptors import (
@@ -52,6 +54,25 @@ if TYPE_CHECKING:
 
     from pypsa import Network
 logger = logging.getLogger(__name__)
+EXCEL_CELL_LIMIT = 32767
+
+
+def _excel_meta(meta: dict) -> list[list]:
+    """Return the rows of the saved meta data as the Excel sheet `meta` holds them, a dict as JSON.
+
+    Raises:
+        ValueError: A value takes more characters than an Excel cell holds.
+
+    """
+    rows = []
+    for key, value in meta.items():
+        if isinstance(value, dict):
+            value = json.dumps(value)
+        if isinstance(value, str) and len(value) > EXCEL_CELL_LIMIT:
+            msg = f"The meta key {key!r} takes {len(value)} characters, more than an Excel cell holds ({EXCEL_CELL_LIMIT}). Export to netCDF, HDF5 or CSV instead."
+            raise ValueError(msg)
+        rows.append([key, value])
+    return rows
 
 
 def _coerce_string_dtypes(df: pd.DataFrame) -> pd.DataFrame:
@@ -738,15 +759,7 @@ class _ExporterExcel(_Exporter):
 
     def save_meta(self, meta: dict) -> None:
         """Save meta data (`n.meta`)."""
-        # Convert meta dictionary to DataFrame with proper handling of nested dicts
-        meta_items = []
-        for key, value in meta.items():
-            # If value is a dict, serialize it as JSON
-            if isinstance(value, dict):
-                value = json.dumps(value)
-            meta_items.append([key, value])
-
-        df = pd.DataFrame(meta_items, columns=["Key", "Value"])
+        df = pd.DataFrame(_excel_meta(meta), columns=["Key", "Value"])
         df.to_excel(self.writer, sheet_name="meta", index=False)
 
     def save_crs(self, crs: dict) -> None:
@@ -978,10 +991,16 @@ class _ExporterHDF5(_Exporter):
         raise NotImplementedError(msg)
 
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
-        """Save a static components data."""
+        """Save a static components data; booleans with gaps as floats, as netCDF does."""
         df = df.rename_axis(index="name")
         self.index[list_name] = df.index
         df = df.reset_index()
+        flags = [
+            c
+            for c in df.columns
+            if df[c].hasnans and pd.api.types.infer_dtype(df[c]) == "boolean"
+        ]
+        df[flags] = df[flags].astype(float)
         self._put("/" + list_name, df, format="table", index=False)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
@@ -1334,6 +1353,28 @@ class NetworkIOMixin(_NetworkABC):
     within any Network instance.
     """
 
+    def _saved_meta(self) -> dict:
+        """Return the meta data as a saved network holds it.
+
+        A saved network holds `n.meta` and, under the meta key `"_pypsa"`, the
+        composite types and stored overrides of the network.
+
+        Returns
+        -------
+        dict
+            The meta data to save.
+
+        Raises
+        ------
+        ValueError
+            `n.meta` holds the key `"_pypsa"`, which saved networks reserve.
+
+        """
+        if ROOT in self.meta:
+            msg = f"The meta key {ROOT!r} is reserved for the composite types and stored overrides in saved networks. Rename or delete `n.meta[{ROOT!r}]` before you export."
+            raise ValueError(msg)
+        return self.meta | saved(self)
+
     def _export_to_exporter(
         self,
         exporter: _Exporter,
@@ -1357,6 +1398,7 @@ class NetworkIOMixin(_NetworkABC):
             should then set "ignore_standard_types" when initialising the netowrk).
 
         """
+        meta = self._saved_meta()
         # exportable component types
         allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
         skip_attrs = {
@@ -1404,7 +1446,7 @@ class NetworkIOMixin(_NetworkABC):
             crs["_crs"] = self.crs.to_wkt()
         exporter.save_crs(crs)
 
-        exporter.save_meta(self.meta)
+        exporter.save_meta(meta)
 
         # export snapshots
         snapshots = self.snapshot_weightings.reset_index()
@@ -1466,6 +1508,13 @@ class NetworkIOMixin(_NetworkABC):
                 continue
 
             static_export = static[col_export].copy()
+            flags = [
+                col
+                for col in static_export.columns
+                if pd.api.types.infer_dtype(static_export[col], skipna=False)
+                == "boolean"
+            ]
+            static_export[flags] = static_export[flags].astype(bool)
             # Stored SubNetwork obj column is not serializable
             if "obj" in col_export and component == "SubNetwork":
                 static_export["obj"] = np.nan
@@ -1524,8 +1573,9 @@ class NetworkIOMixin(_NetworkABC):
             Skip importing time
 
         """
-        # n.meta
-        self.meta = importer.get_meta()
+        meta = importer.get_meta()
+        restore(self, meta)
+        self.meta = meta
 
         # n.crs
         crs = importer.get_crs()
@@ -1809,6 +1859,7 @@ class NetworkIOMixin(_NetworkABC):
         [pypsa.Network.export_to_csv_folder][]
 
         """
+        _excel_meta(self._saved_meta())
         with _ExporterExcel(path, engine=engine) as exporter:
             self._export_to_exporter(
                 exporter, export_standard_types=export_standard_types
@@ -1873,6 +1924,7 @@ class NetworkIOMixin(_NetworkABC):
         """
         kwargs.setdefault("complevel", 4)
 
+        self._saved_meta()
         with _ExporterHDF5(path, **kwargs) as exporter:
             self._export_to_exporter(
                 exporter,
@@ -2055,6 +2107,8 @@ class NetworkIOMixin(_NetworkABC):
             fill = attrs["default"].reindex(added_cols).dropna()
             if not fill.empty:
                 new_static = new_static.fillna(fill.to_dict())
+            tags = new_static.columns.intersection(TAGS)
+            new_static[tags] = new_static[tags].fillna("")
 
         if cls_name == "Shape":
             new_static = gpd.GeoDataFrame(new_static, crs=self.crs)

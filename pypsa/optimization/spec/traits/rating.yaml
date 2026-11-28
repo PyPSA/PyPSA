@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+given:
+  parameters:
+    COMPONENT_NOM: {dims: [scenario, UNIT]}
+    COMPONENT_committable: {dims: [UNIT], dtype: bool}
+    COMPONENT_maintenance_pu: {dims: [scenario, UNIT]}
+    COMPONENT_p_max_pu: {dims: [scenario, snapshot, UNIT]}
+    COMPONENT_p_min_pu: {dims: [scenario, snapshot, UNIT]}
+  variables:
+    COMPONENT_NOM_ext: {dims: [UNIT]}
+    COMPONENT_maintenance: {dims: [scenario, snapshot, UNIT]}
+    COMPONENT_maintenance_capacity: {dims: [scenario, snapshot, UNIT]}
+    COMPONENT_p: {dims: [scenario, snapshot, UNIT]}
+  expressions:
+    COMPONENT_NOM_finite: {dims: [scenario, UNIT]}
+  conditions:
+    COMPONENT_fix: {dims: [snapshot, UNIT]}
+    COMPONENT_ext: {dims: [snapshot, UNIT]}
+
+dimensions:
+  scenario: {}
+  snapshot: {dtype: str, ordered: true}
+  UNIT: {}
+
+constraints:
+  COMPONENT_fix_p_lower:
+    name: COMPONENT-fix-p-lower
+    description: a fixed unit that is not committable runs at least at its minimum
+    dims: [scenario, snapshot, UNIT]
+    where: COMPONENT_fix AND NOT COMPONENT_committable AND (COMPONENT_NOM < inf OR COMPONENT_p_min_pu == 0)
+    expression: >-
+      COMPONENT_p >= COMPONENT_p_min_pu * COMPONENT_NOM_finite * (1 - COMPONENT_maintenance_pu * COMPONENT_maintenance)
+  COMPONENT_fix_p_upper:
+    name: COMPONENT-fix-p-upper
+    description: a fixed unit that is not committable runs at most at its maximum
+    dims: [scenario, snapshot, UNIT]
+    where: COMPONENT_fix AND NOT COMPONENT_committable AND (COMPONENT_NOM < inf OR COMPONENT_p_max_pu == 0)
+    expression: >-
+      COMPONENT_p <= COMPONENT_p_max_pu * COMPONENT_NOM_finite * (1 - COMPONENT_maintenance_pu * COMPONENT_maintenance)
+  COMPONENT_ext_p_lower:
+    name: COMPONENT-ext-p-lower
+    description: an extendable unit that is not committable runs at least at its minimum of the chosen build
+    dims: [scenario, snapshot, UNIT]
+    where: COMPONENT_ext AND NOT COMPONENT_committable
+    expression: >-
+      COMPONENT_p >=
+      COMPONENT_p_min_pu * (COMPONENT_NOM_ext - COMPONENT_maintenance_pu * COMPONENT_maintenance_capacity)
+  COMPONENT_ext_p_upper:
+    name: COMPONENT-ext-p-upper
+    description: an extendable unit that is not committable runs at most at its maximum of the chosen build
+    dims: [scenario, snapshot, UNIT]
+    where: COMPONENT_ext AND NOT COMPONENT_committable
+    expression: >-
+      COMPONENT_p <=
+      COMPONENT_p_max_pu * (COMPONENT_NOM_ext - COMPONENT_maintenance_pu * COMPONENT_maintenance_capacity)

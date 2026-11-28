@@ -14,7 +14,6 @@ readme="README.md"
 authors=[{name = "PyPSA Developers, see https://docs.pypsa.org/latest/contributing/contributors/", email = "t.brown@tu-berlin.de"}]
 license = { file = "LICENSE" }
 classifiers=[
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
@@ -27,16 +26,18 @@ classifiers=[
     "Operating System :: OS Independent",
 ]
 
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 
 dependencies = [
     "numpy",
     "scipy",
     "pandas>=3.0",
     "pyarrow",
+    "pyyaml",
     "xarray",
     "netcdf4",
-    "linopy>=0.10.0",
+    "linopy @ git+https://github.com/PyPSA/linopy.git@4e78d4ea58858b2ecd9e8fb0afe7bc439e4c79c1",
+    "mathspec @ git+https://github.com/energy-models/mathspec.git@cc531151128e63af592628b697dd44ab93a1795a",
     "matplotlib",
     "plotly",
     "pydeck>=0.6",
@@ -139,6 +140,7 @@ filterwarnings = [
     "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
     "ignore:In a future version of xarray the default value for join will change:FutureWarning",
     "ignore::linopy.constants.EvolvingAPIWarning",
+    "ignore::linopy.constants.PerformanceWarning",
 
     # Ignore pandas<3.0.3 usage of the deprecated `locs` attribute of matplotlib>=3.11
     "ignore:The locs attribute was deprecated:DeprecationWarning",
@@ -248,6 +250,7 @@ ignore = [
     'SIM118',
     'PLR0911',
     'PLR0913',
+    'PLR0917',
     'PLR0915',
     'PLR2004',
     # Could be implemented

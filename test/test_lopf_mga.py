@@ -7,7 +7,6 @@ import pandas as pd
 import pytest
 
 import pypsa
-from pypsa._linopy_compat import v1_semantics
 from pypsa.optimization.mga import (
     generate_directions_evenly_spaced,
     generate_directions_halton,
@@ -279,24 +278,23 @@ def test_mga_weights_across_components(network_factory, dimensions, method):
     storage = {"Store": {"e_nom": {"battery": 2}}}
     weights = {"Generator": {"p_nom": {"cheap": -1}}, **storage}
 
-    with v1_semantics():
-        _solve(n)
-        if method == "weights":
-            result = n.optimize.optimize_mga(
-                weights=weights, sense="max", slack=0.1, **SOLVER_KWARGS
-            )
-        else:
-            result = n.optimize.optimize_mga_in_direction(
-                direction={"cheap": -1, "storage": 1},
-                dimensions={"cheap": dimensions["cheap"], "storage": storage},
-                slack=0.1,
-                **SOLVER_KWARGS,
-            )
-
-        assert result[:2] == ("ok", "optimal")
-        assert n.optimize.project_solved({"combined": weights})["combined"] == (
-            pytest.approx(10)
+    _solve(n)
+    if method == "weights":
+        result = n.optimize.optimize_mga(
+            weights=weights, sense="max", slack=0.1, **SOLVER_KWARGS
         )
+    else:
+        result = n.optimize.optimize_mga_in_direction(
+            direction={"cheap": -1, "storage": 1},
+            dimensions={"cheap": dimensions["cheap"], "storage": storage},
+            slack=0.1,
+            **SOLVER_KWARGS,
+        )
+
+    assert result[:2] == ("ok", "optimal")
+    assert n.optimize.project_solved({"combined": weights})["combined"] == (
+        pytest.approx(10)
+    )
 
     # Spending the 110 cost slack on storage improves the objective more than
     # replacing cheap generation. Both component terms are kept in the objective.

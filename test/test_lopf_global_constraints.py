@@ -97,9 +97,9 @@ def test_assign_duals_noname(ac_dc_network):
     )
     n.optimize.solve_model(assign_all_duals=True)
 
-    dual_model_investment = float(
-        n.model.constraints["GlobalConstraint-investment_limit"].dual
-    )
+    dual_model_investment = n.model.constraints[
+        "GlobalConstraint-investment_limit"
+    ].dual.item()
     dual_network_investment = float(
         n.c.global_constraints.static.mu.loc["investment_limit"]
     )
@@ -107,9 +107,30 @@ def test_assign_duals_noname(ac_dc_network):
         dual_network_investment, rel=1e-8, abs=1e-10
     )
 
-    dual_model_co2 = float(n.model.constraints["GlobalConstraint-co2_limit"].dual)
+    co2 = n.model.constraints["GlobalConstraint-co2_limit"]
+    dual_model_co2 = co2.dual.item()
     dual_network_co2 = float(n.c.global_constraints.static.mu.loc["co2_limit"])
     assert dual_model_co2 == pytest.approx(dual_network_co2, rel=1e-8, abs=1e-10)
+
+
+def test_each_global_constraint_keeps_its_dual(ac_dc_network):
+    """An entry of one type lists every global constraint, the others masked."""
+    n = ac_dc_network
+    n.c.global_constraints.static.loc["co2_limit", "constant"] = 1e3
+    n.add(
+        "GlobalConstraint",
+        "wind_limit",
+        type="tech_capacity_expansion_limit",
+        carrier_attribute="wind",
+        sense="<=",
+        constant=1e9,
+    )
+    n.optimize()
+    co2 = n.model.constraints["GlobalConstraint-co2_limit"]
+    mu = n.c.global_constraints.static.mu
+    assert mu["co2_limit"] == pytest.approx(co2.dual.item())
+    assert mu["co2_limit"] < 0
+    assert mu["wind_limit"] == pytest.approx(0)
 
 
 def test_assign_custom_variable(ac_dc_network):
@@ -286,3 +307,44 @@ def test_transmission_cost_limit_overnight_cost():
     m = n.optimize.create_model()
     con = m.constraints["GlobalConstraint-cost_limit"]
     assert (con.coeffs == 100.0).all()
+
+
+def _gas_limited(sense: str) -> pypsa.Network:
+    n = pypsa.Network(snapshots=range(3))
+    n.add("Bus", "b")
+    n.add("Carrier", ["gas", "wind"])
+    n.add("Load", "l", bus="b", p_set=50)
+    n.add(
+        "Generator",
+        ["gas", "wind"],
+        bus="b",
+        carrier=["gas", "wind"],
+        p_nom=100,
+        marginal_cost=[1, 100],
+    )
+    n.add(
+        "GlobalConstraint",
+        "gas_limit",
+        type="operational_limit",
+        carrier_attribute="gas",
+        sense=sense,
+        constant=100,
+    )
+    return n
+
+
+@pytest.mark.parametrize(
+    ("sense", "gas"),
+    [("<=", 100), ("<", 100), ("==", 100), ("=", 100), (">=", 150), (">", 150)],
+)
+def test_global_constraint_sense_aliases(sense, gas):
+    """A sense linopy accepts binds as its canonical form."""
+    n = _gas_limited(sense)
+    n.optimize()
+    assert n.c.generators.dynamic.p["gas"].sum() == pytest.approx(gas)
+
+
+def test_global_constraint_unknown_sense_raises():
+    n = _gas_limited("!=")
+    with pytest.raises(ValueError, match="sense"):
+        n.optimize()
