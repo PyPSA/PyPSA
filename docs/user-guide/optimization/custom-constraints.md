@@ -272,8 +272,10 @@ its kind: `Generator_p_set` is a parameter and also a constraint.
    `overnight_cost`. `Generator_p_nom_max` is the tightest bound of the
    scenarios. The derived `Generator_activity_mask` also applies the build year
    and the lifetime to `active`, per snapshot. Other parameters
-   have no attribute, and PyPSA derives them, as `Generator_big_m`, `Line_BODF`
-   or `snapshot_weighting_generators`.
+   have no attribute, and PyPSA derives them, as `Generator_big_m` or
+   `Line_BODF`. The parameters `snapshot_weighting_objective`,
+   `snapshot_weighting_stores` and `snapshot_weighting_generators` read the
+   columns of `n.snapshot_weightings`.
 3. **Variables and constraints.** Take the name in `n.model` and replace each
    `-` with `_`: `Generator-p` is `Generator_p`, `Generator-fix-p-upper` is
    `Generator_fix_p_upper`, `Line-ext-s_nom-lower` is `Line_ext_s_nom_lower`.
@@ -316,6 +318,8 @@ its kind: `Generator_p_set` is a parameter and also a constraint.
 
     * the keys of variables, constraints and dimensions, and the objective,
     * the keys of parameters that carry the name of an attribute (rule 2),
+    * the keys of the three snapshot weightings, as
+      `snapshot_weighting_generators`,
     * the keys of the expressions `total_cost` and `<Component>_<nom>_effective`,
       as `Link_p_nom_effective` or `Store_e_nom_effective`.
 
@@ -334,6 +338,7 @@ its kind: `Generator_p_set` is a parameter and also a constraint.
 | dimension | `snapshot` | yes |
 | objective | `objective` | yes |
 | parameter with the name of an attribute | `Generator_p_max_pu` | yes |
+| snapshot weighting | `snapshot_weighting_generators` | yes |
 | parameter that PyPSA derives | `Generator_big_m` | no |
 | expression | `total_cost`, `Link_p_nom_effective` | yes |
 | other expression | `Generator_opex` | no |
