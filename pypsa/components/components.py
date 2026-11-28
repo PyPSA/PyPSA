@@ -384,7 +384,7 @@ class Components(
                 {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
                 columns=static_dtypes.index,
             )
-        static.index.name = "name"
+        static.index = pd.Index([], name="name", dtype=object)
 
         # # it's currently hard to imagine non-float series,
         # but this could be generalised

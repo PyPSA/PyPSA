@@ -247,3 +247,8 @@ def test_add_fills_omitted_static_attributes_with_defaults(component, kwargs):
     empty = empty[static.columns]
     assert static.dtypes.equals(empty.dtypes)
     assert static.loc["x"].astype(object).equals(defaults.astype(object))
+
+
+def test_empty_component_has_string_index():
+    n = pypsa.Network()
+    assert not n.c.links.static.index.str.contains("charger").any()
