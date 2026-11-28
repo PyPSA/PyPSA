@@ -54,6 +54,17 @@ constraints:
       == sum(Link_p_nom_effective, over=Link, by=Link_cable_end1[cable])
 """
 
+GLOBAL_CONSTRAINT_TYPE = """
+relations:
+  Generator_{kind}: {{key: Generator, values: global_constraint, missing: absent}}
+expressions:
+  GlobalConstraint_total:
+    cases:
+      {kind}:
+        when: GlobalConstraint_type == '{kind}'
+        expression: sum(Generator_p_nom_ext, over=Generator, by=Generator_{kind}[global_constraint])
+"""
+
 
 def _as(form, tmp_path):
     if form == "mapping":
@@ -116,6 +127,23 @@ def test_an_added_parameter_reads_a_static_column(ac_dc_network):
     floor = least * n.c.generators.static.p_nom_opt[gas]
     assert (energy >= floor - 1e-6).all()
     assert (energy - floor).abs().min() < 1e-6
+
+
+def test_overrides_add_types_of_global_constraints(ac_dc_network):
+    n = ac_dc_network
+    carrier = n.c.generators.static.carrier
+    n.add("GlobalConstraint", "gas floor", type="floor", sense=">=", constant=1500.0)
+    n.add("GlobalConstraint", "wind floor", type="minimum", sense=">=", constant=8000.0)
+    n.add("GlobalConstraint", "no case", type="other", sense="<=", constant=-1.0)
+    n.c.generators.static["floor"] = np.where(carrier == "gas", "gas floor", "")
+    n.c.generators.static["minimum"] = np.where(carrier == "wind", "wind floor", "")
+    kinds = [GLOBAL_CONSTRAINT_TYPE.format(kind=k) for k in ("floor", "minimum")]
+    n.optimize(overrides=kinds)
+    p_nom = n.c.generators.static.p_nom_opt.groupby(carrier).sum()
+    assert p_nom["gas"] == pytest.approx(1500)
+    assert p_nom["wind"] == pytest.approx(8000)
+    assert (n.c.global_constraints.static.mu[["gas floor", "wind floor"]] > 0).all()
+    assert "GlobalConstraint-no case" not in n.model.constraints
 
 
 def test_an_override_of_an_undeclared_entry_fails(ac_dc_network):

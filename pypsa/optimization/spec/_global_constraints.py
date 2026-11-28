@@ -272,6 +272,11 @@ def _counts_snapshot(s: NetworkSources, name: str) -> xr.DataArray:
     return stated.isnull() | (s.over_snapshots(s.period_of) == stated)
 
 
+@source("GlobalConstraint_unsummed")
+def _unsummed(s: NetworkSources, name: str) -> xr.DataArray:
+    return s.filled(name, np.nan)
+
+
 @source("GlobalConstraint_constant")
 def _constant(s: NetworkSources, name: str) -> xr.DataArray:
     return _grid(s, _rows(s, "constant").astype(float))
@@ -303,10 +308,16 @@ def _max_relative_growth(s: NetworkSources, name: str) -> xr.DataArray:
 
 @source("global_constraint")
 def _global_constraint(s: NetworkSources, name: str) -> pd.Index:
-    """Return the rows PyPSA builds: every `flow_based` row and every other row whose set holds a unit."""
+    """Return the rows PyPSA builds.
+
+    These are every row of a type PyPSA does not sum, as `flow_based` or a
+    type an override constrains, and every row of a summed type whose set
+    holds a unit.
+    """
     labels = network_labels(s.n.components.global_constraints.names)
     types = _rows(s, "type", labels)
-    built = set(labels[(types == "flow_based").any(axis=1)])
+    known = types.isin([kind for kind, _ in _WEIGHTS.values()])
+    built = set(labels[(~known).any(axis=1)])
     for suffix, (kind, cell) in _WEIGHTS.items():
         summed = [c for c in s.units.values() if f"{c.name}_{suffix}" in s]
         for i, _, scenario, glc in _cells(s, kind, labels):
