@@ -118,6 +118,12 @@ parameters:
   GlobalConstraint_constant:
     description: the constant the total is held against
     dims: [scenario, global_constraint]
+  GlobalConstraint_unsummed:
+    description: >-
+      no value for any row: the total of a row whose type has no case in
+      `GlobalConstraint_total`, so that the row has no constraint
+    dims: [scenario, global_constraint]
+    missing: absent
   GlobalConstraint_counts_snapshot:
     description: whether the row counts the snapshot; all do unless the row names an `investment_period`
     dims: [scenario, global_constraint, snapshot]
@@ -276,7 +282,9 @@ expressions:
       + StorageUnit_tech_capacity_expansion
       + Store_tech_capacity_expansion
   GlobalConstraint_total:
-    description: the sum a row of the type bounds
+    description: >-
+      the sum a row of the type bounds. A type without a case has no sum, and
+      its rows no constraint, so an override adds a type with a case alone
     dims: [scenario, global_constraint]
     cases:
       primary_energy:
@@ -294,7 +302,7 @@ expressions:
       tech_capacity_expansion_limit:
         when: GlobalConstraint_type == 'tech_capacity_expansion_limit'
         expression: tech_capacity_expansion
-    otherwise: 0
+    otherwise: GlobalConstraint_unsummed
   FlowBased_injection:
     description: a zone bus's net position leaves the bus
     dims: [scenario, snapshot, bus]
@@ -347,16 +355,6 @@ expressions:
       + Transformer_capex
       + risk_weighted_opex
 
-conditions:
-  GlobalConstraint_sums:
-    description: the row bounds one of the sums of `GlobalConstraint_total`
-    condition: >-
-      GlobalConstraint_type == 'primary_energy'
-      OR GlobalConstraint_type == 'operational_limit'
-      OR GlobalConstraint_type == 'transmission_volume_expansion_limit'
-      OR GlobalConstraint_type == 'transmission_expansion_cost_limit'
-      OR GlobalConstraint_type == 'tech_capacity_expansion_limit'
-
 constraints:
   Bus_nodal_balance:
     name: Bus-nodal_balance
@@ -378,21 +376,21 @@ constraints:
     scaling: global
     description: the total is at most the constant
     dims: [scenario, global_constraint]
-    where: GlobalConstraint_sums AND GlobalConstraint_sense == '<='
+    where: GlobalConstraint_sense == '<='
     expression: GlobalConstraint_total <= GlobalConstraint_constant
   GlobalConstraint_lower:
     name: GlobalConstraint-lower
     scaling: global
     description: the total is at least the constant
     dims: [scenario, global_constraint]
-    where: GlobalConstraint_sums AND GlobalConstraint_sense == '>='
+    where: GlobalConstraint_sense == '>='
     expression: GlobalConstraint_total >= GlobalConstraint_constant
   GlobalConstraint_fix:
     name: GlobalConstraint-fix
     scaling: global
     description: the total equals the constant
     dims: [scenario, global_constraint]
-    where: GlobalConstraint_sums AND GlobalConstraint_sense == '=='
+    where: GlobalConstraint_sense == '=='
     expression: GlobalConstraint_total == GlobalConstraint_constant
   GlobalConstraint_ram:
     name: GlobalConstraint-ram

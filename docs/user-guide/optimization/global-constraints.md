@@ -19,6 +19,32 @@ Each global constraint $\gamma$ bounds the sum of its type by its `constant` $\G
 
 <!-- md:spec GlobalConstraint_upper GlobalConstraint_total -->
 
+A row of a type without a case in `GlobalConstraint_total` has no constraint.
+An [override](custom-constraints.md#overriding-the-formulation) adds a type by
+adding a case; a relation into `global_constraint` names the units each row
+sums. This file bounds the extendable capacity of a group of generators:
+
+``` yaml title="capacity_floor.yaml"
+relations:
+  Generator_floor: {key: Generator, values: global_constraint, missing: absent}
+expressions:
+  GlobalConstraint_total:
+    cases:
+      floor:
+        when: GlobalConstraint_type == 'floor'
+        expression: sum(Generator_p_nom_ext, over=Generator, by=Generator_floor[global_constraint])
+```
+
+``` py
+n.add("GlobalConstraint", "gas floor", type="floor", sense=">=", constant=1500)
+n.c.generators.static["floor"] = ""
+n.c.generators.static.loc[gas, "floor"] = "gas floor"
+n.optimize(overrides=["capacity_floor.yaml"])
+```
+
+Each such file adds its own case, so several of them apply together, and the
+shadow price of each row lands in `mu`.
+
 ## Primary Energy
 
 The primary energy constraints (`type="primary_energy"`) are used to limit byproducts of primary energy consumption of a carrier (e.g. CO~2~ emissions) in generators, storage units and stores. They depend on the generator efficiency and carrier-specific attributes (e.g. `co2_emissions`).
